@@ -87,6 +87,7 @@ export default function parser(args: Array<string>) {
 
     data.node = args.shift();
     data.exec = args.shift().split("/").pop();
+    let count = 0;
     for (let part of args) {
         if (part.substring(0, 1) === "-") {
             // Flag
@@ -109,3 +110,23 @@ export default function parser(args: Array<string>) {
     return data;
 }
 
+export function help(cmd) {
+    let output = "Usage: " + cmd.exec + " <command> [options] <target>\n";
+
+    if (cmd.flags.includes('help')) {
+        const padding = 16;
+        output += "\nPossible commands:\n";
+        for (let cmd of commands) {
+            output += cmd.cmd.padEnd(padding) + " - " + cmd.text + "\n";
+        }
+
+        output += "\nPossible options:\n";
+        for (let flag of flags) {
+            output += ("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text + "\n";
+        }
+    } else {
+        output += "\nUse --help for more info.";
+    }
+
+    console.info(output);
+}
