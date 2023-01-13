@@ -85,23 +85,18 @@ export default function parser(args: Array<string>) {
         flags: [] as Array<string>
     }
 
-    for (let i = 0; i < args.length; ++i) {
-        const part = args[i];
-        if (i === 0) {
-            data.node = part;
-        } else if (i === 1) {
-            data.exec = part.split("/").pop();
-        } else if (part.substring(0, 1) === "-") {
+    data.node = args.shift();
+    data.exec = args.shift().split("/").pop();
+    for (let part of args) {
+        if (part.substring(0, 1) === "-") {
             // Flag
-            for (let i = 0; i < flags.length; ++i) {
-                const flag = flags[i];
+            for (let flag of flags) {
                 if (flag.flag === part.substring(1) || flag.name === part.substring(2)) {
                     data.flags.push(flag.name);
                 }
             }
         } else if (data.cmd === "") {
-            for (let i = 0; i < commands.length; ++i) {
-                const cmd = commands[i];
+            for (let cmd of commands) {
                 if (cmd.cmd === part) {
                     data.cmd = part;
                 }
