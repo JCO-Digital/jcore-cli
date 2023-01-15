@@ -13,7 +13,9 @@ steps:
     image: jcodigi/zipdeploy
     pull: true
     settings:
-      exclude: /.drone*
+      exclude:
+        - .drone*
+        - node_modules
       user: webmaster
       host: pilvi.jco.fi
       target: /var/www/files/jco
