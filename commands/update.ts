@@ -1,27 +1,21 @@
 import type {cmdData, JcoreSettings} from "@/types";
-import { spawn } from "child_process";
-
+import {get} from "https";
 export default function (cmd: cmdData, settings: JcoreSettings) {
     console.log("Update Project");
 }
 
 export function selfUpdate (settings: JcoreSettings) {
+    const url = "https://files.jco.fi/jcore-cli-main/jcoree";
     console.log("Self Update");
-    const ls = spawn("docker-compose", ["up"]);
-
-    ls.stdout.on("data", data => {
-        console.log(`stdout: ${data}`);
-    });
-    
-    ls.stderr.on("data", data => {
-        console.log(`stderr: ${data}`);
-    });
-    
-    ls.on('error', (error) => {
-        console.log(`error: ${error.message}`);
-    });
-    
-    ls.on("close", code => {
-        console.log(`child process exited with code ${code}`);
+    get(url).on('response', function (response) {
+        console.log(response.statusCode);
+        let body = '';
+        response.on('data', function (chunk) {
+            body += chunk;
+        });
+        response.on('end', function () {
+            console.log(body);
+            console.log('Finished');
+        });
     });
 }

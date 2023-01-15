@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
-    "deploy": "esbuild main.ts --bundle --platform=node --outfile=/home/niklas/bin/jcore"
+    "watch": "esbuild main.ts --bundle --watch --platform=node --outfile=bin/jcore"
   },
   "devDependencies": {
     "@types/node": "^18.11.18",
