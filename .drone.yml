@@ -10,15 +10,11 @@ steps:
       - npm run build
 
   - name: deploy
-    image: jcodigi/zipdeploy
-    pull: true
+    image: jcodigi/jcodeploy
     settings:
-      exclude:
-        - .drone*
-        - node_modules
-      user: webmaster
-      host: pilvi.jco.fi
-      target: /var/www/files/jco
+      main: webmaster@pilvi.jco.fi:/var/www/files/jco/jcore-cli
+      source:
+        - bin;.
     environment:
       SSH_KEY:
         from_secret: ssh_key
