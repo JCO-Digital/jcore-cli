@@ -2,7 +2,8 @@
   "name": "jcore-cli",
   "version": "1.0.0",
   "scripts": {
-    "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore"
+    "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
+    "deploy": "esbuild main.ts --bundle --platform=node --outfile=/home/niklas/bin/jcore"
   },
   "devDependencies": {
     "@types/node": "^18.11.18",

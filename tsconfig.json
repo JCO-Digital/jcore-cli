@@ -1,11 +1,22 @@
 {
   "compilerOptions": {
+    "target": "es2017",
     "strict": true,
     "baseUrl": ".",
     "resolveJsonModule": true,
     "esModuleInterop": true,
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "module": "commonjs",
+    "allowJs": true,
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "types": [
+      "node"
+    ],
     "paths": {
       "@/*": ["./*"]
-    },
+    }
   },
 }

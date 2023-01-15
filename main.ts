@@ -1,13 +1,27 @@
 #!/usr/bin/env node
-import parser, {help} from './parser';
-import pack from './package.json';
+import parser, {help} from '@/parser';
+import {version} from '@/package.json';
+import {readSettings} from "@/settings";
+import {runCmd} from "@/cmd";
 
-console.log("JCORE CLI v." + pack.version + "\nMode: foreground\nDebug: 0\n");
+async function main() {
+    const settings = await readSettings();
 
-const cmd = parser(process.argv);
+    // Intro text.
+    console.log("JCORE CLI v." + version);
+    console.log("Mode: " + settings.mode);
+    console.log("Debug: " + (settings.debug ? 'On' : 'Off'));
 
-if (!cmd.cmd) {
-    help(cmd);
+    const cmd = parser(process.argv);
+
+    if (cmd.cmd) {
+        runCmd(cmd, settings)
+    } else {
+        help(cmd);
+    }
 }
 
-console.log(cmd);
+main().then(() => {
+    console.log("Done");
+});
+

@@ -1,3 +1,5 @@
+import type {cmdData} from "@/types";
+
 const commands = [
     {
         cmd: "init",
@@ -76,17 +78,19 @@ const flags = [
     },
 ];
 
-export default function parser(args: Array<string>) {
+export default function parser(args: Array<string>): cmdData {
     const data = {
         node: "",
         exec: "",
         cmd: "",
-        target: "",
-        flags: [] as Array<string>
-    }
+        target: [],
+        flags: []
+    } as cmdData;
 
-    data.node = args.shift();
-    data.exec = args.shift().split("/").pop();
+    if (args.length > 2) {
+        data["node"] = args.shift() ?? "";
+        data["exec"] = (args.shift() ?? "").split('/').pop() ?? "";
+    }
     let count = 0;
     for (let part of args) {
         if (part.substring(0, 1) === "-") {
@@ -96,22 +100,24 @@ export default function parser(args: Array<string>) {
                     data.flags.push(flag.name);
                 }
             }
-        } else if (data.cmd === "") {
+        } else if (count === 0) {
             for (let cmd of commands) {
                 if (cmd.cmd === part) {
                     data.cmd = part;
                 }
             }
-        } else if (data.target === "") {
-            data.target = part;
+            count++;
+        } else {
+            data.target.push(part);
+            count++;
         }
     }
 
     return data;
 }
 
-export function help(cmd) {
-    let output = "Usage: " + cmd.exec + " <command> [options] <target>\n";
+export function help(cmd: cmdData) {
+    let output = "\nUsage: " + cmd.exec + " <command> [options] <target>\n";
 
     if (cmd.flags.includes('help')) {
         const padding = 16;
@@ -125,7 +131,7 @@ export function help(cmd) {
             output += ("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text + "\n";
         }
     } else {
-        output += "\nUse --help for more info.";
+        output += "Use flag --help for more info.";
     }
 
     console.info(output);
