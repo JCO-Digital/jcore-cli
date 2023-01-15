@@ -14,7 +14,7 @@ steps:
     settings:
       main: webmaster@pilvi.jco.fi:/var/www/files/jco/jcore-cli-main
       source:
-        - bin:.
+        - bin;.
         - package.json
     environment:
       SSH_KEY:
