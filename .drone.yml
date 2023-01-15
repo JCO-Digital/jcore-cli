@@ -2,6 +2,13 @@ kind: pipeline
 name: default
 
 steps:
+
+  - name: build
+    image: node:lts
+    commands:
+      - npm ci
+      - npm run build
+
   - name: deploy
     image: jcodigi/zipdeploy
     pull: true
