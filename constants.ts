@@ -1,4 +1,4 @@
-export const scriptLocation = "https://files.jco.fi/jcore-cli-main/jcore";
+export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
 
 export const commands = [
     {
