@@ -1,4 +1,4 @@
-import {readFile, writeFile, access} from 'fs/promises';
+import {readFile, access} from 'fs/promises';
 import * as process from "process";
 import type {JcoreSettings} from "@/types";
 

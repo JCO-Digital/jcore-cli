@@ -1,3 +1,5 @@
+export const scriptLocation = "https://files.jco.fi/jcore-cli-main/jcore";
+
 export const commands = [
     {
         cmd: "init",
