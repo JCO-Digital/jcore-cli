@@ -1,6 +1,6 @@
 {
   "name": "jcore-cli",
-  "version": "1.0.1",
+  "version": "0.99.1",
   "scripts": {
     "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
     "watch": "esbuild main.ts --bundle --watch --platform=node --outfile=bin/jcore"
