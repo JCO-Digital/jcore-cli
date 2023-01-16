@@ -3,7 +3,8 @@ import {commands, flags} from "@/constants";
 
 export default function parser(args: Array<string>): cmdData {
     const data = {
-        node: "",
+        nodePath: "",
+        execPath: "",
         exec: "",
         cmd: "",
         target: [],
@@ -11,8 +12,9 @@ export default function parser(args: Array<string>): cmdData {
     } as cmdData;
 
     if (args.length > 2) {
-        data["node"] = args.shift() ?? "";
-        data["exec"] = (args.shift() ?? "").split('/').pop() ?? "";
+        data.nodePath = args.shift() ?? "";
+        data.execPath = (args.shift() ?? "");
+        data.exec = data.execPath.split('/').pop() ?? "";
     }
     let count = 0;
     for (let part of args) {

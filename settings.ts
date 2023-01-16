@@ -20,16 +20,18 @@ export async function readSettings(): Promise<JcoreSettings> {
     }
 
     await readFile(globalConfig, 'utf8').then(data => {
-        for (let [key,value] of parseSettings(data)) {
-            setSetting(settings,key,value);
+        for (let [key, value] of parseSettings(data)) {
+            setSetting(settings, key, value);
         }
     });
 
-    await readFile(settings.path + '/config.sh', 'utf8').then(data => {
-        for (let [key,value] of parseSettings(data)) {
-            setSetting(settings,key,value);
-        }
-    });
+    if (settings.path) {
+        await readFile(settings.path + '/config.sh', 'utf8').then(data => {
+            for (let [key, value] of parseSettings(data)) {
+                setSetting(settings, key, value);
+            }
+        });
+    }
 
     return settings;
 }
@@ -46,7 +48,7 @@ function parseSettings(data: string): Map<string, string> {
             const key = varMatch[1].toLowerCase();
             if (values.has(key)) {
                 // If variable exists in map, substitute variable for value.
-                value = value.replace(varMatch[0],values.get(key));
+                value = value.replace(varMatch[0], values.get(key));
             }
         }
         // Assign value to map.
@@ -67,7 +69,7 @@ async function fileExists(path: string, file: string): Promise<boolean> {
     }
 }
 
-function setSetting (settings: JcoreSettings, key: string, value: string) {
+function setSetting(settings: JcoreSettings, key: string, value: string) {
     switch (key) {
         case 'path':
             settings.path = value;

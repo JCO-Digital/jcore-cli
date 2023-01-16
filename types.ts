@@ -8,7 +8,8 @@ export type JcoreSettings = {
 }
 
 export type cmdData = {
-    node: string,
+    nodePath: string,
+    execPath: string,
     exec: string,
     cmd: string,
     target: Array<string>,

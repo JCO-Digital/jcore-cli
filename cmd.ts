@@ -6,7 +6,7 @@ export function runCmd(cmd: cmdData, settings: JcoreSettings) {
     switch (cmd.cmd) {
         case "update":
             if (cmd.target.includes('self')) {
-                selfUpdate(settings);
+                selfUpdate(cmd, settings);
                 // Update self.
             } else {
                 // Update project.

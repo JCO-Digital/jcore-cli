@@ -6,10 +6,15 @@ export default function (cmd: cmdData, settings: JcoreSettings) {
     console.log("Update Project");
 }
 
-export function selfUpdate (settings: JcoreSettings) {
-    console.log("Self Update");
+export function selfUpdate (cmd: cmdData, settings: JcoreSettings) {
     getFile(scriptLocation).then(body => {
-        //writeFile()
-        console.log(body);
+        writeFile(cmd.execPath,body).then(() => {
+            console.log("JCORE CLI Updated.");
+        }).catch(reason => {
+            console.error("Update Error");
+            console.error(reason);
+        });
+    }).catch(reason => {
+        console.error("Can't fetch update file.")
     })
 }
