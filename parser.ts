@@ -1,5 +1,6 @@
 import type {cmdData} from "@/types";
 import {commands, flags} from "@/constants";
+import {parse} from "path";
 
 export default function parser(args: Array<string>): cmdData {
     const data = {
@@ -11,10 +12,10 @@ export default function parser(args: Array<string>): cmdData {
         flags: []
     } as cmdData;
 
-    if (args.length > 2) {
+    if (args.length > 1) {
         data.nodePath = args.shift() ?? "";
         data.execPath = (args.shift() ?? "");
-        data.exec = data.execPath.split('/').pop() ?? "";
+        data.exec = parse(data.execPath).base;
     }
     let count = 0;
     for (let part of args) {

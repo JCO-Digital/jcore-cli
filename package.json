@@ -1,14 +1,17 @@
 {
   "name": "jcore-cli",
-  "version": "0.99.3",
+  "version": "0.99.4",
   "scripts": {
     "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
     "watch": "esbuild main.ts --bundle --watch --platform=node --outfile=bin/jcore"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.0",
     "@types/node": "^18.11.18",
     "esbuild": "^0.16.17",
     "typescript": "^4.9.4"
   },
-  "dependencies": {}
+  "dependencies": {
+    "adm-zip": "^0.5.10"
+  }
 }

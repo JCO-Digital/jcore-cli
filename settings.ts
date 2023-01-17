@@ -1,11 +1,11 @@
 import {readFile, access} from 'fs/promises';
 import * as process from "process";
 import type {JcoreSettings} from "@/types";
-
-const homedir = require('os').homedir();
+import {join} from "path";
+import {homedir} from "os";
 
 export async function readSettings(): Promise<JcoreSettings> {
-    const globalConfig = homedir + '/.config/jcore/config';
+    const globalConfig = join(homedir() , '.config/jcore/config');
 
     // Default settings.
     const settings = {
@@ -26,7 +26,7 @@ export async function readSettings(): Promise<JcoreSettings> {
     });
 
     if (settings.path) {
-        await readFile(settings.path + '/config.sh', 'utf8').then(data => {
+        await readFile(join(settings.path, '/config.sh'), 'utf8').then(data => {
             for (let [key, value] of parseSettings(data)) {
                 setSetting(settings, key, value);
             }
@@ -41,7 +41,7 @@ function parseSettings(data: string): Map<string, string> {
     const values = new Map();
     // Look for all BASH variable assignments. TODO handle BASH arrays.
     for (let match of data.matchAll(/^([A-Z_]+)=(.+)$/gm)) {
-        // Remove wrapping " characters.
+        // Remove wrapping double quotes.
         let value = match[2].replace(/^"|"$/gm, '');
         // Look for all references to BASH variables.
         for (let varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
@@ -62,7 +62,7 @@ function parseSettings(data: string): Map<string, string> {
  */
 async function fileExists(path: string, file: string): Promise<boolean> {
     try {
-        await access(path.replace(/\/+$/gm, '') + '/' + file);
+        await access(join(path, file));
         return true;
     } catch {
         return false;

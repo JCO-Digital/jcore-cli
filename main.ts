@@ -12,19 +12,19 @@ async function main() {
     console.log("Mode: " + settings.mode);
     console.log("Debug: " + (settings.debug ? 'On' : 'Off'));
 
-    const cmd = parser(process.argv);
+    const data = parser(process.argv);
 
-    if (cmd.cmd) {
-        if (cmd.flags.includes('help')) {
+    if (data.cmd) {
+        if (data.flags.includes('help')) {
             // Show help text for command.
-            helpCmd(cmd);
+            helpCmd(data);
         } else {
             // Run the command.
-            runCmd(cmd, settings)
+            runCmd(data, settings)
         }
     } else {
         // Show generic help text.
-        help(cmd);
+        help(data);
     }
 }
 
