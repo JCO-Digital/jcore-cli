@@ -1,18 +1,17 @@
 import type {cmdData, JcoreSettings} from "@/types";
-import {extractArchive, getFile, getFileString} from "@/utils";
-import {archiveLocation, scriptLocation, updateFolder} from "@/constants";
+import {getFileString} from "@/utils";
+import {scriptLocation} from "@/constants";
 import {writeFile} from "fs/promises";
 import {version} from '@/package.json';
-import {join} from "path";
+import {updateFiles} from "@/project";
 
 export default function (data: cmdData, settings: JcoreSettings) {
     console.log("Update Project");
-    getFile(archiveLocation).then(buffer => {
-        console.log(settings);
-        extractArchive(buffer, join(settings.path, updateFolder)).then(() => {
-            console.log("test");
-        });
-    })
+    updateFiles(settings).then(() => {
+        console.log('Updated project');
+    }).catch(reason => {
+        console.error(reason);
+    });
 }
 
 export function selfUpdate(data: cmdData) {

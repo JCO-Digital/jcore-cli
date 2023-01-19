@@ -1,11 +1,12 @@
-import {readFile, access} from 'fs/promises';
+import {access, readFile} from 'fs/promises';
 import * as process from "process";
 import type {JcoreSettings} from "@/types";
-import {join} from "path";
+import {join, parse} from "path";
 import {homedir} from "os";
+import {fileExists} from "@/utils";
 
 export async function readSettings(): Promise<JcoreSettings> {
-    const globalConfig = join(homedir() , '.config/jcore/config');
+    const globalConfig = join(homedir(), '.config/jcore/config');
 
     // Default settings.
     const settings = {
@@ -15,22 +16,34 @@ export async function readSettings(): Promise<JcoreSettings> {
     } as JcoreSettings;
 
     // Find the project base path.
-    while (settings.path.length && !await fileExists(settings.path, "config.sh")) {
-        settings.path = settings.path.replace(/\/?[^/]+$/gm, '');
+    while (settings.path.length > 1 && !await fileExists(join(settings.path, "config.sh"))) {
+        // Go up one level and try again.
+        settings.path = parse(settings.path).dir;
+    }
+    // Check if we are in a project.
+    settings.inProject = settings.path.length > 1;
+
+    if (await fileExists(globalConfig)) {
+        // Read global settings if they exist.
+        await readFile(globalConfig, 'utf8').then(data => {
+            for (let [key, value] of parseSettings(data)) {
+                setSetting(settings, key, value);
+            }
+        });
     }
 
-    await readFile(globalConfig, 'utf8').then(data => {
-        for (let [key, value] of parseSettings(data)) {
-            setSetting(settings, key, value);
-        }
-    });
-
-    if (settings.path) {
+    if (settings.inProject) {
+        // Read project settings if in project.
         await readFile(join(settings.path, '/config.sh'), 'utf8').then(data => {
             for (let [key, value] of parseSettings(data)) {
                 setSetting(settings, key, value);
             }
         });
+    }
+
+    if (!settings.name) {
+        // If name is not set, use folder name.
+        settings.name = parse(settings.path).base;
     }
 
     return settings;
@@ -57,18 +70,6 @@ function parseSettings(data: string): Map<string, string> {
     return values;
 }
 
-/*
- * Simple wrapper that returns boolean promise whether a file exists of not.
- */
-async function fileExists(path: string, file: string): Promise<boolean> {
-    try {
-        await access(join(path, file));
-        return true;
-    } catch {
-        return false;
-    }
-}
-
 function setSetting(settings: JcoreSettings, key: string, value: string) {
     switch (key) {
         case 'path':
@@ -79,6 +80,9 @@ function setSetting(settings: JcoreSettings, key: string, value: string) {
             break;
         case 'debug':
             settings.debug = Number(value);
+            break;
+        case 'name':
+            settings.name = value;
             break;
         case 'theme':
             settings.theme = value;

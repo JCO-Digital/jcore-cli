@@ -1,6 +1,6 @@
 import type { JcoreSettings, cmdData } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
-import start from "@/commands/start";
+import start, {stop} from "@/commands/docker";
 
 export function runCmd(data: cmdData, settings: JcoreSettings) {
     switch (data.cmd) {
@@ -16,6 +16,10 @@ export function runCmd(data: cmdData, settings: JcoreSettings) {
         case "start":
             // Start the project.
             start(data, settings);
+            break;
+        case "stop":
+            // Start the project.
+            stop(data, settings);
             break;
     }
 }

@@ -1,7 +1,9 @@
 export type JcoreSettings = {
+    inProject: boolean,
     path: string,
     mode: string,
     debug: number,
+    name: string,
     theme: string,
     branch: string,
     plugins: string,
