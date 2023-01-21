@@ -1,82 +1,88 @@
 import {extractArchive, getFile} from "@/utils";
 import {archiveLocation, updateFolder} from "@/constants";
-import {join, parse} from "path";
-import {access, readFile, rename, rm, writeFile} from "fs/promises";
+import {join} from "path";
+import {access, readFile, rename, writeFile} from "fs/promises";
 import {JcoreSettings} from "@/types";
+import {renameSync, rmSync} from "fs";
 
 export function updateFiles(settings: JcoreSettings) {
     const updatePath = join(settings.path, updateFolder);
-    console.log(updatePath);
+
+    if (!settings.name || settings.path === '/') {
+        return Promise.reject('Not a project.');
+    }
+
+    const files = [
+        {
+            name: 'config.sh',
+            replace: [
+                {search: /#?NAME="[^"]*"/, replace: 'NAME="' + settings.name + '"'},
+            ]
+        },
+        {
+            name: '.drone.yml',
+            source: 'project.drone.yml',
+            replace: [
+                {search: 'wp-content/themes/projectname', replace: 'wp-content/themes/' + settings.theme},
+            ]
+        },
+        {
+            name: 'package.json',
+            replace: [
+                {search: /"name":.*$/, replace: '"name": "' + settings.name + '"'},
+                {search: /"theme":.*$/, replace: '"theme": "' + settings.theme + '"'},
+            ]
+        },
+        {
+            name: 'gulpfile.babel.js',
+            replace: []
+        },
+        {
+            name: 'composer.json',
+            replace: []
+        },
+        {
+            name: 'docker-compose.yml',
+            replace: [
+                {search: '- docker.localhost', replace: '- ' + settings.name + '.localhost'},
+            ]
+        },
+    ];
+
     return getFile(archiveLocation)
         .then(buffer => extractArchive(buffer, updatePath))
         .then(async () => {
             console.log('Unzipped');
 
-            // Config
-            await shouldWrite(join(settings.path, 'config.sh'))
-                .then(destination => moveFile(destination, updatePath))
-                .then(file => replaceInFile(file, /#NAME="[^"]*"/, 'NAME="project"'))
-                .catch(() => {
-                    console.error('Skipping config.sh');
-                });
-
-            console.log(1);
-
-            await shouldWrite(join(settings.path, '.drone.yml'))
-                .then(destination => moveFile(destination, updatePath, 'project.drone.yml'))
-                .then(file => replaceInFile(file, 'wp-content/themes/projectname', 'wp-content/themes/' + settings.theme))
-                .then(() => {
-                    console.log('Update .drone.yml')
-                })
-                .catch(reason => {
-                    console.error('Skipping .drone.yml ' + reason);
-                });
-
-            console.log(2);
+            for (let file of files) {
+                const source = join(updatePath, file.source ?? file.name);
+                const destination = join(settings.path, file.name);
+                await shouldWrite(destination)
+                    .then(destination => moveFile(destination, source))
+                    .then(destination => replaceInFile(destination, file.replace))
+                    .then(() => {
+                        console.log('Updated ' + file.name);
+                    })
+                    .catch(reason => {
+                        rmSync(source);
+                        console.error('Skipping ' + file.name);
+                    });
 
 
-            /*
-            // Drone
-            await overWriteIf(settings, 'project.drone.yml', false, '.drone.yml').then(async file => {
-                await replaceInFile(file, 'wp-content/themes/projectname', 'wp-content/themes/' + settings.theme);
-                console.log('Drone updated');
-            });
-            console.log(2);
+            }
 
-            // Package.json
-            await overWriteIf(settings, 'package.json').then(async file => {
-                await replaceInFile(file, /"name":.*$/, '"name": "' + settings.name + '"');
-                await replaceInFile(file, /"theme":.*$/, '"theme": "' + settings.theme + '"');
-                console.log('Package.json updated');
-            });
-            console.log(3);
+            // Clean up legacy folders.
+            rmSync(join(settings.path, 'config'), {recursive: true, force: true});
+            rmSync(join(settings.path, 'provisioning'), {recursive: true, force: true});
 
-            // Gulpfile
-            await overWriteIf(settings, 'gulpfile.babel.js').then(() => {
-                console.log('Gulpfile updated');
-            });
-            console.log(4);
+            // Remove old config folder.
+            rmSync(join(settings.path, '.config'), {recursive: true, force: true});
 
-            // Composer.json
-            await overWriteIf(settings, 'composer.json').then(() => {
-                console.log('Composer updated');
-            });
-            console.log(5);
+            // Move config folder into place.
+            renameSync(join(updatePath, '.config'), join(settings.path, '.config'));
 
-            // Docker Compose
-            await overWriteIf(settings, 'docker-compose.yml').then(file => {
-                console.log("Docker Compose updated");
-            });
-            console.log(6);
-
-            rm(join(settings.path, '.config'), {force: true}).then(() => {
-                console.log('Removing config folder.')
-                rename(join(updatePath, '.config'), join(settings.path, '.config')).then(() => {
-                    console.log('Moving config folder.')
-                })
-            });
-
-             */
+            // Clean up remaining files.
+            //rmSync(updatePath, {recursive: true,force: true});
         }).catch(reason => Promise.reject('Unable to extract file ' + reason));
 
 }
@@ -95,17 +101,20 @@ function shouldWrite(file: string, condition: boolean = false): Promise<string> 
     });
 }
 
-function moveFile(destination: string, updatePath: string, sourceFileName: string | null = null): Promise<string> {
-    const sourceName = sourceFileName ?? parse(destination).base;
-    const sourceFile = join(updatePath, sourceName);
+function moveFile(destination: string, source: string): Promise<string> {
     try {
-        return rename(sourceFile, destination).then(() => Promise.resolve(destination));
+        return rename(source, destination).then(() => Promise.resolve(destination));
     } catch {
-        return Promise.reject('Unable to move file ' + sourceFile + ' to ' + destination);
+        return Promise.reject('Unable to move file ' + source + ' to ' + destination);
     }
 }
 
-function replaceInFile(file: string, search: RegExp | string, replace: string): Promise<void> {
+function replaceInFile(file: string, replace: Array<any>): Promise<void> {
     return readFile(file, 'utf8')
-        .then(data => writeFile(file, data.replace(search, replace), 'utf8'));
+        .then(data => {
+            for (let row of replace) {
+                data = data.replace(row.search, row.replace);
+            }
+            return writeFile(file, data, 'utf8')
+        });
 }

@@ -22,24 +22,30 @@ export async function readSettings(): Promise<JcoreSettings> {
     }
     // Check if we are in a project.
     settings.inProject = settings.path.length > 1;
+    if (settings.inProject) {
+        settings.name = parse(settings.path).base;
+    }
 
+    let values = new Map();
+    values.set('name', settings.name);
     if (await fileExists(globalConfig)) {
         // Read global settings if they exist.
         await readFile(globalConfig, 'utf8').then(data => {
-            for (let [key, value] of parseSettings(data)) {
-                setSetting(settings, key, value);
-            }
+            values = parseSettings(data, values);
         });
     }
 
     if (settings.inProject) {
         // Read project settings if in project.
         await readFile(join(settings.path, '/config.sh'), 'utf8').then(data => {
-            for (let [key, value] of parseSettings(data)) {
-                setSetting(settings, key, value);
-            }
+            values = parseSettings(data, values);
         });
     }
+
+    for (let [key, value] of values) {
+        setSetting(settings, key, value);
+    }
+
 
     if (!settings.name) {
         // If name is not set, use folder name.
@@ -49,19 +55,25 @@ export async function readSettings(): Promise<JcoreSettings> {
     return settings;
 }
 
-function parseSettings(data: string): Map<string, string> {
-    // Create new HashMap for values.
-    const values = new Map();
+function parseSettings(data: string, values: Map<string, string>): Map<string, string> {
+    // Remove all comments to make matching more straight forward.
+    for (let match of data.matchAll(/ *#.*$/gm)) {
+        data = data.replace(match[0], '');
+    }
+
     // Look for all BASH variable assignments. TODO handle BASH arrays.
     for (let match of data.matchAll(/^([A-Z_]+)=(.+)$/gm)) {
         // Remove wrapping double quotes.
-        let value = match[2].replace(/^"|"$/gm, '');
+        let value = match[2].replace(/^[" ]+|[" ]+$/gm, '');
         // Look for all references to BASH variables.
         for (let varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
             const key = varMatch[1].toLowerCase();
             if (values.has(key)) {
                 // If variable exists in map, substitute variable for value.
-                value = value.replace(varMatch[0], values.get(key));
+                const str = values.get(key);
+                if (str) {
+                    value = value.replace(varMatch[0], str);
+                }
             }
         }
         // Assign value to map.
