@@ -17,3 +17,11 @@ export type cmdData = {
     target: Array<string>,
     flags: Array<string>
 }
+
+export type updateOptions = {
+    drone: boolean,
+    package: boolean,
+    gulp: boolean,
+    composer: boolean,
+    docker: boolean,
+}

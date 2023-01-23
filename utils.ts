@@ -1,6 +1,10 @@
 import {get} from "https";
 import AdmZip from "adm-zip";
-import {access} from "fs/promises";
+import {access, readFile, writeFile} from "fs/promises";
+import {JcoreSettings} from "@/types";
+import {join} from "path";
+import {createHash} from "crypto";
+import {checksumFile} from "@/constants";
 
 export async function getFileString(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -64,4 +68,32 @@ export async function fileExists(file: string): Promise<boolean> {
     } catch {
         return false;
     }
+}
+
+export async function loadChecksums(settings: JcoreSettings): Promise<Map<string,string>> {
+    try {
+        const json = await readFile(join(settings.path, checksumFile), 'utf8');
+        const data = JSON.parse(json);
+        return new Map(Object.entries(data));;
+    } catch {
+        return new Map<string, string>();
+    }
+}
+
+export async function saveChecksums(settings: JcoreSettings, checksums: Map<string,string>): Promise<boolean> {
+    try {
+        const object = Object.fromEntries(checksums)
+        const json = JSON.stringify(object);
+        await writeFile(join(settings.path, checksumFile), json, 'utf8');
+        return true;
+    } catch {
+        return false
+    }
+}
+
+export async function calculateChecksum(file: string): Promise<string> {
+    return access(file)
+        .then(() => readFile(file, 'utf8'))
+        .then(data => createHash('sha256').update(data).digest('hex'))
+        .catch(reason => '');
 }

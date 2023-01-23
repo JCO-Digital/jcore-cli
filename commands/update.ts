@@ -1,4 +1,4 @@
-import type {cmdData, JcoreSettings} from "@/types";
+import type {cmdData, JcoreSettings, updateOptions} from "@/types";
 import {getFileString} from "@/utils";
 import {scriptLocation} from "@/constants";
 import {writeFile} from "fs/promises";
@@ -6,9 +6,17 @@ import {version} from '@/package.json';
 import {updateFiles} from "@/project";
 
 export default function (data: cmdData, settings: JcoreSettings) {
-    console.log("Update Project");
-    updateFiles(settings).then(() => {
-        console.log('Updated project');
+    console.log("Updating Project");
+    const options = {
+        drone: data.flags.includes('force') || data.target.includes('drone'),
+        package: data.flags.includes('force') || data.target.includes('package'),
+        gulp: data.flags.includes('force') || data.target.includes('gulp'),
+        composer: data.flags.includes('force') || data.target.includes('composer'),
+        docker: data.flags.includes('force') || data.target.includes('docker'),
+    } as updateOptions;
+
+    updateFiles(settings, options).then(() => {
+        console.log('Update Finished');
     }).catch(reason => {
         console.error(reason);
     });

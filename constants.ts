@@ -1,6 +1,7 @@
 export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
 export const archiveLocation = "https://files.jco.fi/wordpress-container-main.zip";
 export const updateFolder = ".update";
+export const checksumFile = '.file.checksums';
 
 export const commands = [
     {
