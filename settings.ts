@@ -1,9 +1,9 @@
-import {access, readFile} from 'fs/promises';
+import {readFile} from 'fs/promises';
 import * as process from "process";
 import type {JcoreSettings} from "@/types";
 import {join, parse} from "path";
 import {homedir} from "os";
-import {fileExists} from "@/utils";
+import {existsSync} from 'fs';
 
 export async function readSettings(): Promise<JcoreSettings> {
     const globalConfig = join(homedir(), '.config/jcore/config');
@@ -16,7 +16,7 @@ export async function readSettings(): Promise<JcoreSettings> {
     } as JcoreSettings;
 
     // Find the project base path.
-    while (settings.path.length > 1 && !await fileExists(join(settings.path, "config.sh"))) {
+    while (settings.path.length > 1 && !existsSync(join(settings.path, "config.sh"))) {
         // Go up one level and try again.
         settings.path = parse(settings.path).dir;
     }
@@ -28,7 +28,7 @@ export async function readSettings(): Promise<JcoreSettings> {
 
     let values = new Map();
     values.set('name', settings.name);
-    if (await fileExists(globalConfig)) {
+    if (existsSync(globalConfig)) {
         // Read global settings if they exist.
         await readFile(globalConfig, 'utf8').then(data => {
             values = parseSettings(data, values);

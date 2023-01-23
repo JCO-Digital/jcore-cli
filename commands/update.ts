@@ -4,9 +4,9 @@ import {scriptLocation} from "@/constants";
 import {writeFile} from "fs/promises";
 import {version} from '@/package.json';
 import {updateFiles} from "@/project";
+import {error, log} from "console";
 
 export default function (data: cmdData, settings: JcoreSettings) {
-    console.log("Updating Project");
     const options = {
         drone: data.flags.includes('force') || data.target.includes('drone'),
         package: data.flags.includes('force') || data.target.includes('package'),
@@ -15,28 +15,33 @@ export default function (data: cmdData, settings: JcoreSettings) {
         docker: data.flags.includes('force') || data.target.includes('docker'),
     } as updateOptions;
 
-    updateFiles(settings, options).then(() => {
-        console.log('Update Finished');
-    }).catch(reason => {
-        console.error(reason);
-    });
+    if (settings.inProject) {
+        log("Updating Project");
+        updateFiles(settings, options).then(() => {
+            log('Update Finished');
+        }).catch(reason => {
+            error(reason);
+        });
+    } else {
+        error('Not in a project.')
+    }
 }
 
 export function selfUpdate(data: cmdData) {
     versionCheck().then(info => {
-        console.log("Upgrading to v." + info);
+        log("Upgrading to v." + info);
         getFileString(scriptLocation + 'jcore').then(body => {
             writeFile(data.execPath, body).then(() => {
-                console.log("JCORE CLI Updated.");
+                log("JCORE CLI Updated.");
             }).catch(reason => {
-                console.error("Update Error");
-                console.error(reason);
+                error("Update Error");
+                error(reason);
             });
         }).catch(reason => {
-            console.error("Can't fetch update. Check network connection.")
+            error("Can't fetch update. Check network connection.")
         })
     }).catch(reason => {
-        console.error(reason);
+        error(reason);
     });
 }
 

@@ -1,10 +1,11 @@
-import {extractArchive, loadChecksums, getFile, saveChecksums, calculateChecksum} from "@/utils";
+import {extractArchive, loadChecksums, getFile, saveChecksums, calculateChecksum, mergeFiles} from "@/utils";
 import {archiveLocation, updateFolder} from "@/constants";
 import {join} from "path";
 import {access, readFile, rename, writeFile} from "fs/promises";
 import {JcoreSettings, updateOptions} from "@/types";
-import {renameSync, rmSync} from "fs";
+import {existsSync, readdirSync, renameSync, rmSync} from "fs";
 import {error, log} from "console";
+import {selfUpdate} from "@/commands/update";
 
 const defaultOptions = {drone: false, package: false, gulp: false, composer: false, docker: false} as updateOptions;
 
@@ -69,6 +70,7 @@ export function updateFiles(settings: JcoreSettings, options: updateOptions = de
             for (let file of files) {
                 const source = join(updatePath, file.source ?? file.name);
                 const destination = join(settings.path, file.name);
+                // Check if file in project has been modified, and thus automatic update should be skipped.
                 const matching = (await calculateChecksum(destination) === checksums.get(file.name));
                 if (matching) {
                     log('Matching Checksum: ' + file.name);
@@ -77,11 +79,12 @@ export function updateFiles(settings: JcoreSettings, options: updateOptions = de
                     .then(destination => moveFile(destination, source))
                     .then(destination => replaceInFile(destination, file.replace))
                     .then(async () => {
-                        const checksum = await calculateChecksum(destination);
-                        checksums.set(file.name, checksum);
+                        // Calculate new checksum for file.
+                        checksums.set(file.name, await calculateChecksum(destination));
                         log('Updated ' + file.name);
                     })
                     .catch(reason => {
+                        // Delete the skipped file to avoid having to exclude it from the copy.
                         rmSync(source);
                         error('Skipping ' + file.name);
                     });
@@ -95,8 +98,8 @@ export function updateFiles(settings: JcoreSettings, options: updateOptions = de
             // Remove old config folder.
             rmSync(join(settings.path, '.config'), {recursive: true, force: true});
 
-            // Move config folder into place.
-            renameSync(join(updatePath, '.config'), join(settings.path, '.config'));
+            // Move updated project files to project folder.
+            mergeFiles(updatePath, settings.path);
 
             // Clean up remaining files.
             rmSync(updatePath, {recursive: true, force: true});
@@ -105,12 +108,12 @@ export function updateFiles(settings: JcoreSettings, options: updateOptions = de
 }
 
 function shouldWrite(file: string, condition: boolean = false): Promise<string> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
         if (condition) {
             resolve(file)
         }
         try {
-            await access(file);
+            existsSync(file);
             reject('File exists: ' + file);
         } catch {
             resolve(file);
