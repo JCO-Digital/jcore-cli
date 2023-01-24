@@ -1,6 +1,6 @@
 import type { JcoreSettings, cmdData } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
-import start, {stop} from "@/commands/docker";
+import start, {stop, pull} from "@/commands/docker";
 
 export function runCmd(data: cmdData, settings: JcoreSettings) {
     switch (data.cmd) {
@@ -20,6 +20,10 @@ export function runCmd(data: cmdData, settings: JcoreSettings) {
         case "stop":
             // Start the project.
             stop(data, settings);
+            break;
+        case "pull":
+            // Pull data from upstream.
+            pull(data, settings);
             break;
     }
 }
