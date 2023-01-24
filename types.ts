@@ -21,7 +21,7 @@ export type cmdData = {
 export type updateOptions = {
     drone: boolean,
     package: boolean,
-    gulp: boolean,
+    build: boolean,
     composer: boolean,
     docker: boolean,
 }

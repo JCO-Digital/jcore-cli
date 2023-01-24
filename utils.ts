@@ -6,7 +6,6 @@ import {join} from "path";
 import {createHash} from "crypto";
 import {checksumFile} from "@/constants";
 import {existsSync, lstatSync, mkdirSync, readdirSync, renameSync} from "fs";
-import {log} from "console";
 
 export async function getFileString(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {

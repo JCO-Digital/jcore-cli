@@ -1,13 +1,12 @@
 import {extractArchive, loadChecksums, getFile, saveChecksums, calculateChecksum, mergeFiles} from "@/utils";
 import {archiveLocation, updateFolder} from "@/constants";
 import {join} from "path";
-import {access, readFile, rename, writeFile} from "fs/promises";
+import {readFile, rename, writeFile} from "fs/promises";
 import {JcoreSettings, updateOptions} from "@/types";
-import {existsSync, readdirSync, renameSync, rmSync} from "fs";
+import {existsSync, rmSync} from "fs";
 import {error, log} from "console";
-import {selfUpdate} from "@/commands/update";
 
-const defaultOptions = {drone: false, package: false, gulp: false, composer: false, docker: false} as updateOptions;
+const defaultOptions = {drone: false, package: false, build: false, composer: false, docker: false} as updateOptions;
 
 export function updateFiles(settings: JcoreSettings, options: updateOptions = defaultOptions) {
     const updatePath = join(settings.path, updateFolder);
@@ -49,8 +48,8 @@ export function updateFiles(settings: JcoreSettings, options: updateOptions = de
                     ]
                 },
                 {
-                    name: 'gulpfile.babel.js',
-                    force: options.gulp ?? false,
+                    name: 'build.mjs',
+                    force: options.build ?? false,
                     replace: []
                 },
                 {
@@ -112,10 +111,9 @@ function shouldWrite(file: string, condition: boolean = false): Promise<string> 
         if (condition) {
             resolve(file)
         }
-        try {
-            existsSync(file);
+        if (existsSync(file)) {
             reject('File exists: ' + file);
-        } catch {
+        } else {
             resolve(file);
         }
     });

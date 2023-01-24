@@ -64,13 +64,19 @@ export function help(cmd: cmdData) {
 }
 
 export function helpCmd(cmd: cmdData) {
+    const padding = 16;
     let output = "\n";
     for (let command of commands) {
         if (cmd.cmd === command.cmd) {
             output += command.text + "\n\n";
             output += "Usage:\n\n";
             for (let use of command.usage) {
-                output += cmd.exec + " " + command.cmd + " " + use +"\n";
+                const part = use.split('-');
+                let useText = part[0].trim().padEnd(padding);
+                if (part.length > 1) {
+                    useText += ' - ' + part[1].trim();
+                }
+                output += cmd.exec + " " + command.cmd + " " + useText +"\n";
             }
         }
     }

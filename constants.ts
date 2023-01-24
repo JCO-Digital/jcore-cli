@@ -15,28 +15,29 @@ export const commands = [
         cmd: "update",
         text: "Updates project. If the target is 'self' this script updates itself.",
         usage: [
-            "",
-            "self",   
+            "- Updates the current project.",
+            "self - Updates this script.",
+            "drone|package|build|composer|docker - Forces update of protected components.",
         ]
     },
     {
         cmd: "clone",
         text: "Clones a project from bitbucket, and sets everything up.",
         usage: [
-            "<projectname>"
+            "<projectname> - Clones project from bitbucket."
         ]
     },
     {
         cmd: "start",
         text: "Installs composer and npm dependencies, starts container and gulp.",
         usage: [
-            "",
-            "debug"
+            "- Start normally",
+            "debug - Run with temporary debugging."
         ]
     },
     {
         cmd: "stop",
-        text: "Shutdown container.",
+        text: "Shutdown container. Removes docker ",
         usage: [
             "",
         ]

@@ -10,7 +10,7 @@ export default function (data: cmdData, settings: JcoreSettings) {
     const options = {
         drone: data.flags.includes('force') || data.target.includes('drone'),
         package: data.flags.includes('force') || data.target.includes('package'),
-        gulp: data.flags.includes('force') || data.target.includes('gulp'),
+        build: data.flags.includes('force') || data.target.includes('build'),
         composer: data.flags.includes('force') || data.target.includes('composer'),
         docker: data.flags.includes('force') || data.target.includes('docker'),
     } as updateOptions;
