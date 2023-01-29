@@ -1,16 +1,21 @@
 #!/usr/bin/env node
-import parser, {help, helpCmd} from '@/parser';
+import parser from '@/parser';
 import {version} from '@/package.json';
-import {readSettings} from "@/settings";
+import {readSettings, settings} from "@/settings";
 import {runCmd} from "@/cmd";
+import {echo} from "@/utils";
+import {help, helpCmd} from "@/help";
 
 async function main() {
-    const settings = await readSettings();
+    await readSettings();
 
     // Intro text.
-    console.log("JCORE CLI v." + version);
-    console.log("Mode: " + settings.mode);
-    console.log("Debug: " + (settings.debug ? 'On' : 'Off'));
+    echo("JCORE CLI v." + version, 1);
+    echo("Mode: " + settings.mode);
+    echo("Debug: " + (settings.debug ? 'On' : 'Off'));
+    if (settings.inProject) {
+        echo("Project: " + settings.name);
+    }
 
     const data = parser(process.argv);
 
@@ -20,7 +25,7 @@ async function main() {
             helpCmd(data);
         } else {
             // Run the command.
-            runCmd(data, settings)
+            runCmd(data);
         }
     } else {
         // Show generic help text.
@@ -29,5 +34,6 @@ async function main() {
 }
 
 main().then(() => {
+    echo("Finished", 3);
 });
 

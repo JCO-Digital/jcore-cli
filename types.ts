@@ -1,4 +1,7 @@
 export type JcoreSettings = {
+    nodePath: string,
+    execPath: string,
+    exec: string,
     inProject: boolean,
     path: string,
     mode: string,
@@ -7,12 +10,10 @@ export type JcoreSettings = {
     theme: string,
     branch: string,
     plugins: string,
+    logLevel: number,
 }
 
 export type cmdData = {
-    nodePath: string,
-    execPath: string,
-    exec: string,
     cmd: string,
     target: Array<string>,
     flags: Array<string>

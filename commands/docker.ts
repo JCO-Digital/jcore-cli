@@ -1,10 +1,10 @@
-import type {cmdData, JcoreSettings} from "@/types";
+import type {cmdData} from "@/types";
 import { spawnSync } from "child_process";
 import {echo} from "@/utils";
 import {join} from "path";
-import {flags} from "@/constants";
+import {settings} from "@/settings";
 
-export default function (cmd: cmdData, settings: JcoreSettings) {
+export default function (cmd: cmdData) {
     console.log("Starting Docker");
 
     const options = {
@@ -15,7 +15,7 @@ export default function (cmd: cmdData, settings: JcoreSettings) {
     spawnSync("docker-compose", ["up"], options);
 }
 
-export function stop (cmd: cmdData, settings: JcoreSettings) {
+export function stop (cmd: cmdData) {
     console.log("Stopping Docker");
 
     const options = {
@@ -26,7 +26,7 @@ export function stop (cmd: cmdData, settings: JcoreSettings) {
     spawnSync("docker-compose", ["down"], options);
 }
 
-export function pull (data: cmdData, settings: JcoreSettings) {
+export function pull (data: cmdData) {
     echo(data);
     echo(settings)
 
@@ -49,7 +49,7 @@ export function pull (data: cmdData, settings: JcoreSettings) {
     }
 }
 
-export function executeCommand (cmd: cmdData, settings: JcoreSettings) {
+export function executeCommand (cmd: cmdData) {
     console.log("Executing command on docker");
 
     const options = {

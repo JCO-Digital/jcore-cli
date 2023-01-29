@@ -5,15 +5,18 @@ import {join, parse} from "path";
 import {homedir} from "os";
 import {existsSync} from 'fs';
 
+// Default settings.
+export const settings = {
+    nodePath: "",
+    execPath: "",
+    exec: "",
+    path: process.cwd(),
+    mode: 'foreground',
+    debug: 0,
+    logLevel: 2,
+} as JcoreSettings;
 export async function readSettings(): Promise<JcoreSettings> {
     const globalConfig = join(homedir(), '.config/jcore/config');
-
-    // Default settings.
-    const settings = {
-        path: process.cwd(),
-        mode: 'foreground',
-        debug: 0
-    } as JcoreSettings;
 
     // Find the project base path.
     while (settings.path.length > 1 && !existsSync(join(settings.path, "config.sh"))) {
@@ -43,7 +46,7 @@ export async function readSettings(): Promise<JcoreSettings> {
     }
 
     for (let [key, value] of values) {
-        setSetting(settings, key, value);
+        setSetting(key, value);
     }
 
 
@@ -82,7 +85,7 @@ function parseSettings(data: string, values: Map<string, string>): Map<string, s
     return values;
 }
 
-function setSetting(settings: JcoreSettings, key: string, value: string) {
+function setSetting(key: string, value: string) {
     switch (key) {
         case 'path':
             settings.path = value;

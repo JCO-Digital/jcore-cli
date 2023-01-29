@@ -1,21 +1,20 @@
 import type {cmdData} from "@/types";
 import {commands, flags} from "@/constants";
 import {parse} from "path";
+import {settings} from "@/settings";
+import {echo} from "@/utils";
 
 export default function parser(args: Array<string>): cmdData {
     const data = {
-        nodePath: "",
-        execPath: "",
-        exec: "",
         cmd: "",
         target: [],
         flags: []
     } as cmdData;
 
     if (args.length > 1) {
-        data.nodePath = args.shift() ?? "";
-        data.execPath = (args.shift() ?? "");
-        data.exec = parse(data.execPath).base;
+        settings.nodePath = args.shift() ?? "";
+        settings.execPath = (args.shift() ?? "");
+        settings.exec = parse(settings.execPath).base;
     }
     let count = 0;
     for (let part of args) {
@@ -42,44 +41,3 @@ export default function parser(args: Array<string>): cmdData {
     return data;
 }
 
-export function help(cmd: cmdData) {
-    let output = "\nUsage: " + cmd.exec + " <command> [options] <target>\n";
-
-    if (cmd.flags.includes('help')) {
-        const padding = 16;
-        output += "\nPossible commands:\n";
-        for (let cmd of commands) {
-            output += cmd.cmd.padEnd(padding) + " - " + cmd.text + "\n";
-        }
-
-        output += "\nPossible options:\n";
-        for (let flag of flags) {
-            output += ("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text + "\n";
-        }
-    } else {
-        output += "Use flag --help for more info.";
-    }
-
-    console.info(output);
-}
-
-export function helpCmd(cmd: cmdData) {
-    const padding = 16;
-    let output = "\n";
-    for (let command of commands) {
-        if (cmd.cmd === command.cmd) {
-            output += command.text + "\n\n";
-            output += "Usage:\n\n";
-            for (let use of command.usage) {
-                const part = use.split('-');
-                let useText = part[0].trim().padEnd(padding);
-                if (part.length > 1) {
-                    useText += ' - ' + part[1].trim();
-                }
-                output += cmd.exec + " " + command.cmd + " " + useText +"\n";
-            }
-        }
-    }
-
-    console.info(output);
-}

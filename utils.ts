@@ -6,7 +6,7 @@ import {join} from "path";
 import {createHash} from "crypto";
 import {checksumFile} from "@/constants";
 import {existsSync, lstatSync, mkdirSync, readdirSync, renameSync} from "fs";
-import {log} from "console";
+import {settings} from "@/settings";
 
 export async function getFileString(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -65,7 +65,6 @@ export async function loadChecksums(settings: JcoreSettings): Promise<Map<string
         const json = await readFile(join(settings.path, checksumFile), 'utf8');
         const data = JSON.parse(json);
         return new Map(Object.entries(data));
-        ;
     } catch {
         return new Map<string, string>();
     }
@@ -102,6 +101,22 @@ export function mergeFiles(sourceDir: string, destinationDir: string) {
     }
 }
 
-export function echo(value:any, level=2) {
-    log(value);
+export function echo(value: any, level = 2, error: boolean = false) {
+    if (level <= settings.logLevel) {
+        if (error) {
+            console.error(value);
+        } else {
+            console.log(value);
+        }
+    }
+}
+
+export function isProject(project: boolean = true): boolean {
+    if (!project && settings.inProject) {
+        echo('\nAlready in project.', 2, true);
+    }
+    if (project && !settings.inProject) {
+        echo('\nNot in a project.', 2, true);
+    }
+    return settings.inProject === project;
 }

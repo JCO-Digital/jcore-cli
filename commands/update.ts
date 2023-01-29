@@ -6,7 +6,7 @@ import {version} from '@/package.json';
 import {updateFiles} from "@/project";
 import {error, log} from "console";
 
-export default function (data: cmdData, settings: JcoreSettings) {
+export default function (data: cmdData) {
     const options = {
         drone: data.flags.includes('force') || data.target.includes('drone'),
         package: data.flags.includes('force') || data.target.includes('package'),
@@ -15,16 +15,12 @@ export default function (data: cmdData, settings: JcoreSettings) {
         docker: data.flags.includes('force') || data.target.includes('docker'),
     } as updateOptions;
 
-    if (settings.inProject) {
         log("Updating Project");
-        updateFiles(settings, options).then(() => {
+        updateFiles(options).then(() => {
             log('Update Finished');
         }).catch(reason => {
             error(reason);
         });
-    } else {
-        error('Not in a project.')
-    }
 }
 
 export function selfUpdate(data: cmdData) {

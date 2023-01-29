@@ -2,13 +2,14 @@ import {extractArchive, loadChecksums, getFile, saveChecksums, calculateChecksum
 import {archiveLocation, updateFolder} from "@/constants";
 import {join} from "path";
 import {readFile, rename, writeFile} from "fs/promises";
-import {JcoreSettings, updateOptions} from "@/types";
+import {updateOptions} from "@/types";
 import {existsSync, rmSync} from "fs";
 import {error, log} from "console";
+import {settings} from "@/settings";
 
 const defaultOptions = {drone: false, package: false, build: false, composer: false, docker: false} as updateOptions;
 
-export function updateFiles(settings: JcoreSettings, options: updateOptions = defaultOptions) {
+export function updateFiles(options: updateOptions = defaultOptions) {
     const updatePath = join(settings.path, updateFolder);
 
     if (!settings.name || settings.path === '/') {
