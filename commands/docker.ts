@@ -1,11 +1,11 @@
 import type {cmdData} from "@/types";
 import { spawnSync } from "child_process";
-import {echo} from "@/utils";
 import {join} from "path";
 import {settings} from "@/settings";
+import {logger} from "@/logger";
 
-export default function (cmd: cmdData) {
-    console.log("Starting Docker");
+export default function (data: cmdData) {
+    logger.info("Starting Docker");
 
     const options = {
         cwd: settings.path,
@@ -15,8 +15,8 @@ export default function (cmd: cmdData) {
     spawnSync("docker-compose", ["up"], options);
 }
 
-export function stop (cmd: cmdData) {
-    console.log("Stopping Docker");
+export function stop (data: cmdData) {
+    logger.info("Stopping Docker");
 
     const options = {
         cwd: settings.path,
@@ -27,8 +27,6 @@ export function stop (cmd: cmdData) {
 }
 
 export function pull (data: cmdData) {
-    echo(data);
-    echo(settings)
 
     const options = {
         cwd: settings.path,
@@ -49,8 +47,8 @@ export function pull (data: cmdData) {
     }
 }
 
-export function executeCommand (cmd: cmdData) {
-    console.log("Executing command on docker");
+export function executeCommand (data: cmdData) {
+    logger.verbose("Executing command on docker");
 
     const options = {
         cwd: settings.path,

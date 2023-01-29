@@ -5,6 +5,9 @@
     "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
     "watch": "esbuild main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore"
   },
+  "config": {
+    "branch": "fluffycritter"
+  },
   "devDependencies": {
     "@types/adm-zip": "^0.5.0",
     "@types/node": "^18.11.18",

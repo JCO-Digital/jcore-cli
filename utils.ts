@@ -5,8 +5,9 @@ import {JcoreSettings} from "@/types";
 import {join} from "path";
 import {createHash} from "crypto";
 import {checksumFile} from "@/constants";
-import {existsSync, lstatSync, mkdirSync, readdirSync, renameSync} from "fs";
+import {copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, renameSync} from "fs";
 import {settings} from "@/settings";
+import {logger} from "@/logger";
 
 export async function getFileString(url: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -88,35 +89,44 @@ export async function calculateChecksum(file: string): Promise<string> {
         .catch(reason => '');
 }
 
-export function mergeFiles(sourceDir: string, destinationDir: string) {
+/**
+ * Moves or copies source to destination, merging with existing structure, overwriting files.
+ * @param sourceDir Source Folder
+ * @param destinationDir Destination Folder
+ * @param copy Copies files if true, moves files if false.
+ */
+export function mergeFiles(sourceDir: string, destinationDir: string, copy: boolean = false) {
+    if (!existsSync(destinationDir)) {
+        // Create target if not exists.
+        logger.verbose('Creating target folder: ' + destinationDir);
+        mkdirSync(destinationDir, {recursive: true});
+    }
     for (let file of readdirSync(sourceDir)) {
+        if (file === '.git') {
+            // Skip .git folder.
+            continue;
+        }
         if (lstatSync(join(sourceDir, file)).isDirectory()) {
             if (!existsSync(join(destinationDir, file))) {
                 mkdirSync(join(destinationDir, file));
             }
-            mergeFiles(join(sourceDir, file), join(destinationDir, file))
+            mergeFiles(join(sourceDir, file), join(destinationDir, file), copy)
         } else {
-            renameSync(join(sourceDir, file), join(destinationDir, file));
-        }
-    }
-}
-
-export function echo(value: any, level = 2, error: boolean = false) {
-    if (level <= settings.logLevel) {
-        if (error) {
-            console.error(value);
-        } else {
-            console.log(value);
+            if (copy) {
+                copyFileSync(join(sourceDir, file), join(destinationDir, file));
+            } else {
+                renameSync(join(sourceDir, file), join(destinationDir, file));
+            }
         }
     }
 }
 
 export function isProject(project: boolean = true): boolean {
     if (!project && settings.inProject) {
-        echo('\nAlready in project.', 2, true);
+        logger.error('\nAlready in project.');
     }
     if (project && !settings.inProject) {
-        echo('\nNot in a project.', 2, true);
+        logger.error('\nNot in a project.');
     }
     return settings.inProject === project;
 }

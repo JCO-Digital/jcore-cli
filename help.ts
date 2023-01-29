@@ -1,24 +1,24 @@
 import {cmdData} from "@/types";
-import {echo} from "@/utils";
 import {settings} from "@/settings";
 import {commands, flags} from "@/constants";
+import {logger} from "@/logger";
 
 export function help(cmd: cmdData) {
-    echo("\nUsage: " + settings.exec + " <command> [options] <target>");
+    logger.info("\nUsage: " + settings.exec + " <command> [options] <target>");
 
     if (cmd.flags.includes('help')) {
         const padding = 16;
-        echo("\nPossible commands:");
+        logger.info("\nPossible commands:");
         for (let cmd of commands) {
-            echo(cmd.cmd.padEnd(padding) + " - " + cmd.text);
+            logger.info(cmd.cmd.padEnd(padding) + " - " + cmd.text);
         }
 
-        echo("\nPossible options:");
+        logger.info("\nPossible options:");
         for (let flag of flags) {
-            echo(("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text);
+            logger.info(("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text);
         }
     } else {
-        echo("Use flag --help for more info.");
+        logger.info("Use flag --help for more info.");
     }
 
 }
@@ -27,19 +27,19 @@ export function helpCmd(cmd: cmdData, text: boolean = true, usage: boolean = tru
     const padding = 16;
     for (let command of commands) {
         if (cmd.cmd === command.cmd) {
-            echo("");
+            logger.info("");
             if (text) {
-                echo(command.text);
+                logger.info(command.text);
             }
             if (usage) {
-                echo('Usage:');
+                logger.info('Usage:');
                 for (let use of command.usage) {
                     const part = use.split('-');
                     let useText = part[0].trim().padEnd(padding);
                     if (part.length > 1) {
                         useText += ' - ' + part[1].trim();
                     }
-                    echo(usageText(command.cmd, useText));
+                    logger.info(usageText(command.cmd, useText));
                 }
             }
         }

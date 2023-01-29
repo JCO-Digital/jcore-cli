@@ -5,6 +5,7 @@ import {writeFile} from "fs/promises";
 import {version} from '@/package.json';
 import {updateFiles} from "@/project";
 import {error, log} from "console";
+import {settings} from "@/settings";
 
 export default function (data: cmdData) {
     const options = {
@@ -27,7 +28,7 @@ export function selfUpdate(data: cmdData) {
     versionCheck().then(info => {
         log("Upgrading to v." + info);
         getFileString(scriptLocation + 'jcore').then(body => {
-            writeFile(data.execPath, body).then(() => {
+            writeFile(settings.execPath, body).then(() => {
                 log("JCORE CLI Updated.");
             }).catch(reason => {
                 error("Update Error");

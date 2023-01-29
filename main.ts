@@ -3,18 +3,18 @@ import parser from '@/parser';
 import {version} from '@/package.json';
 import {readSettings, settings} from "@/settings";
 import {runCmd} from "@/cmd";
-import {echo} from "@/utils";
 import {help, helpCmd} from "@/help";
+import {logger} from "@/logger";
 
 async function main() {
     await readSettings();
 
     // Intro text.
-    echo("JCORE CLI v." + version, 1);
-    echo("Mode: " + settings.mode);
-    echo("Debug: " + (settings.debug ? 'On' : 'Off'));
+    logger.info("JCORE CLI v." + version);
+    logger.info("Mode: " + settings.mode);
+    logger.info("Debug: " + (settings.debug ? 'On' : 'Off'));
     if (settings.inProject) {
-        echo("Project: " + settings.name);
+        logger.info("Project: " + settings.name);
     }
 
     const data = parser(process.argv);
@@ -34,6 +34,6 @@ async function main() {
 }
 
 main().then(() => {
-    echo("Finished", 3);
+    logger.debug("Finished");
 });
 

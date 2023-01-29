@@ -4,8 +4,8 @@ import {join} from "path";
 import {readFile, rename, writeFile} from "fs/promises";
 import {updateOptions} from "@/types";
 import {existsSync, rmSync} from "fs";
-import {error, log} from "console";
 import {settings} from "@/settings";
+import {logger} from "@/logger";
 
 const defaultOptions = {drone: false, package: false, build: false, composer: false, docker: false} as updateOptions;
 
@@ -16,11 +16,10 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         return Promise.reject('Not a project.');
     }
 
-
     return getFile(archiveLocation)
         .then(buffer => extractArchive(buffer, updatePath))
         .then(async () => {
-            log('Unzipped');
+            logger.verbose('Unzipped');
 
             const checksums = await loadChecksums(settings);
 
@@ -30,6 +29,8 @@ export function updateFiles(options: updateOptions = defaultOptions) {
                     force: false,
                     replace: [
                         {search: /#?NAME="[^"]*"/, replace: 'NAME="' + settings.name + '"'},
+                        {search: /#?THEME="[^"]*"/, replace: 'THEME="' + settings.theme + '"'},
+                        {search: /#?BRANCH="[^"]*"/, replace: 'BRANCH="' + settings.branch + '"'},
                     ]
                 },
                 {
@@ -73,7 +74,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
                 // Check if file in project has been modified, and thus automatic update should be skipped.
                 const matching = (await calculateChecksum(destination) === checksums.get(file.name));
                 if (matching) {
-                    log('Matching Checksum: ' + file.name);
+                    logger.verbose('Matching Checksum: ' + file.name);
                 }
                 await shouldWrite(destination, matching || file.force)
                     .then(destination => moveFile(destination, source))
@@ -81,12 +82,12 @@ export function updateFiles(options: updateOptions = defaultOptions) {
                     .then(async () => {
                         // Calculate new checksum for file.
                         checksums.set(file.name, await calculateChecksum(destination));
-                        log('Updated ' + file.name);
+                        logger.info('Updated ' + file.name);
                     })
                     .catch(reason => {
                         // Delete the skipped file to avoid having to exclude it from the copy.
                         rmSync(source);
-                        error('Skipping ' + file.name);
+                        logger.error('Skipping ' + file.name);
                     });
             }
             await saveChecksums(settings, checksums);

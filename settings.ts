@@ -4,6 +4,7 @@ import type {JcoreSettings} from "@/types";
 import {join, parse} from "path";
 import {homedir} from "os";
 import {existsSync} from 'fs';
+import {config} from '@/package.json';
 
 // Default settings.
 export const settings = {
@@ -12,12 +13,15 @@ export const settings = {
     exec: "",
     path: process.cwd(),
     mode: 'foreground',
+    branch: config.branch,
+    theme: 'jcore2-child',
     debug: 0,
     logLevel: 2,
 } as JcoreSettings;
-export async function readSettings(): Promise<JcoreSettings> {
-    const globalConfig = join(homedir(), '.config/jcore/config');
 
+const globalConfig = join(homedir(), '.config/jcore/config');
+
+export async function readSettings() {
     // Find the project base path.
     while (settings.path.length > 1 && !existsSync(join(settings.path, "config.sh"))) {
         // Go up one level and try again.
@@ -54,8 +58,10 @@ export async function readSettings(): Promise<JcoreSettings> {
         // If name is not set, use folder name.
         settings.name = parse(settings.path).base;
     }
+}
 
-    return settings;
+export function writeSettings() {
+
 }
 
 function parseSettings(data: string, values: Map<string, string>): Map<string, string> {
