@@ -1,15 +1,17 @@
 import {cmdData} from "@/types";
 import {settings, writeSettings} from "@/settings";
-import {cpSync, existsSync, mkdirSync, rmSync} from "fs";
+import {existsSync, mkdirSync} from "fs";
 import {execSync} from "child_process";
 import {updateFiles} from "@/project";
 import {childGit, childPath, jcoreGit, jcorePath} from "@/constants";
 import {logger} from "@/logger";
 import {mergeFiles} from "@/utils";
 import {join} from "path";
+import process from "process";
 
 export function createProject(data: cmdData) {
-    console.log(settings);
+    settings.name = data.target[0];
+    settings.path = join(process.cwd(), settings.name);
     if (existsSync(settings.path)) {
         logger.warn("Project path exists: " + settings.path);
     } else {

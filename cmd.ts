@@ -7,6 +7,7 @@ import {helpCmd} from "@/help";
 import {createProject} from "@/commands/create";
 import process from "process";
 import {join} from "path";
+import {cloneProject} from "@/commands/clone";
 
 export function runCmd(data: cmdData) {
     switch (data.cmd) {
@@ -19,7 +20,6 @@ export function runCmd(data: cmdData) {
                     // Update project.
                     update(data);
                 }
-
             }
             break;
         case "start":
@@ -44,12 +44,22 @@ export function runCmd(data: cmdData) {
             if (isProject(false)) {
                 // Create new project.
                 if (data.target[0]) {
-                    settings.name = data.target[0];
-                    settings.path = join(process.cwd(),settings.name);
                     createProject(data);
                 } else {
                     helpCmd(data, false);
                 }
             }
+            break;
+        case "clone":
+            if (isProject(false)) {
+                // Clone project.
+                if (data.target[0]) {
+                    cloneProject(data);
+                } else {
+                    helpCmd(data, false);
+                }
+            }
+            break;
+
     }
 }

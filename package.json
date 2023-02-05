@@ -9,6 +9,9 @@
   "config": {
     "branch": "fluffycritter"
   },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "devDependencies": {
     "@types/adm-zip": "^0.5.0",
     "@types/node": "^18.11.18",

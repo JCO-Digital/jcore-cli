@@ -6,9 +6,12 @@ import {runCmd} from "@/cmd";
 import {help, helpCmd} from "@/help";
 import {logger} from "@/logger";
 
-async function main() {
-    await readSettings();
+function main() {
+    readSettings()
+        .then(init);
+}
 
+function init() {
     // Intro text.
     logger.info("JCORE CLI v." + version);
     logger.info("Mode: " + settings.mode);
@@ -33,7 +36,5 @@ async function main() {
     }
 }
 
-main().then(() => {
-    logger.debug("Finished");
-});
+main();
 

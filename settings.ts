@@ -12,9 +12,9 @@ export const settings = {
     execPath: "",
     exec: "",
     path: process.cwd(),
-    mode: 'foreground',
-    branch: config.branch,
-    theme: 'jcore2-child',
+    mode: "foreground",
+    branch: "",
+    theme: "jcore2-child",
     debug: 0,
     logLevel: 2,
 } as JcoreSettings;
@@ -49,14 +49,15 @@ export async function readSettings() {
         });
     }
 
-    for (let [key, value] of values) {
-        setSetting(key, value);
-    }
-
+    populateSetting(values);
 
     if (!settings.name) {
         // If name is not set, use folder name.
         settings.name = parse(settings.path).base;
+    }
+
+    if (!settings.inProject && !settings.branch) {
+        settings.branch = config.branch;
     }
 }
 
@@ -91,28 +92,30 @@ function parseSettings(data: string, values: Map<string, string>): Map<string, s
     return values;
 }
 
-function setSetting(key: string, value: string) {
-    switch (key) {
-        case 'path':
-            settings.path = value;
-            break;
-        case 'mode':
-            settings.mode = value;
-            break;
-        case 'debug':
-            settings.debug = Number(value);
-            break;
-        case 'name':
-            settings.name = value;
-            break;
-        case 'theme':
-            settings.theme = value;
-            break;
-        case 'branch':
-            settings.branch = value;
-            break;
-        case 'plugin_install':
-            settings.plugins = value;
-            break;
+function populateSetting(values: Map<string,string>) {
+    for (let [key, value] of values) {
+        switch (key) {
+            case 'path':
+                settings.path = value;
+                break;
+            case 'mode':
+                settings.mode = value;
+                break;
+            case 'debug':
+                settings.debug = Number(value);
+                break;
+            case 'name':
+                settings.name = value;
+                break;
+            case 'theme':
+                settings.theme = value;
+                break;
+            case 'branch':
+                settings.branch = value;
+                break;
+            case 'plugin_install':
+                settings.plugins = value;
+                break;
+        }
     }
 }
