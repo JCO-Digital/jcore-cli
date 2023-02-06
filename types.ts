@@ -11,6 +11,8 @@ export type JcoreSettings = {
     branch: string,
     plugins: string,
     logLevel: number,
+    domain: string,
+    local: string,
 }
 
 export type cmdData = {

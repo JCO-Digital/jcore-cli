@@ -3,7 +3,7 @@ import * as process from "process";
 import type {JcoreSettings} from "@/types";
 import {join, parse} from "path";
 import {homedir} from "os";
-import {existsSync} from 'fs';
+import {existsSync, writeFileSync} from 'fs';
 import {config} from '@/package.json';
 
 // Default settings.
@@ -17,7 +17,11 @@ export const settings = {
     theme: "jcore2-child",
     debug: 0,
     logLevel: 2,
+    domain: "",
+    local: "",
 } as JcoreSettings;
+
+const values = new Map() as Map<string, string | string[]>
 
 const globalConfig = join(homedir(), '.config/jcore/config');
 
@@ -33,23 +37,22 @@ export async function readSettings() {
         settings.name = parse(settings.path).base;
     }
 
-    let values = new Map();
     values.set('name', settings.name);
     if (existsSync(globalConfig)) {
         // Read global settings if they exist.
         await readFile(globalConfig, 'utf8').then(data => {
-            values = parseSettings(data, values);
+            parseSettings(data);
         });
     }
 
     if (settings.inProject) {
         // Read project settings if in project.
         await readFile(join(settings.path, '/config.sh'), 'utf8').then(data => {
-            values = parseSettings(data, values);
+            parseSettings(data);
         });
     }
 
-    populateSetting(values);
+    populateSetting();
 
     if (!settings.name) {
         // If name is not set, use folder name.
@@ -61,61 +64,98 @@ export async function readSettings() {
     }
 }
 
+export function writeGlobalSettings() {
+    const setValues = [
+        {key:"mode", value: settings.mode},
+        {key:"debug", value: settings.debug.toString()},
+    ];
+    let data = "";
+    for (let row of setValues) {
+        data += row.key.toUpperCase() + '=' + row.value + "\n";
+    }
+    writeFileSync(globalConfig, data, 'utf8');
+}
+
 export function writeSettings() {
 
 }
 
-function parseSettings(data: string, values: Map<string, string>): Map<string, string> {
+function parseSettings(data: string): void {
     // Remove all comments to make matching more straight forward.
     for (let match of data.matchAll(/ *#.*$/gm)) {
         data = data.replace(match[0], '');
     }
 
-    // Look for all BASH variable assignments. TODO handle BASH arrays.
-    for (let match of data.matchAll(/^([A-Z_]+)=(.+)$/gm)) {
-        // Remove wrapping double quotes.
-        let value = match[2].replace(/^[" ]+|[" ]+$/gm, '');
-        // Look for all references to BASH variables.
-        for (let varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
-            const key = varMatch[1].toLowerCase();
-            if (values.has(key)) {
-                // If variable exists in map, substitute variable for value.
-                const str = values.get(key);
-                if (str) {
-                    value = value.replace(varMatch[0], str);
-                }
+    // Look for all BASH variable assignments.
+    for (let match of data.matchAll(/^([A-Z_]+)= *([^(].*)$/gm)) {
+        // Assign value to map.
+        values.set(match[1].toLowerCase(), cleanBashVar(match[2]));
+    }
+    // Look for BASH arrays.
+    for (let match of data.matchAll(/^([A-Z_]+)= ?\(\s*([^)]+)\s*\)/gm)) {
+        const value = [];
+        for (let row of match[2].split("\n")) {
+            const text = cleanBashVar(row)
+            // Don't add empty lines to array.
+            if (text) {
+                value.push(text);
             }
         }
-        // Assign value to map.
+        // Assign array to map.
         values.set(match[1].toLowerCase(), value);
     }
-    return values;
 }
 
-function populateSetting(values: Map<string,string>) {
+function cleanBashVar(text: string): string {
+    // Remove wrapping double quotes.
+    let value = text.replace(/^["' ]+|["' ]+$/gm, '');
+
+    // Look for all references to BASH variables.
+    for (let varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
+        const key = varMatch[1].toLowerCase();
+        if (values.has(key)) {
+            // If variable exists in map, substitute variable for value.
+            const str = values.get(key);
+            if (typeof str === 'string') {
+                value = value.replace(varMatch[0], str);
+            }
+        }
+    }
+    return value;
+}
+
+function populateSetting() {
     for (let [key, value] of values) {
-        switch (key) {
-            case 'path':
-                settings.path = value;
-                break;
-            case 'mode':
-                settings.mode = value;
-                break;
-            case 'debug':
-                settings.debug = Number(value);
-                break;
-            case 'name':
-                settings.name = value;
-                break;
-            case 'theme':
-                settings.theme = value;
-                break;
-            case 'branch':
-                settings.branch = value;
-                break;
-            case 'plugin_install':
-                settings.plugins = value;
-                break;
+        if (typeof value === 'string') {
+            switch (key) {
+                case 'path':
+                    settings.path = value;
+                    break;
+                case 'mode':
+                    settings.mode = value;
+                    break;
+                case 'debug':
+                    settings.debug = Number(value);
+                    break;
+                case 'name':
+                    settings.name = value;
+                    break;
+                case 'theme':
+                    settings.theme = value;
+                    break;
+                case 'branch':
+                    settings.branch = value;
+                    break;
+                case 'plugin_install':
+                    settings.plugins = value;
+                    break;
+            }
+        } else {
+            if (key === 'domains') {
+                const parts = value[0].split(';');
+                settings.domain = parts[0];
+                settings.local = parts[1] + '.localhost';
+            }
         }
     }
 }

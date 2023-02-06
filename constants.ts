@@ -86,8 +86,8 @@ export const commands = [
         cmd: "set",
         text: "Set options in config file. Currently mode/debug.",
         usage: [
-            "mode (foreground|background)",
-            "debug (on|off)",
+            "mode (fg|bg) - Sets docker to either running in foreground, or in background.",
+            "debug (on|off) - Turns XDebug on or off by default.",
         ]
     },
     {

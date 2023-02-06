@@ -1,11 +1,12 @@
 import {extractArchive, loadChecksums, getFile, saveChecksums, calculateChecksum, mergeFiles} from "@/utils";
 import {archiveLocation, updateFolder} from "@/constants";
 import {join} from "path";
-import {readFile, rename, writeFile} from "fs/promises";
+import {rename} from "fs/promises";
 import {updateOptions} from "@/types";
-import {existsSync, rmSync} from "fs";
+import {existsSync, readFileSync, rmSync, writeFileSync} from "fs";
 import {settings} from "@/settings";
 import {logger} from "@/logger";
+import {execSync} from "child_process";
 
 const defaultOptions = {drone: false, package: false, build: false, composer: false, docker: false} as updateOptions;
 
@@ -78,8 +79,8 @@ export function updateFiles(options: updateOptions = defaultOptions) {
                 }
                 await shouldWrite(destination, matching || file.force)
                     .then(destination => moveFile(destination, source))
-                    .then(destination => replaceInFile(destination, file.replace))
                     .then(async () => {
+                        replaceInFile(destination, file.replace);
                         // Calculate new checksum for file.
                         checksums.set(file.name, await calculateChecksum(destination));
                         logger.info('Updated ' + file.name);
@@ -105,8 +106,65 @@ export function updateFiles(options: updateOptions = defaultOptions) {
             // Clean up remaining files.
             rmSync(updatePath, {recursive: true, force: true});
         }).catch(reason => Promise.reject('Unable to extract file ' + reason));
+}
+
+export function finaliseProject() {
+    const options = {
+        cwd: settings.path,
+        stdio: [0, 1, 2],
+    };
+
+    // Set nginx proxy pass.
+    replaceInFile(join(settings.path, '.config/nginx/site.conf'), [{
+        search: /proxy_pass.*https.*;$/gm,
+        replace: 'proxy_pass    https://' + settings.domain + ';'
+    }]);
+
+    // Manage php.ini & debug setting.
+    const replace = [];
+    if (settings.debug) {
+        replace.push({
+            search: /xdebug.mode=.*$/gm,
+            replace: 'xdebug.mode=develop,debug'
+        });
+    }
+    replaceInFile(
+        join(settings.path, '.config/php.ini'),
+        replace,
+        join(settings.path, '.jcore/php.ini')
+    );
+
+    // Set executable bits on scripts.
+    try {
+        logger.verbose('Setting executable bits on scripts.');
+        execSync('chmod +x .config/scripts/*', options);
+        execSync('chmod +x .config/*.sh', options);
+    } catch (e) {
+        logger.warn('chmod failed, maybe Windows environment.');
+    }
+
+    // Install npm packages.
+    if (existsSync(join(settings.path, 'package-lock.json'))) {
+        logger.info('Installing npm packages from lock file.');
+        execSync('npm ci --silent --no-fund', options);
+    } else {
+        logger.info('Installing npm packages.');
+        execSync('npm i --silent --no-fund', options);
+    }
+
+    // Install Composer packages.
+    logger.info('Installing composer packages.');
+    try {
+        execSync('composer install --quiet', options);
+    } catch (e) {
+        logger.warn('Composer failed, maybe not installed.');
+    }
+
+    logger.info('Update Docker Images.');
+    execSync('docker-compose pull', options);
 
 }
+
 
 function shouldWrite(file: string, condition: boolean = false): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -129,13 +187,16 @@ function moveFile(destination: string, source: string): Promise<string> {
     }
 }
 
-function replaceInFile(file: string, replace: Array<any>): Promise<void> {
-    return readFile(file, 'utf8')
-        .then(data => {
-            for (let row of replace) {
-                data = data.replace(row.search, row.replace);
-            }
-            return writeFile(file, data, 'utf8')
-        });
+function replaceInFile(file: string, replace: Array<any>, destination: string = '') {
+    if (!destination) {
+        // Default destination to same file.
+        destination = file;
+    }
+    let data = readFileSync(file, 'utf8');
+    for (let row of replace) {
+        data = data.replace(row.search, row.replace);
+    }
+    writeFileSync(destination, data, 'utf8');
 }
+
 

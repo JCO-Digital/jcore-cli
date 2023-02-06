@@ -1,11 +1,12 @@
 import {cmdData} from "@/types";
-import {readSettings, settings, writeSettings} from "@/settings";
+import {readSettings, settings} from "@/settings";
 import {existsSync, mkdirSync} from "fs";
 import {logger} from "@/logger";
 import {execSync} from "child_process";
 import {join, parse} from "path";
 import process from "process";
 import {childPath, jcorePath} from "@/constants";
+import {finaliseProject} from "@/project";
 
 export function cloneProject(data: cmdData) {
     let source = data.target[0];
@@ -46,7 +47,8 @@ export function cloneProject(data: cmdData) {
 
         // After clone settings need to be read again.
         readSettings()
-            .then(setupProject);
+            .then(setupProject)
+            .then(finaliseProject);
     }
 }
 

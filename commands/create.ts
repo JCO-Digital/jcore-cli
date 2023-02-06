@@ -2,7 +2,7 @@ import {cmdData} from "@/types";
 import {settings, writeSettings} from "@/settings";
 import {existsSync, mkdirSync} from "fs";
 import {execSync} from "child_process";
-import {updateFiles} from "@/project";
+import {finaliseProject, updateFiles} from "@/project";
 import {childGit, childPath, jcoreGit, jcorePath} from "@/constants";
 import {logger} from "@/logger";
 import {mergeFiles} from "@/utils";
@@ -28,7 +28,7 @@ export function createProject(data: cmdData) {
             // Git init.
             execSync('git init', options);
 
-            // Add git gubmodules.
+            // Add git submodules.
             let extra = '';
             if (settings.branch) {
                 extra += '-b ' + settings.branch;
@@ -49,6 +49,7 @@ export function createProject(data: cmdData) {
             execSync('git commit -m "Initial Commit"', options);
 
             // TODO Finalize project.
+            finaliseProject();
 
         });
 

@@ -1,13 +1,12 @@
 import type {cmdData} from "@/types";
 import update, {selfUpdate} from "@/commands/update";
-import start, {stop, pull} from "@/commands/docker";
+import {start, stop} from "@/commands/run";
+import {pull} from "@/commands/docker";
 import {isProject} from "@/utils";
-import {settings} from "@/settings";
 import {helpCmd} from "@/help";
 import {createProject} from "@/commands/create";
-import process from "process";
-import {join} from "path";
 import {cloneProject} from "@/commands/clone";
+import {set} from "@/commands/set";
 
 export function runCmd(data: cmdData) {
     switch (data.cmd) {
@@ -58,6 +57,13 @@ export function runCmd(data: cmdData) {
                 } else {
                     helpCmd(data, false);
                 }
+            }
+            break;
+        case "set":
+            if (data.target.length > 1) {
+                set(data);
+            } else {
+                helpCmd(data, false);
             }
             break;
 

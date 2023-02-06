@@ -4,28 +4,6 @@ import {join} from "path";
 import {settings} from "@/settings";
 import {logger} from "@/logger";
 
-export default function (data: cmdData) {
-    logger.info("Starting Docker");
-
-    const options = {
-        cwd: settings.path,
-        stdio: [0, 1, 2],
-    };
-
-    spawnSync("docker-compose", ["up"], options);
-}
-
-export function stop (data: cmdData) {
-    logger.info("Stopping Docker");
-
-    const options = {
-        cwd: settings.path,
-        stdio: [0, 1, 2],
-    };
-
-    spawnSync("docker-compose", ["down"], options);
-}
-
 export function pull (data: cmdData) {
 
     const options = {
