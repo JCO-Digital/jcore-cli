@@ -10,7 +10,7 @@ export function start(data: cmdData) {
 
   const options = {
     cwd: settings.path,
-    stdio: [0, 1, 2]
+    stdio: [0, 1, 2],
   };
   try {
     if (settings.mode === "foreground") {
@@ -19,7 +19,7 @@ export function start(data: cmdData) {
       execSync("docker-compose up -d", options);
     }
   } catch (e) {
-    logger.error("Docker failed")
+    logger.error("Docker failed");
   }
 }
 
@@ -28,20 +28,20 @@ export function stop(data: cmdData) {
 
   const options = {
     cwd: settings.path,
-    stdio: [0, 1, 2]
+    stdio: [0, 1, 2],
   };
 
   try {
     execSync("docker-compose down", options);
   } catch (e) {
-    logger.error("Docker failed")
+    logger.error("Docker failed");
   }
 }
 
 export function pull(data: cmdData) {
   const options = {
     cwd: settings.path,
-    stdio: [0, 1, 2]
+    stdio: [0, 1, 2],
   };
 
   const scriptPath = "/project/.config/scripts";
@@ -55,7 +55,7 @@ export function pull(data: cmdData) {
     plugins: data.target.includes("plugins"),
     db: data.target.includes("db"),
     media: data.target.includes("media"),
-  }
+  };
 
   if (data.target.length === 0) {
     // If no target given, default to plugins and db.
@@ -88,7 +88,7 @@ export function runCommand(command: string) {
 
   const options = {
     cwd: settings.path,
-    stdio: [0, 1, 2]
+    stdio: [0, 1, 2],
   };
 
   try {
