@@ -9,12 +9,12 @@ export function help(cmd: cmdData) {
   if (cmd.flags.includes("help")) {
     const padding = 16;
     logger.info("\nPossible commands:");
-    for (let cmd of commands) {
+    for (const cmd of commands) {
       logger.info(cmd.cmd.padEnd(padding) + " - " + cmd.text);
     }
 
     logger.info("\nPossible options:");
-    for (let flag of flags) {
+    for (const flag of flags) {
       logger.info(
         ("--" + flag.name + " / -" + flag.flag).padEnd(padding) +
           " - " +
@@ -28,11 +28,11 @@ export function help(cmd: cmdData) {
 
 export function helpCmd(
   cmd: cmdData,
-  text: boolean = true,
-  usage: boolean = true
+  text = true,
+  usage = true
 ) {
   const padding = 16;
-  for (let command of commands) {
+  for (const command of commands) {
     if (cmd.cmd === command.cmd) {
       logger.info("");
       if (text) {
@@ -40,7 +40,7 @@ export function helpCmd(
       }
       if (usage) {
         logger.info("Usage:");
-        for (let use of command.usage) {
+        for (const use of command.usage) {
           const part = use.split("-");
           let useText = part[0].trim().padEnd(padding);
           if (part.length > 1) {

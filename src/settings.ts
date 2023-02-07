@@ -73,29 +73,31 @@ export function writeGlobalSettings() {
     { key: "debug", value: settings.debug.toString() },
   ];
   let data = "";
-  for (let row of setValues) {
+  for (const row of setValues) {
     data += row.key.toUpperCase() + "=" + row.value + "\n";
   }
   writeFileSync(globalConfig, data, "utf8");
 }
 
-export function writeSettings() {}
+export function writeSettings() {
+  // TODO Save settings here.
+}
 
 function parseSettings(data: string): void {
   // Remove all comments to make matching more straight forward.
-  for (let match of data.matchAll(/ *#.*$/gm)) {
+  for (const match of data.matchAll(/ *#.*$/gm)) {
     data = data.replace(match[0], "");
   }
 
   // Look for all BASH variable assignments.
-  for (let match of data.matchAll(/^([A-Z_]+)= *([^(].*)$/gm)) {
+  for (const match of data.matchAll(/^([A-Z_]+)= *([^(].*)$/gm)) {
     // Assign value to map.
     values.set(match[1].toLowerCase(), cleanBashVar(match[2]));
   }
   // Look for BASH arrays.
-  for (let match of data.matchAll(/^([A-Z_]+)= ?\(\s*([^)]+)\s*\)/gm)) {
+  for (const match of data.matchAll(/^([A-Z_]+)= ?\(\s*([^)]+)\s*\)/gm)) {
     const value = [];
-    for (let row of match[2].split("\n")) {
+    for (const row of match[2].split("\n")) {
       const text = cleanBashVar(row);
       // Don't add empty lines to array.
       if (text) {
@@ -112,7 +114,7 @@ function cleanBashVar(text: string): string {
   let value = text.replace(/^["' ]+|["' ]+$/gm, "");
 
   // Look for all references to BASH variables.
-  for (let varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
+  for (const varMatch of value.matchAll(/\$([A-Z_]+)/gm)) {
     const key = varMatch[1].toLowerCase();
     if (values.has(key)) {
       // If variable exists in map, substitute variable for value.
@@ -126,7 +128,7 @@ function cleanBashVar(text: string): string {
 }
 
 function populateSetting() {
-  for (let [key, value] of values) {
+  for (const [key, value] of values) {
     if (typeof value === "string") {
       switch (key) {
         case "path":

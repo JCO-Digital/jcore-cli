@@ -100,7 +100,7 @@ export async function calculateChecksum(file: string): Promise<string> {
   return access(file)
     .then(() => readFile(file, "utf8"))
     .then((data) => createHash("sha256").update(data).digest("hex"))
-    .catch((reason) => "");
+    .catch(() => "");
 }
 
 /**
@@ -112,14 +112,14 @@ export async function calculateChecksum(file: string): Promise<string> {
 export function mergeFiles(
   sourceDir: string,
   destinationDir: string,
-  copy: boolean = false
+  copy = false
 ) {
   if (!existsSync(destinationDir)) {
     // Create target if not exists.
     logger.verbose("Creating target folder: " + destinationDir);
     mkdirSync(destinationDir, { recursive: true });
   }
-  for (let file of readdirSync(sourceDir)) {
+  for (const file of readdirSync(sourceDir)) {
     if (file === ".git") {
       // Skip .git folder.
       continue;
@@ -139,7 +139,7 @@ export function mergeFiles(
   }
 }
 
-export function isProject(project: boolean = true): boolean {
+export function isProject(project = true): boolean {
   if (!project && settings.inProject) {
     logger.error("\nAlready in project.");
   }

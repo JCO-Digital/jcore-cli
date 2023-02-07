@@ -103,7 +103,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         },
       ];
 
-      for (let file of files) {
+      for (const file of files) {
         const source = join(updatePath, file.source ?? file.name);
         const destination = join(settings.path, file.name);
         // Check if file in project has been modified, and thus automatic update should be skipped.
@@ -120,7 +120,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
             checksums.set(file.name, await calculateChecksum(destination));
             logger.info("Updated " + file.name);
           })
-          .catch((reason) => {
+          .catch(() => {
             // Delete the skipped file to avoid having to exclude it from the copy.
             rmSync(source);
             logger.error("Skipping " + file.name);
@@ -207,7 +207,7 @@ export function finaliseProject() {
 
 function shouldWrite(
   file: string,
-  condition: boolean = false
+  condition = false
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     if (condition) {
@@ -231,10 +231,15 @@ function moveFile(destination: string, source: string): Promise<string> {
   }
 }
 
+interface searchReplace {
+  search: string|RegExp,
+  replace: string,
+}
+
 function replaceInFile(
   file: string,
-  replace: Array<any>,
-  destination: string = ""
+  replace: Array<searchReplace>,
+  destination = ""
 ) {
   if (!destination) {
     // Default destination to same file.
@@ -242,7 +247,7 @@ function replaceInFile(
   }
   if (existsSync(file)) {
     let data = readFileSync(file, "utf8");
-    for (let row of replace) {
+    for (const row of replace) {
       data = data.replace(row.search, row.replace);
     }
     const path = parse(destination);
