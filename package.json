@@ -1,9 +1,9 @@
 {
   "name": "jcore-cli",
-  "version": "0.99.15",
+  "version": "0.99.17",
   "scripts": {
-    "build": "esbuild main.ts --bundle --platform=node --outfile=bin/jcore",
-    "watch": "esbuild main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
+    "build": "esbuild src/main.ts --bundle --platform=node --outfile=bin/jcore",
+    "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
     "patch": "npm version patch --no-git-tag-version --force && git commit -a"
   },
   "config": {

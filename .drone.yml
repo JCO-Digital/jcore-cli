@@ -6,6 +6,7 @@ steps:
     image: node:lts
     commands:
       - npm ci
+      - npx prettier --check .
       - npm run build
 
   - name: deploy

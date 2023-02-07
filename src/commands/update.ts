@@ -2,10 +2,10 @@ import type { cmdData, JcoreSettings, updateOptions } from "@/types";
 import { getFileString } from "@/utils";
 import { scriptLocation } from "@/constants";
 import { writeFile } from "fs/promises";
-import { version } from "@/package.json";
 import { updateFiles } from "@/project";
 import { error, log } from "console";
 import { settings } from "@/settings";
+import { version } from "../../package.json";
 
 export default function (data: cmdData) {
   const options = {
@@ -21,7 +21,7 @@ export default function (data: cmdData) {
     .then(() => {
       log("Update Finished");
     })
-    .catch((reason) => {
+    .catch((reason: any) => {
       error(reason);
     });
 }

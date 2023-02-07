@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import parser from "@/parser";
-import { version } from "@/package.json";
 import { readSettings, settings } from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
+import { version } from "../package.json";
 
 function init() {
   // Intro text.

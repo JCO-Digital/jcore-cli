@@ -4,7 +4,7 @@ import type { JcoreSettings } from "@/types";
 import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, writeFileSync } from "fs";
-import { config } from "@/package.json";
+import { config } from "../package.json";
 
 // Default settings.
 export const settings = {
