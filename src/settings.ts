@@ -5,7 +5,6 @@ import { homedir } from "os";
 import { existsSync, writeFileSync } from "fs";
 import { config } from "../package.json";
 
-
 interface jcoreSettings {
   nodePath: string;
   execPath: string;
@@ -21,7 +20,7 @@ interface jcoreSettings {
   logLevel: number;
   domain: string;
   local: string;
-};
+}
 
 // Default settings.
 export const settings = {

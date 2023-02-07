@@ -26,11 +26,7 @@ export function help(cmd: cmdData) {
   }
 }
 
-export function helpCmd(
-  cmd: cmdData,
-  text = true,
-  usage = true
-) {
+export function helpCmd(cmd: cmdData, text = true, usage = true) {
   const padding = 16;
   for (const command of commands) {
     if (cmd.cmd === command.cmd) {

@@ -205,10 +205,7 @@ export function finaliseProject() {
   execSync("docker-compose pull", options);
 }
 
-function shouldWrite(
-  file: string,
-  condition = false
-): Promise<string> {
+function shouldWrite(file: string, condition = false): Promise<string> {
   return new Promise((resolve, reject) => {
     if (condition) {
       resolve(file);
@@ -232,8 +229,8 @@ function moveFile(destination: string, source: string): Promise<string> {
 }
 
 interface searchReplace {
-  search: string|RegExp,
-  replace: string,
+  search: string | RegExp;
+  replace: string;
 }
 
 function replaceInFile(

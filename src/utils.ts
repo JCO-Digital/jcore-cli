@@ -79,7 +79,9 @@ export async function loadChecksums(): Promise<Map<string, string>> {
   }
 }
 
-export async function saveChecksums(checksums: Map<string, string>): Promise<boolean> {
+export async function saveChecksums(
+  checksums: Map<string, string>
+): Promise<boolean> {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object);
