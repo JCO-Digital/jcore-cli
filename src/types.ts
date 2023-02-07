@@ -1,20 +1,3 @@
-export type JcoreSettings = {
-  nodePath: string;
-  execPath: string;
-  exec: string;
-  inProject: boolean;
-  path: string;
-  mode: string;
-  debug: number;
-  name: string;
-  theme: string;
-  branch: string;
-  plugins: string;
-  logLevel: number;
-  domain: string;
-  local: string;
-};
-
 export type cmdData = {
   cmd: string;
   target: Array<string>;

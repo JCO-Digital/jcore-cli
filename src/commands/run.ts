@@ -5,7 +5,7 @@ import { finaliseProject } from "@/project";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
-export function start(data: cmdData) {
+export function start() {
   finaliseProject();
 
   const options = {
@@ -23,7 +23,7 @@ export function start(data: cmdData) {
   }
 }
 
-export function stop(data: cmdData) {
+export function stop() {
   logger.info("Stopping Docker");
 
   const options = {
@@ -39,11 +39,6 @@ export function stop(data: cmdData) {
 }
 
 export function pull(data: cmdData) {
-  const options = {
-    cwd: settings.path,
-    stdio: [0, 1, 2],
-  };
-
   const scriptPath = "/project/.config/scripts";
   const pluginScript = join(scriptPath, "importplugins");
   const dbScript = join(scriptPath, "importdb");

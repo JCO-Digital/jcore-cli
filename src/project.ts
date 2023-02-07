@@ -35,7 +35,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
     .then(async () => {
       logger.verbose("Unzipped");
 
-      const checksums = await loadChecksums(settings);
+      const checksums = await loadChecksums();
 
       const files = [
         {
@@ -126,7 +126,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
             logger.error("Skipping " + file.name);
           });
       }
-      await saveChecksums(settings, checksums);
+      await saveChecksums(checksums);
 
       // Clean up legacy folders.
       rmSync(join(settings.path, "config"), { recursive: true, force: true });

@@ -1,10 +1,27 @@
 import { readFile } from "fs/promises";
 import * as process from "process";
-import type { JcoreSettings } from "@/types";
 import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, writeFileSync } from "fs";
 import { config } from "../package.json";
+
+
+interface jcoreSettings {
+  nodePath: string;
+  execPath: string;
+  exec: string;
+  inProject: boolean;
+  path: string;
+  mode: string;
+  debug: number;
+  name: string;
+  theme: string;
+  branch: string;
+  plugins: string;
+  logLevel: number;
+  domain: string;
+  local: string;
+};
 
 // Default settings.
 export const settings = {
@@ -19,7 +36,7 @@ export const settings = {
   logLevel: 2,
   domain: "",
   local: "",
-} as JcoreSettings;
+} as jcoreSettings;
 
 const values = new Map() as Map<string, string | string[]>;
 

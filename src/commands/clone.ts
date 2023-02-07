@@ -1,6 +1,6 @@
 import { cmdData } from "@/types";
 import { readSettings, settings } from "@/settings";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync } from "fs";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { join, parse } from "path";

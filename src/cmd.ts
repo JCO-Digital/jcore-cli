@@ -11,8 +11,8 @@ export function runCmd(data: cmdData) {
   switch (data.cmd) {
     case "update":
       if (data.target.includes("self")) {
-        selfUpdate(data);
         // Update self.
+        selfUpdate();
       } else {
         if (isProject()) {
           // Update project.
@@ -23,13 +23,13 @@ export function runCmd(data: cmdData) {
     case "start":
       if (isProject()) {
         // Start the project.
-        start(data);
+        start();
       }
       break;
     case "stop":
       if (isProject()) {
         // Start the project.
-        stop(data);
+        stop();
       }
       break;
     case "pull":

@@ -1,11 +1,11 @@
-import type { cmdData, JcoreSettings, updateOptions } from "@/types";
+import type { cmdData, updateOptions } from "@/types";
 import { getFileString } from "@/utils";
 import { scriptLocation } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
-import { error, log } from "console";
 import { settings } from "@/settings";
 import { version } from "../../package.json";
+import { logger } from "@/logger";
 
 export default function (data: cmdData) {
   const options = {
@@ -16,37 +16,37 @@ export default function (data: cmdData) {
     docker: data.flags.includes("force") || data.target.includes("docker"),
   } as updateOptions;
 
-  log("Updating Project");
+  logger.info("Updating Project");
   updateFiles(options)
     .then(() => {
-      log("Update Finished");
+      logger.info("Update Finished");
     })
-    .catch((reason: any) => {
-      error(reason);
+    .catch((reason) => {
+      logger.error(reason);
     });
 }
 
-export function selfUpdate(data: cmdData) {
+export function selfUpdate() {
   versionCheck()
     .then((info) => {
-      log("Upgrading to v." + info);
+      logger.info("Upgrading to v." + info);
       getFileString(scriptLocation + "jcore")
         .then((body) => {
           writeFile(settings.execPath, body)
             .then(() => {
-              log("JCORE CLI Updated.");
+              logger.info("JCORE CLI Updated.");
             })
             .catch((reason) => {
-              error("Update Error");
-              error(reason);
+              logger.error("Update Error");
+              logger.error(reason);
             });
         })
-        .catch((reason) => {
-          error("Can't fetch update. Check network connection.");
+        .catch(() => {
+          logger.error("Can't fetch update. Check network connection.");
         });
     })
     .catch((reason) => {
-      error(reason);
+      logger.error(reason);
     });
 }
 

@@ -1,7 +1,6 @@
 import { get } from "https";
 import AdmZip from "adm-zip";
 import { access, readFile, writeFile } from "fs/promises";
-import { JcoreSettings } from "@/types";
 import { join } from "path";
 import { createHash } from "crypto";
 import { checksumFile } from "@/constants";
@@ -70,9 +69,7 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
   });
 }
 
-export async function loadChecksums(
-  settings: JcoreSettings
-): Promise<Map<string, string>> {
+export async function loadChecksums(): Promise<Map<string, string>> {
   try {
     const json = await readFile(join(settings.path, checksumFile), "utf8");
     const data = JSON.parse(json);
@@ -82,10 +79,7 @@ export async function loadChecksums(
   }
 }
 
-export async function saveChecksums(
-  settings: JcoreSettings,
-  checksums: Map<string, string>
-): Promise<boolean> {
+export async function saveChecksums(checksums: Map<string, string>): Promise<boolean> {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object);
