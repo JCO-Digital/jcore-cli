@@ -12,7 +12,7 @@ steps:
   - name: deploy
     image: jcodigi/jcodeploy
     settings:
-      main: webmaster@pilvi.jco.fi:/var/www/files/jco/jcore-cli-main
+      tags: webmaster@pilvi.jco.fi:/var/www/files/jco/jcore-cli-main
       source:
         - bin;.
         - package.json
