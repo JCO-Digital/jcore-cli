@@ -20,10 +20,7 @@ export default function parser(args: Array<string>): cmdData {
     if (part.substring(0, 1) === "-") {
       // Flag
       for (const flag of flags) {
-        if (
-          flag.flag === part.substring(1) ||
-          flag.name === part.substring(2)
-        ) {
+        if (flag.flag === part.substring(1) || flag.name === part.substring(2)) {
           data.flags.push(flag.name);
         }
       }

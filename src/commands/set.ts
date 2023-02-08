@@ -5,10 +5,7 @@ import { logger } from "@/logger";
 export function set(data: cmdData) {
   switch (data.target[0].toLowerCase()) {
     case "mode":
-      if (
-        data.target[1].toLowerCase() === "fg" ||
-        data.target[1].toLowerCase() === "foreground"
-      ) {
+      if (data.target[1].toLowerCase() === "fg" || data.target[1].toLowerCase() === "foreground") {
         settings.mode = "foreground";
       } else {
         settings.mode = "background";

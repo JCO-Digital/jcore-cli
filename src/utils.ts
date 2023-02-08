@@ -4,26 +4,19 @@ import { access, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { createHash } from "crypto";
 import { checksumFile } from "@/constants";
-import {
-  copyFileSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  renameSync,
-} from "fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, renameSync } from "fs";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
 export async function getFileString(url: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    get(url).on("response", function (response) {
+    get(url).on("response", function(response) {
       if (response.statusCode === 200) {
         let body = "";
-        response.on("data", function (chunk) {
+        response.on("data", function(chunk) {
           body += chunk;
         });
-        response.on("end", function () {
+        response.on("end", function() {
           resolve(body);
         });
       } else {
@@ -35,15 +28,15 @@ export async function getFileString(url: string): Promise<string> {
 
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    get(url).on("response", function (response) {
+    get(url).on("response", function(response) {
       if (response.statusCode === 200) {
         const data: Buffer[] = [];
 
         response
-          .on("data", function (chunk) {
+          .on("data", function(chunk) {
             data.push(chunk);
           })
-          .on("end", function () {
+          .on("end", function() {
             //at this point data is an array of Buffers
             //so Buffer.concat() can make us a new Buffer
             //of all of them together
@@ -79,9 +72,7 @@ export async function loadChecksums(): Promise<Map<string, string>> {
   }
 }
 
-export async function saveChecksums(
-  checksums: Map<string, string>
-): Promise<boolean> {
+export async function saveChecksums(checksums: Map<string, string>): Promise<boolean> {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object);
@@ -105,11 +96,7 @@ export async function calculateChecksum(file: string): Promise<string> {
  * @param destinationDir Destination Folder
  * @param copy Copies files if true, moves files if false.
  */
-export function mergeFiles(
-  sourceDir: string,
-  destinationDir: string,
-  copy = false
-) {
+export function mergeFiles(sourceDir: string, destinationDir: string, copy = false) {
   if (!existsSync(destinationDir)) {
     // Create target if not exists.
     logger.verbose("Creating target folder: " + destinationDir);

@@ -1,6 +1,5 @@
 export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
-export const archiveLocation =
-  "https://files.jco.fi/wordpress-container-main.zip";
+export const archiveLocation = "https://files.jco.fi/wordpress-container-main.zip";
 export const jcoreGit = "git@bitbucket.org:jcodigital/jcore2.git";
 export const jcorePath = "wp-content/themes/jcore2";
 export const childGit = "git@bitbucket.org:jcodigital/jcore2-child.git";

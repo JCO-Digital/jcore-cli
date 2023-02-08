@@ -107,8 +107,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         const source = join(updatePath, file.source ?? file.name);
         const destination = join(settings.path, file.name);
         // Check if file in project has been modified, and thus automatic update should be skipped.
-        const matching =
-          (await calculateChecksum(destination)) === checksums.get(file.name);
+        const matching = (await calculateChecksum(destination)) === checksums.get(file.name);
         if (matching) {
           logger.verbose("Matching Checksum: " + file.name);
         }
@@ -222,9 +221,7 @@ function moveFile(destination: string, source: string): Promise<string> {
   try {
     return rename(source, destination).then(() => Promise.resolve(destination));
   } catch {
-    return Promise.reject(
-      "Unable to move file " + source + " to " + destination
-    );
+    return Promise.reject("Unable to move file " + source + " to " + destination);
   }
 }
 
@@ -233,11 +230,7 @@ interface searchReplace {
   replace: string;
 }
 
-function replaceInFile(
-  file: string,
-  replace: Array<searchReplace>,
-  destination = ""
-) {
+function replaceInFile(file: string, replace: Array<searchReplace>, destination = "") {
   if (!destination) {
     // Default destination to same file.
     destination = file;

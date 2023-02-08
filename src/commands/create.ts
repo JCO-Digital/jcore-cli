@@ -33,14 +33,8 @@ export function createProject(data: cmdData) {
       if (settings.branch) {
         extra += "-b " + settings.branch;
       }
-      execSync(
-        "git submodule add -f " + extra + ' "' + jcoreGit + '" ' + jcorePath,
-        options
-      );
-      execSync(
-        "git submodule add -f " + extra + ' "' + childGit + '" ' + childPath,
-        options
-      );
+      execSync("git submodule add -f " + extra + ' "' + jcoreGit + '" ' + jcorePath, options);
+      execSync("git submodule add -f " + extra + ' "' + childGit + '" ' + childPath, options);
 
       // Copy child theme.
       if (!data.flags.includes("nochild")) {

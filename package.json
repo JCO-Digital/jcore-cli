@@ -4,6 +4,7 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
+    "lint" : "npx eslint src",
     "patch": "npm version patch --no-git-tag-version --force && git commit -a"
   },
   "config": {
@@ -25,6 +26,10 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.10"
+  },
+  "prettier":{
+    "printWidth": 100,
+    "quoteProps": "consistent"
   },
   "eslintConfig": {
     "root": true,

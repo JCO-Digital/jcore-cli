@@ -15,11 +15,7 @@ export function help(cmd: cmdData) {
 
     logger.info("\nPossible options:");
     for (const flag of flags) {
-      logger.info(
-        ("--" + flag.name + " / -" + flag.flag).padEnd(padding) +
-          " - " +
-          flag.text
-      );
+      logger.info(("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text);
     }
   } else {
     logger.info("Use flag --help for more info.");

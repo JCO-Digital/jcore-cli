@@ -43,10 +43,7 @@ const globalConfig = join(homedir(), ".config/jcore/config");
 
 export async function readSettings() {
   // Find the project base path.
-  while (
-    settings.path.length > 1 &&
-    !existsSync(join(settings.path, "config.sh"))
-  ) {
+  while (settings.path.length > 1 && !existsSync(join(settings.path, "config.sh"))) {
     // Go up one level and try again.
     settings.path = parse(settings.path).dir;
   }
