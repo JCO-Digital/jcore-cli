@@ -4,8 +4,8 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
-    "lint" : "npx eslint src",
-    "patch": "npm version patch --no-git-tag-version --force && git commit -a"
+    "lint": "npx eslint src",
+    "prettier": "npx prettier --write src"
   },
   "config": {
     "branch": "fluffycritter"
@@ -27,7 +27,7 @@
   "dependencies": {
     "adm-zip": "^0.5.10"
   },
-  "prettier":{
+  "prettier": {
     "printWidth": 100,
     "quoteProps": "consistent"
   },

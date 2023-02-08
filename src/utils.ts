@@ -10,13 +10,13 @@ import { logger } from "@/logger";
 
 export async function getFileString(url: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    get(url).on("response", function(response) {
+    get(url).on("response", function (response) {
       if (response.statusCode === 200) {
         let body = "";
-        response.on("data", function(chunk) {
+        response.on("data", function (chunk) {
           body += chunk;
         });
-        response.on("end", function() {
+        response.on("end", function () {
           resolve(body);
         });
       } else {
@@ -28,15 +28,15 @@ export async function getFileString(url: string): Promise<string> {
 
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    get(url).on("response", function(response) {
+    get(url).on("response", function (response) {
       if (response.statusCode === 200) {
         const data: Buffer[] = [];
 
         response
-          .on("data", function(chunk) {
+          .on("data", function (chunk) {
             data.push(chunk);
           })
-          .on("end", function() {
+          .on("end", function () {
             //at this point data is an array of Buffers
             //so Buffer.concat() can make us a new Buffer
             //of all of them together
