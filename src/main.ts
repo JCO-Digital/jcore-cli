@@ -7,6 +7,19 @@ import { logger } from "@/logger";
 import { version } from "../package.json";
 
 function init() {
+  const data = parser(process.argv);
+
+  // Set log level from flags.
+  if (data.flags.includes("quiet")) {
+    settings.logLevel = logger.levels.error;
+  } else if (data.flags.includes("debug")) {
+    settings.logLevel = logger.levels.debug;
+  } else if (data.flags.includes("verbose")) {
+    settings.logLevel = logger.levels.verbose;
+  }
+
+  console.debug(data);
+
   // Intro text.
   logger.info("JCORE CLI v." + version);
   logger.info("Mode: " + settings.mode);
@@ -14,8 +27,6 @@ function init() {
   if (settings.inProject) {
     logger.info("Project: " + settings.name);
   }
-
-  const data = parser(process.argv);
 
   if (data.cmd) {
     if (data.flags.includes("help")) {

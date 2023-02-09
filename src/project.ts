@@ -8,12 +8,12 @@ import {
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
-import { rename } from "fs/promises";
 import { updateOptions } from "@/types";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
+import { checkFolders } from "@/commands/doctor";
 
 const defaultOptions = {
   drone: false,
@@ -43,16 +43,26 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           force: false,
           replace: [
             {
-              search: /#?NAME="[^"]*"/,
+              search: /#?NAME="[^"]*"/gm,
               replace: 'NAME="' + settings.name + '"',
             },
             {
-              search: /#?THEME="[^"]*"/,
+              search: /#?THEME="[^"]*"/gm,
               replace: 'THEME="' + settings.theme + '"',
             },
             {
-              search: /#?BRANCH="[^"]*"/,
+              search: /#?BRANCH="[^"]*"/gm,
               replace: 'BRANCH="' + settings.branch + '"',
+            },
+          ],
+        },
+        {
+          name: "readme.md",
+          force: false,
+          replace: [
+            {
+              search: "# WordPress Container",
+              replace: "# " + settings.name.charAt(0).toUpperCase() + settings.name.slice(1),
             },
           ],
         },
@@ -72,12 +82,12 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           force: options.package ?? false,
           replace: [
             {
-              search: /"name":.*$/,
-              replace: '"name": "' + settings.name + '"',
+              search: /"name" *: *"[^"]*"/gm,
+              replace: `"name": "${settings.name}"`,
             },
             {
-              search: /"theme":.*$/,
-              replace: '"theme": "' + settings.theme + '"',
+              search: /"theme" *: *"[^"]*"/gm,
+              replace: `"theme": "${settings.theme}"`,
             },
           ],
         },
@@ -111,19 +121,17 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         if (matching) {
           logger.verbose("Matching Checksum: " + file.name);
         }
-        await shouldWrite(destination, matching || file.force)
-          .then((destination) => moveFile(destination, source))
-          .then(async () => {
-            replaceInFile(destination, file.replace);
-            // Calculate new checksum for file.
-            checksums.set(file.name, await calculateChecksum(destination));
-            logger.info("Updated " + file.name);
-          })
-          .catch(() => {
-            // Delete the skipped file to avoid having to exclude it from the copy.
-            rmSync(source);
-            logger.error("Skipping " + file.name);
-          });
+
+        if (matching || file.force || !existsSync(destination)) {
+          replaceInFile(source, file.replace, destination);
+          // Calculate new checksum for file.
+          checksums.set(file.name, await calculateChecksum(destination));
+          logger.info("Updated " + file.name);
+        } else {
+          logger.error("Skipping " + file.name);
+        }
+        // Delete the file to avoid having to exclude it from the copy.
+        rmSync(source);
       }
       await saveChecksums(checksums);
 
@@ -146,11 +154,15 @@ export function updateFiles(options: updateOptions = defaultOptions) {
     .catch((reason) => Promise.reject("Unable to extract file " + reason));
 }
 
-export function finaliseProject() {
+export function finaliseProject(): boolean {
   const options = {
     cwd: settings.path,
     stdio: [0, 1, 2],
   };
+
+  if (!checkFolders()) {
+    return false;
+  }
 
   // Set nginx proxy pass.
   replaceInFile(join(settings.path, ".config/nginx/site.conf"), [
@@ -181,6 +193,7 @@ export function finaliseProject() {
     execSync("chmod +x .config/*.sh", options);
   } catch (e) {
     logger.warn("chmod failed, maybe Windows environment.");
+    return false;
   }
 
   // Install npm packages.
@@ -198,31 +211,13 @@ export function finaliseProject() {
     execSync("composer install --quiet", options);
   } catch (e) {
     logger.warn("Composer failed, maybe not installed.");
+    return false;
   }
 
   logger.info("Update Docker Images.");
   execSync("docker-compose pull", options);
-}
 
-function shouldWrite(file: string, condition = false): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (condition) {
-      resolve(file);
-    }
-    if (existsSync(file)) {
-      reject("File exists: " + file);
-    } else {
-      resolve(file);
-    }
-  });
-}
-
-function moveFile(destination: string, source: string): Promise<string> {
-  try {
-    return rename(source, destination).then(() => Promise.resolve(destination));
-  } catch {
-    return Promise.reject("Unable to move file " + source + " to " + destination);
-  }
+  return true;
 }
 
 interface searchReplace {

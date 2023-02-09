@@ -6,6 +6,7 @@ steps:
     image: node:lts
     commands:
       - npm ci
+      - npx eslint src
       - npx prettier --check src
       - npm run build
 

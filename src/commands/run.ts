@@ -6,20 +6,21 @@ import { settings } from "@/settings";
 import { logger } from "@/logger";
 
 export function start() {
-  finaliseProject();
-
-  const options = {
-    cwd: settings.path,
-    stdio: [0, 1, 2],
-  };
-  try {
-    if (settings.mode === "foreground") {
-      spawnSync("docker-compose", ["up"], options);
-    } else {
-      execSync("docker-compose up -d", options);
+  if (finaliseProject()) {
+    // Run only if finalize is successful.
+    const options = {
+      cwd: settings.path,
+      stdio: [0, 1, 2],
+    };
+    try {
+      if (settings.mode === "foreground") {
+        spawnSync("docker-compose", ["up"], options);
+      } else {
+        execSync("docker-compose up -d", options);
+      }
+    } catch (e) {
+      logger.error("Docker failed");
     }
-  } catch (e) {
-    logger.error("Docker failed");
   }
 }
 

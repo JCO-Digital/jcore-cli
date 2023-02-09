@@ -7,6 +7,10 @@ export const childPath = "wp-content/themes/jcore2-child";
 export const updateFolder = ".update";
 export const checksumFile = ".file.checksums";
 
+export const projectFolders = [".jcore/wordpress", ".jcore/ssl", ".jcore/sql"];
+export const globalFolders = [".config/jcore/ssl", ".config/jcore/ssh"];
+export const externalCommands = ["composer", "npm", "docker", "docker-compose"];
+
 export const commands = [
   {
     cmd: "init",
@@ -88,11 +92,6 @@ export const flags = [
     text: "Overwrites existing files.",
   },
   {
-    name: "start",
-    flag: "s",
-    text: "Starts container and gulp on commands that supports it.",
-  },
-  {
     name: "install",
     flag: "i",
     text: "Installs node modules even if they are already installed.",
@@ -101,5 +100,20 @@ export const flags = [
     name: "nochild",
     flag: "n",
     text: "Doesn't install child theme on init command.",
+  },
+  {
+    name: "quiet",
+    flag: "q",
+    text: "Print only errors.",
+  },
+  {
+    name: "verbose",
+    flag: "v",
+    text: "Print more text.",
+  },
+  {
+    name: "debug",
+    flag: "d",
+    text: "Print everything.",
   },
 ];

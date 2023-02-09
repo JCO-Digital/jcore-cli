@@ -6,6 +6,7 @@ import { helpCmd } from "@/help";
 import { createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { set } from "@/commands/set";
+import { doctor } from "@/commands/doctor";
 
 export function runCmd(data: cmdData) {
   switch (data.cmd) {
@@ -64,6 +65,9 @@ export function runCmd(data: cmdData) {
       } else {
         helpCmd(data, false);
       }
+      break;
+    case "doctor":
+      doctor();
       break;
   }
 }
