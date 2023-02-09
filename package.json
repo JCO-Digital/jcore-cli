@@ -5,8 +5,7 @@
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
     "lint": "npx eslint src",
-    "prettier": "npx prettier --write src",
-    "patch": "npm version patch; git push --follow-tags"
+    "prettier": "npx prettier --write src"
   },
   "config": {
     "branch": "fluffycritter"
