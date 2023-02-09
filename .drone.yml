@@ -5,7 +5,7 @@ steps:
   - name: build
     image: node:lts
     commands:
-      - npm ci
+      - npm ci --no-fund
       - npx eslint src
       - npx prettier --check src
       - npm run build
