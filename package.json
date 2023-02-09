@@ -2,7 +2,7 @@
   "name": "jcore-cli",
   "version": "0.99.19",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --platform=node --outfile=bin/jcore",
+    "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
     "lint": "npx eslint src",
     "prettier": "npx prettier --write src"
