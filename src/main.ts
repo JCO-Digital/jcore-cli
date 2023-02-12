@@ -7,6 +7,9 @@ import { logger } from "@/logger";
 import { version } from "../package.json";
 import semver from "semver/preload";
 
+/**
+ * Main init function of the application. This like all other functions expects an initialized settings object.
+ */
 function init() {
   const data = parser(process.argv);
 

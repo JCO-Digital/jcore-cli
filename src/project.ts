@@ -230,7 +230,7 @@ interface searchReplace {
   replace: string;
 }
 
-function replaceInFile(file: string, replace: Array<searchReplace>, destination = "") {
+export function replaceInFile(file: string, replace: Array<searchReplace>, destination = "") {
   if (!destination) {
     // Default destination to same file.
     destination = file;

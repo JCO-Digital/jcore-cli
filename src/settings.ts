@@ -4,7 +4,8 @@ import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
-import { fetchVersion } from "@/commands/update";
+import { fetchVersion } from "@/utils";
+import { replaceInFile } from "@/project";
 
 interface jcoreSettings {
   nodePath: string;
@@ -116,7 +117,25 @@ export function writeGlobalSettings() {
 }
 
 export function writeSettings() {
-  // TODO Save settings here.
+  // Call global settings save.
+  writeGlobalSettings();
+  if (settings.inProject) {
+    // Save project settings.
+    const setValues = [
+      { key: "name", value: settings.name },
+      { key: "theme", value: settings.theme },
+    ];
+    let replace = [];
+    for (const row of setValues) {
+      const key = row.key.toUpperCase();
+      replace.push({
+        search: new RegExp(`^#?${key}="[^"]*" *$`, "m"),
+        replace: `${key}="${row.value}"`,
+      });
+    }
+
+    replaceInFile(join(settings.path, "config.sh"), replace);
+  }
 }
 
 function parseSettings(data: string): void {

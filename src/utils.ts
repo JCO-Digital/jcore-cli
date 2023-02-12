@@ -3,7 +3,7 @@ import AdmZip from "adm-zip";
 import { access, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { createHash } from "crypto";
-import { checksumFile } from "@/constants";
+import { checksumFile, scriptLocation } from "@/constants";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, renameSync } from "fs";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
@@ -46,6 +46,26 @@ export function getFile(url: string): Promise<Buffer> {
         reject(response.statusCode);
       }
     });
+  });
+}
+
+export function fetchVersion(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    getFileString(join(scriptLocation, "package.json"))
+      .then((json) => {
+        try {
+          const info = JSON.parse(json);
+          if (typeof info.version === "string") {
+            resolve(info.version);
+          }
+          reject("Wrong format");
+        } catch (e) {
+          reject("JSON error.");
+        }
+      })
+      .catch(() => {
+        reject("Network error.");
+      });
   });
 }
 
@@ -130,4 +150,8 @@ export function isProject(project = true): boolean {
     logger.error("\nNot in a project.");
   }
   return settings.inProject === project;
+}
+
+export function nameToFolder(name: string): string {
+  return name.toLowerCase().replace(/[^a-z]/, "-");
 }

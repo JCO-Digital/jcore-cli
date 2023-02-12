@@ -1,5 +1,5 @@
 import { cmdData } from "@/types";
-import { settings, writeGlobalSettings } from "@/settings";
+import { settings, writeSettings } from "@/settings";
 import { logger } from "@/logger";
 
 export function set(data: cmdData) {
@@ -27,5 +27,5 @@ export function set(data: cmdData) {
       }
       break;
   }
-  writeGlobalSettings();
+  writeSettings();
 }
