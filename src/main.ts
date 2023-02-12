@@ -20,13 +20,12 @@ function init() {
   }
 
   // Intro text.
-  logger.info("JCORE CLI v." + version);
+  logger.info("JCORE CLI v" + version);
   logger.info("Mode: " + settings.mode);
   logger.info("Debug: " + (settings.debug ? "On" : "Off"));
   if (semver.gt(settings.latest, version)) {
-    logger.warn(
-      `New version ${settings.latest} available. Update with command "${settings.exec} update self"`
-    );
+    logger.warn(`New version v${settings.latest} available.`);
+    logger.verbose(`Update with command "${settings.exec} update self"`);
   }
   if (settings.inProject) {
     logger.info("Project: " + settings.name);

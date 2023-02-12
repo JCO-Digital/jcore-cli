@@ -32,7 +32,7 @@ export function selfUpdate() {
   fetchVersion()
     .then(versionCheck)
     .then((info) => {
-      logger.info("Upgrading to v." + info);
+      logger.info("Upgrading to v" + info);
       return getFileString(scriptLocation + "jcore");
     })
     .then((body) => writeFile(settings.execPath, body))
