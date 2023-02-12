@@ -17,7 +17,7 @@ export const commands = [
     text: "Manages file checksums.",
     usage: [
       "list - Lists all checksums, and weather they match.",
-      "reset - Reset all checksums. Note that this can cause local changes to be overwritten.",
+      "set [...filename] - Calculate and set checksums for the given files.",
     ],
   },
   {

@@ -79,7 +79,7 @@ export function pull(data: cmdData) {
   }
 }
 
-export function runCommand(command: string) {
+export function runCommand(command: string, spawn=false) {
   logger.verbose("Executing command on docker");
 
   const options = {
@@ -88,7 +88,11 @@ export function runCommand(command: string) {
   };
 
   try {
-    execSync("docker-compose exec wordpress " + command, options);
+    if (spawn) {
+      spawnSync("docker-compose", ["exec", "wordpress", command]);
+    } else {
+      execSync("docker-compose exec wordpress " + command, options);
+    }
   } catch (e) {
     logger.warn("Command '" + command + "' failed to run.");
   }

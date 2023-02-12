@@ -1,6 +1,6 @@
 import type { cmdData } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
-import { start, stop, pull } from "@/commands/run";
+import { start, stop, pull, runCommand } from "@/commands/run";
 import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
@@ -77,7 +77,14 @@ export function runCmd(data: cmdData) {
       }
       break;
     case "run":
-      // TODO run
+      if (isProject()) {
+        if (data.target.length > 0) {
+          // Run command.
+          runCommand(data.target.join(" "));
+        } else {
+          helpCmd(data, false);
+        }
+      }
       break;
     case "set":
       if (data.target.length > 1) {
@@ -87,7 +94,10 @@ export function runCmd(data: cmdData) {
       }
       break;
     case "shell":
-      // TODO shell
+      if (isProject()) {
+        // Open a shell.
+        runCommand("/bin/bash");
+      }
       break;
     case "start":
       if (isProject()) {
