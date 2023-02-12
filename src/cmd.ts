@@ -1,7 +1,7 @@
 import type { cmdData } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
 import { start, stop, pull } from "@/commands/run";
-import { isProject, nameToFolder } from "@/utils";
+import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";

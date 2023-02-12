@@ -129,15 +129,21 @@ export function writeSettings() {
       { key: "theme", value: settings.theme }
     ];
     let replace = [];
+    let packageReplace = [];
     for (const row of setValues) {
       const key = row.key.toUpperCase();
       replace.push({
         search: new RegExp(`^#?${key}="[^"]*" *$`, "m"),
         replace: `${key}="${row.value}"`
       });
+      replace.push({
+        search: new RegExp(`"${row.key}" *: *"[^"]*"`, "m"),
+        replace: `"${row.key}": "${row.value}"`
+      });
     }
 
     replaceInFile(join(settings.path, "config.sh"), replace);
+    replaceInFile(join(settings.path, "package.json"), replace);
   }
 }
 
