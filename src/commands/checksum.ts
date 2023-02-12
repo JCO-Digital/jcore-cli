@@ -20,7 +20,7 @@ export function setChecksum(files: string[]) {
       if (checksums.has(file) && checksum === checksums.get(file)) {
         logger.verbose(`File ${file} already correct.`);
       } else {
-        checksums.set(file,checksum);
+        checksums.set(file, checksum);
         logger.info(`File ${file} checksum set.`);
       }
     } else {

@@ -79,7 +79,7 @@ export function pull(data: cmdData) {
   }
 }
 
-export function runCommand(command: string, spawn=false) {
+export function runCommand(command: string, spawn = false) {
   logger.verbose("Executing command on docker");
 
   const options = {
