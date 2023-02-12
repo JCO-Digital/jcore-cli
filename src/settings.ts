@@ -3,7 +3,8 @@ import * as process from "process";
 import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, writeFileSync } from "fs";
-import { config } from "../package.json";
+import { config, version } from "../package.json";
+import { fetchVersion } from "@/commands/update";
 
 interface jcoreSettings {
   nodePath: string;
@@ -20,6 +21,9 @@ interface jcoreSettings {
   logLevel: number;
   domain: string;
   local: string;
+  version: string;
+  latest: string;
+  lastCheck: number;
 }
 
 // Default settings.
@@ -35,6 +39,8 @@ export const settings = {
   logLevel: 2,
   domain: "",
   local: "",
+  version: version,
+  lastCheck: 0,
 } as jcoreSettings;
 
 const values = new Map() as Map<string, string | string[]>;
@@ -70,6 +76,8 @@ export async function readSettings() {
 
   populateSetting();
 
+  await versionCheck();
+
   if (!settings.name) {
     // If name is not set, use folder name.
     settings.name = parse(settings.path).base;
@@ -80,10 +88,25 @@ export async function readSettings() {
   }
 }
 
+async function versionCheck () {
+  const now = Date.now();
+  if (now - settings.lastCheck > 60 * 60 * 1000) {
+    const newVersion = await fetchVersion();
+    if (newVersion) {
+      settings.latest = newVersion;
+    }
+    settings.lastCheck = now;
+    writeGlobalSettings();
+  }
+}
+
 export function writeGlobalSettings() {
   const setValues = [
     { key: "mode", value: settings.mode },
     { key: "debug", value: settings.debug.toString() },
+    { key: "loglevel", value: settings.logLevel.toString() },
+    { key: "latest", value: settings.latest },
+    { key: "last_check", value: settings.lastCheck },
   ];
   let data = "";
   for (const row of setValues) {
@@ -164,6 +187,12 @@ function populateSetting() {
           break;
         case "plugin_install":
           settings.plugins = value;
+          break;
+        case "latest":
+          settings.latest = value;
+          break;
+        case "last_check":
+          settings.lastCheck = Number(value);
           break;
       }
     } else {

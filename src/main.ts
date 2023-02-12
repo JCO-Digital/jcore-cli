@@ -5,6 +5,7 @@ import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
 import { version } from "../package.json";
+import semver from "semver/preload";
 
 function init() {
   const data = parser(process.argv);
@@ -18,12 +19,13 @@ function init() {
     settings.logLevel = logger.levels.verbose;
   }
 
-  console.debug(data);
-
   // Intro text.
   logger.info("JCORE CLI v." + version);
   logger.info("Mode: " + settings.mode);
   logger.info("Debug: " + (settings.debug ? "On" : "Off"));
+  if (semver.gt(settings.latest, version)) {
+    logger.warn(`New version ${settings.latest} available. Update with command "${settings.exec} update self"`);
+  }
   if (settings.inProject) {
     logger.info("Project: " + settings.name);
   }

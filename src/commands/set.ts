@@ -20,6 +20,12 @@ export function set(data: cmdData) {
       }
       logger.info("Debug set to " + (settings.debug ? "On" : "Off"));
       break;
+    case "loglevel":
+      if (data.target[1].match(/^[0-9]$/)) {
+        settings.logLevel = Number(data.target[1]);
+        logger.info(`LogLevel set to ${settings.logLevel}`);
+      }
+      break;
   }
   writeGlobalSettings();
 }

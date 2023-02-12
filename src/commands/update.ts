@@ -1,4 +1,5 @@
 import type { cmdData, updateOptions } from "@/types";
+import { join } from "path";
 import { getFileString } from "@/utils";
 import { scriptLocation } from "@/constants";
 import { writeFile } from "fs/promises";
@@ -6,14 +7,15 @@ import { updateFiles } from "@/project";
 import { settings } from "@/settings";
 import { version } from "../../package.json";
 import { logger } from "@/logger";
+import semver from "semver/preload";
 
-export default function (data: cmdData) {
+export default function(data: cmdData) {
   const options = {
     drone: data.flags.includes("force") || data.target.includes("drone"),
     package: data.flags.includes("force") || data.target.includes("package"),
     build: data.flags.includes("force") || data.target.includes("build"),
     composer: data.flags.includes("force") || data.target.includes("composer"),
-    docker: data.flags.includes("force") || data.target.includes("docker"),
+    docker: data.flags.includes("force") || data.target.includes("docker")
   } as updateOptions;
 
   logger.info("Updating Project");
@@ -27,40 +29,34 @@ export default function (data: cmdData) {
 }
 
 export function selfUpdate() {
-  versionCheck()
+  fetchVersion()
+    .then(versionCheck)
     .then((info) => {
       logger.info("Upgrading to v." + info);
-      getFileString(scriptLocation + "jcore")
-        .then((body) => {
-          writeFile(settings.execPath, body)
-            .then(() => {
-              logger.info("JCORE CLI Updated.");
-            })
-            .catch((reason) => {
-              logger.error("Update Error");
-              logger.error(reason);
-            });
-        })
-        .catch(() => {
-          logger.error("Can't fetch update. Check network connection.");
-        });
+      return getFileString(scriptLocation + "jcore");
+    })
+    .then((body) => writeFile(settings.execPath, body))
+    .then(() => {
+      logger.info("JCORE CLI Updated.");
     })
     .catch((reason) => {
+      logger.error("Update Error");
       logger.error(reason);
     });
 }
 
-function versionCheck(): Promise<string> {
-  return new Promise((resolv, reject) => {
-    getFileString(scriptLocation + "package.json")
+export function fetchVersion(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    getFileString(join(scriptLocation, "package.json"))
       .then((json) => {
-        const info = JSON.parse(json);
-        const oldVer = calcVersion(version);
-        const newVer = calcVersion(info.version);
-        if (newVer > oldVer) {
-          resolv(info.version);
-        } else {
-          reject("No update available.");
+        try {
+          const info = JSON.parse(json);
+          if (typeof info.version === "string") {
+            resolve(info.version);
+          }
+          reject("Wrong format");
+        } catch (e) {
+          reject("JSON error.");
         }
       })
       .catch(() => {
@@ -69,13 +65,11 @@ function versionCheck(): Promise<string> {
   });
 }
 
-function calcVersion(version: string): number {
-  let v = 0;
-  let multi = 1;
-  const parts = version.split(".");
-  while (parts.length) {
-    v += multi * Number(parts.pop());
-    multi *= 1000;
-  }
-  return v;
+function versionCheck(newVersion: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (semver.gt(newVersion, version)) {
+      resolve(newVersion);
+    }
+    reject("No update available.");
+  });
 }

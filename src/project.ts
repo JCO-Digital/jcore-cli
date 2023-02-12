@@ -197,12 +197,17 @@ export function finaliseProject(): boolean {
   }
 
   // Install npm packages.
-  if (existsSync(join(settings.path, "package-lock.json"))) {
-    logger.info("Installing npm packages from lock file.");
-    execSync("npm ci --silent --no-fund", options);
-  } else {
-    logger.info("Installing npm packages.");
-    execSync("npm i --silent --no-fund", options);
+  try {
+    if (existsSync(join(settings.path, "package-lock.json"))) {
+      logger.info("Installing npm packages from lock file.");
+      execSync("npm ci --silent --no-fund", options);
+    } else {
+      logger.info("Installing npm packages.");
+      execSync("npm i --silent --no-fund", options);
+    }
+  } catch (e) {
+    logger.warn("Running npm failed.");
+    return false;
   }
 
   // Install Composer packages.
