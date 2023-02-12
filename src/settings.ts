@@ -2,10 +2,11 @@ import { readFile } from "fs/promises";
 import * as process from "process";
 import { join, parse } from "path";
 import { homedir } from "os";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
 import { fetchVersion } from "@/utils";
 import { replaceInFile } from "@/project";
+import { logger } from "@/logger";
 
 interface jcoreSettings {
   nodePath: string;
@@ -41,7 +42,7 @@ export const settings = {
   domain: "",
   local: "",
   version: version,
-  lastCheck: 0,
+  lastCheck: 0
 } as jcoreSettings;
 
 const values = new Map() as Map<string, string | string[]>;
@@ -63,21 +64,23 @@ export async function readSettings() {
   values.set("name", settings.name);
   if (existsSync(globalConfig)) {
     // Read global settings if they exist.
-    await readFile(globalConfig, "utf8").then((data) => {
-      parseSettings(data);
-    });
+    const data = readFileSync(globalConfig, "utf8");
+    parseSettings(data);
   }
 
   if (settings.inProject) {
     // Read project settings if in project.
-    await readFile(join(settings.path, "/config.sh"), "utf8").then((data) => {
-      parseSettings(data);
-    });
+    const data = readFileSync(join(settings.path, "/config.sh"), "utf8");
+    parseSettings(data);
   }
 
   populateSetting();
 
-  await versionCheck();
+  versionCheck().then(() => {
+    logger.debug("Version check done.");
+  }).catch(reason => {
+    logger.warn(reason);
+  });
 
   if (!settings.name) {
     // If name is not set, use folder name.
@@ -92,12 +95,12 @@ export async function readSettings() {
 async function versionCheck() {
   const now = Date.now();
   if (now - settings.lastCheck > 60 * 60 * 1000) {
-    const newVersion = await fetchVersion();
-    if (newVersion) {
-      settings.latest = newVersion;
-    }
     settings.lastCheck = now;
-    writeGlobalSettings();
+    console.debug("Doing Version check");
+    return fetchVersion().then((newVersion) => {
+      settings.latest = newVersion;
+      writeGlobalSettings();
+    });
   }
 }
 
@@ -107,7 +110,7 @@ export function writeGlobalSettings() {
     { key: "debug", value: settings.debug.toString() },
     { key: "loglevel", value: settings.logLevel.toString() },
     { key: "latest", value: settings.latest },
-    { key: "last_check", value: settings.lastCheck },
+    { key: "last_check", value: settings.lastCheck }
   ];
   let data = "";
   for (const row of setValues) {
@@ -123,14 +126,14 @@ export function writeSettings() {
     // Save project settings.
     const setValues = [
       { key: "name", value: settings.name },
-      { key: "theme", value: settings.theme },
+      { key: "theme", value: settings.theme }
     ];
     let replace = [];
     for (const row of setValues) {
       const key = row.key.toUpperCase();
       replace.push({
         search: new RegExp(`^#?${key}="[^"]*" *$`, "m"),
-        replace: `${key}="${row.value}"`,
+        replace: `${key}="${row.value}"`
       });
     }
 

@@ -23,15 +23,15 @@ function init() {
   }
 
   // Intro text.
-  logger.info("JCORE CLI v" + version);
-  logger.info("Mode: " + settings.mode);
-  logger.info("Debug: " + (settings.debug ? "On" : "Off"));
+  logger.verbose("JCORE CLI v" + version);
+  logger.debug("Mode: " + settings.mode);
+  logger.debug("Debug: " + (settings.debug ? "On" : "Off"));
   if (semver.gt(settings.latest, version)) {
     logger.warn(`New version v${settings.latest} available.`);
     logger.verbose(`Update with command "${settings.exec} update self"`);
   }
   if (settings.inProject) {
-    logger.info("Project: " + settings.name);
+    logger.verbose("Project: " + settings.name);
   }
 
   if (data.cmd) {
@@ -49,4 +49,5 @@ function init() {
 }
 
 // Run the code.
-readSettings().then(init);
+readSettings()
+  .then(init);
