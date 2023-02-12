@@ -18,7 +18,7 @@ function init() {
     settings.logLevel = logger.levels.error;
   } else if (data.flags.includes("debug")) {
     settings.logLevel = logger.levels.debug;
-  } else if (data.flags.includes("verbose")) {
+  } else if (data.flags.includes("verbose") || data.flags.includes("help")) {
     settings.logLevel = logger.levels.verbose;
   }
 
