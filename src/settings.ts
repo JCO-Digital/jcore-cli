@@ -88,7 +88,7 @@ export async function readSettings() {
   }
 }
 
-async function versionCheck () {
+async function versionCheck() {
   const now = Date.now();
   if (now - settings.lastCheck > 60 * 60 * 1000) {
     const newVersion = await fetchVersion();

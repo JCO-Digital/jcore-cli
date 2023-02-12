@@ -9,13 +9,13 @@ import { version } from "../../package.json";
 import { logger } from "@/logger";
 import semver from "semver/preload";
 
-export default function(data: cmdData) {
+export default function (data: cmdData) {
   const options = {
     drone: data.flags.includes("force") || data.target.includes("drone"),
     package: data.flags.includes("force") || data.target.includes("package"),
     build: data.flags.includes("force") || data.target.includes("build"),
     composer: data.flags.includes("force") || data.target.includes("composer"),
-    docker: data.flags.includes("force") || data.target.includes("docker")
+    docker: data.flags.includes("force") || data.target.includes("docker"),
   } as updateOptions;
 
   logger.info("Updating Project");
