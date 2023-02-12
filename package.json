@@ -1,6 +1,6 @@
 {
   "name": "jcore-cli",
-  "version": "0.99.23",
+  "version": "0.99.24",
   "scripts": {
     "test": "eslint src && prettier --check src",
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
