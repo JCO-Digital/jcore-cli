@@ -35,7 +35,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
     .then(async () => {
       logger.verbose("Unzipped");
 
-      const checksums = await loadChecksums();
+      const checksums = loadChecksums();
 
       const files = [
         {
@@ -125,7 +125,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         if (matching || file.force || !existsSync(destination)) {
           replaceInFile(source, file.replace, destination);
           // Calculate new checksum for file.
-          checksums.set(file.name, await calculateChecksum(destination));
+          checksums.set(file.name, calculateChecksum(destination));
           logger.info("Updated " + file.name);
         } else {
           logger.error("Skipping " + file.name);
@@ -133,7 +133,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         // Delete the file to avoid having to exclude it from the copy.
         rmSync(source);
       }
-      await saveChecksums(checksums);
+      saveChecksums(checksums);
 
       // Clean up legacy folders.
       rmSync(join(settings.path, "config"), { recursive: true, force: true });

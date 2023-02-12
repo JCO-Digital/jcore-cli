@@ -4,7 +4,7 @@ import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
-import { fetchVersion } from "@/utils";
+import { calculateChecksum, fetchVersion, loadChecksums, saveChecksums } from "@/utils";
 import { replaceInFile } from "@/project";
 import { logger } from "@/logger";
 
@@ -128,22 +128,44 @@ export function writeSettings() {
       { key: "name", value: settings.name },
       { key: "theme", value: settings.theme }
     ];
-    let replace = [];
+
+    const configReplace = [];
     let packageReplace = [];
     for (const row of setValues) {
       const key = row.key.toUpperCase();
-      replace.push({
+      configReplace.push({
         search: new RegExp(`^#?${key}="[^"]*" *$`, "m"),
         replace: `${key}="${row.value}"`
       });
-      replace.push({
+      packageReplace.push({
         search: new RegExp(`"${row.key}" *: *"[^"]*"`, "m"),
         replace: `"${row.key}": "${row.value}"`
       });
     }
 
-    replaceInFile(join(settings.path, "config.sh"), replace);
-    replaceInFile(join(settings.path, "package.json"), replace);
+
+    const files = [
+      {
+        name: "config.sh",
+        replace: configReplace
+      },
+      {
+        name: "package.json",
+        replace: packageReplace
+      }
+    ];
+
+    const checksums = loadChecksums();
+    for (const file of files) {
+      const filePath = join(settings.path, file.name);
+      const checksum = calculateChecksum(filePath);
+      replaceInFile(filePath, file.replace);
+      if (checksum === checksums.get(file.name)) {
+        logger.debug("Checksums Match");
+        checksums.set(file.name, calculateChecksum(filePath));
+      }
+    }
+    saveChecksums(checksums);
   }
 }
 

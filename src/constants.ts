@@ -5,13 +5,18 @@ export const jcorePath = "wp-content/themes/jcore2";
 export const childGit = "git@bitbucket.org:jcodigital/jcore2-child.git";
 export const childPath = "wp-content/themes/jcore2-child";
 export const updateFolder = ".update";
-export const checksumFile = ".file.checksums";
+export const checksumFile = ".file.checksums.json";
 
 export const projectFolders = [".jcore/wordpress", ".jcore/ssl", ".jcore/sql"];
 export const globalFolders = [".config/jcore/ssl", ".config/jcore/ssh"];
 export const externalCommands = ["composer", "npm", "docker", "docker-compose"];
 
 export const commands = [
+  {
+    cmd: "checksums",
+    text: "Manages file checksums.",
+    usage: [" - Lists all checksums, and weather they match."],
+  },
   {
     cmd: "child",
     text: "Makes project child theme by copying the local jcore2-child folder.",

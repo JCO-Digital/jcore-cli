@@ -4,7 +4,16 @@ import { access, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { createHash } from "crypto";
 import { checksumFile, scriptLocation } from "@/constants";
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, renameSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync
+} from "fs";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
@@ -84,9 +93,9 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
   });
 }
 
-export async function loadChecksums(): Promise<Map<string, string>> {
+export function loadChecksums(): Map<string, string> {
   try {
-    const json = await readFile(join(settings.path, checksumFile), "utf8");
+    const json = readFileSync(join(settings.path, checksumFile), "utf8");
     const data = JSON.parse(json);
     return new Map(Object.entries(data));
   } catch {
@@ -94,22 +103,24 @@ export async function loadChecksums(): Promise<Map<string, string>> {
   }
 }
 
-export async function saveChecksums(checksums: Map<string, string>): Promise<boolean> {
+export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object);
-    await writeFile(join(settings.path, checksumFile), json, "utf8");
+    writeFileSync(join(settings.path, checksumFile), json, "utf8");
     return true;
   } catch {
     return false;
   }
 }
 
-export async function calculateChecksum(file: string): Promise<string> {
-  return access(file)
-    .then(() => readFile(file, "utf8"))
-    .then((data) => createHash("sha256").update(data).digest("hex"))
-    .catch(() => "");
+export function calculateChecksum(file: string): string {
+  try {
+    const data = readFileSync(file, "utf8");
+    return createHash("sha256").update(data).digest("hex");
+  } catch (e) {
+    return "";
+  }
 }
 
 /**
