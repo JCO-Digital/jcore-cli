@@ -9,9 +9,25 @@ import { set } from "@/commands/set";
 import { doctor } from "@/commands/doctor";
 import { settings, writeSettings } from "@/settings";
 import { logger } from "@/logger";
+import { listChecksums, setChecksum } from "@/commands/checksum";
 
 export function runCmd(data: cmdData) {
   switch (data.cmd) {
+    case "checksum":
+      if (isProject()) {
+        switch (data.target.shift()) {
+          case "list":
+            listChecksums();
+            break;
+          case "set":
+            setChecksum(data.target);
+            break;
+          default:
+            helpCmd(data, false);
+            break;
+        }
+      }
+      break;
     case "child":
       if (isProject()) {
         // Create Child Theme.

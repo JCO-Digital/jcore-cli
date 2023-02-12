@@ -1,4 +1,3 @@
-import { readFile } from "fs/promises";
 import * as process from "process";
 import { join, parse } from "path";
 import { homedir } from "os";
@@ -42,7 +41,7 @@ export const settings = {
   domain: "",
   local: "",
   version: version,
-  lastCheck: 0
+  lastCheck: 0,
 } as jcoreSettings;
 
 const values = new Map() as Map<string, string | string[]>;
@@ -76,11 +75,13 @@ export async function readSettings() {
 
   populateSetting();
 
-  versionCheck().then(() => {
-    logger.debug("Version check done.");
-  }).catch(reason => {
-    logger.warn(reason);
-  });
+  versionCheck()
+    .then(() => {
+      logger.debug("Version check done.");
+    })
+    .catch((reason) => {
+      logger.warn(reason);
+    });
 
   if (!settings.name) {
     // If name is not set, use folder name.
@@ -110,7 +111,7 @@ export function writeGlobalSettings() {
     { key: "debug", value: settings.debug.toString() },
     { key: "loglevel", value: settings.logLevel.toString() },
     { key: "latest", value: settings.latest },
-    { key: "last_check", value: settings.lastCheck }
+    { key: "last_check", value: settings.lastCheck },
   ];
   let data = "";
   for (const row of setValues) {
@@ -126,33 +127,32 @@ export function writeSettings() {
     // Save project settings.
     const setValues = [
       { key: "name", value: settings.name },
-      { key: "theme", value: settings.theme }
+      { key: "theme", value: settings.theme },
     ];
 
     const configReplace = [];
-    let packageReplace = [];
+    const packageReplace = [];
     for (const row of setValues) {
       const key = row.key.toUpperCase();
       configReplace.push({
         search: new RegExp(`^#?${key}="[^"]*" *$`, "m"),
-        replace: `${key}="${row.value}"`
+        replace: `${key}="${row.value}"`,
       });
       packageReplace.push({
         search: new RegExp(`"${row.key}" *: *"[^"]*"`, "m"),
-        replace: `"${row.key}": "${row.value}"`
+        replace: `"${row.key}": "${row.value}"`,
       });
     }
-
 
     const files = [
       {
         name: "config.sh",
-        replace: configReplace
+        replace: configReplace,
       },
       {
         name: "package.json",
-        replace: packageReplace
-      }
+        replace: packageReplace,
+      },
     ];
 
     const checksums = loadChecksums();

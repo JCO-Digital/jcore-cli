@@ -49,5 +49,4 @@ function init() {
 }
 
 // Run the code.
-readSettings()
-  .then(init);
+readSettings().then(init);

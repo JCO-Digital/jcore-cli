@@ -13,9 +13,12 @@ export const externalCommands = ["composer", "npm", "docker", "docker-compose"];
 
 export const commands = [
   {
-    cmd: "checksums",
+    cmd: "checksum",
     text: "Manages file checksums.",
-    usage: [" - Lists all checksums, and weather they match."],
+    usage: [
+      "list - Lists all checksums, and weather they match.",
+      "reset - Reset all checksums. Note that this can cause local changes to be overwritten.",
+    ],
   },
   {
     cmd: "child",

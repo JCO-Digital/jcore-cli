@@ -1,6 +1,5 @@
 import { get } from "https";
 import AdmZip from "adm-zip";
-import { access, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { createHash } from "crypto";
 import { checksumFile, scriptLocation } from "@/constants";
@@ -12,42 +11,44 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
-  writeFileSync
+  writeFileSync,
 } from "fs";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    get(url).on("response", function(response) {
-      if (response.statusCode === 200) {
-        let body = "";
-        response.on("data", function(chunk) {
-          body += chunk;
-        });
-        response.on("end", function() {
-          resolve(body);
-        });
-      } else {
-        reject(`Call failed with code: ${response.statusCode}`);
-      }
-    }).on("error", (error) => {
-      reject(`Fetch from ${url} failed!`);
-    });
+    get(url)
+      .on("response", function (response) {
+        if (response.statusCode === 200) {
+          let body = "";
+          response.on("data", function (chunk) {
+            body += chunk;
+          });
+          response.on("end", function () {
+            resolve(body);
+          });
+        } else {
+          reject(`Call failed with code: ${response.statusCode}`);
+        }
+      })
+      .on("error", () => {
+        reject(`Fetch from ${url} failed!`);
+      });
   });
 }
 
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    get(url).on("response", function(response) {
+    get(url).on("response", function (response) {
       if (response.statusCode === 200) {
         const data: Buffer[] = [];
 
         response
-          .on("data", function(chunk) {
+          .on("data", function (chunk) {
             data.push(chunk);
           })
-          .on("end", function() {
+          .on("end", function () {
             //at this point data is an array of Buffers
             //so Buffer.concat() can make us a new Buffer
             //of all of them together
@@ -69,13 +70,13 @@ export function fetchVersion(): Promise<string> {
           if (typeof info.version === "string") {
             resolve(info.version);
           }
-          reject("Wrong format");
+          reject("Version in version fetch is of wrong format.");
         } catch (e) {
-          reject("JSON error.");
+          reject("JSON error in version fetch.");
         }
       })
       .catch(() => {
-        reject("Network error.");
+        reject("Network error in version fetch.");
       });
   });
 }
