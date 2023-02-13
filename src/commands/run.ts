@@ -5,8 +5,8 @@ import { finaliseProject } from "@/project";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
-export function start() {
-  if (finaliseProject()) {
+export function start(data: cmdData) {
+  if (finaliseProject(data.flags.includes("install"))) {
     // Run only if finalize is successful.
     const options = {
       cwd: settings.path,

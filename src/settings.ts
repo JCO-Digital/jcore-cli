@@ -19,6 +19,7 @@ interface jcoreSettings {
   theme: string;
   branch: string;
   plugins: string;
+  install: boolean;
   logLevel: number;
   domain: string;
   local: string;
@@ -37,6 +38,8 @@ export const settings = {
   branch: "",
   theme: "jcore2-child",
   debug: 0,
+  plugins: "remote",
+  install: true,
   logLevel: 2,
   domain: "",
   local: "",
@@ -128,6 +131,7 @@ export function writeSettings() {
     const setValues = [
       { key: "name", value: settings.name },
       { key: "theme", value: settings.theme },
+      { key: "install", value: settings.install ? "true" : "false" },
     ];
 
     const configReplace = [];
@@ -237,6 +241,9 @@ function populateSetting() {
           break;
         case "plugin_install":
           settings.plugins = value;
+          break;
+        case "install":
+          settings.install = value === "true";
           break;
         case "latest":
           settings.latest = value;

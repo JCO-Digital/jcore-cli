@@ -154,7 +154,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
     .catch((reason) => Promise.reject("Unable to extract file " + reason));
 }
 
-export function finaliseProject(): boolean {
+export function finaliseProject(install = true): boolean {
   const options = {
     cwd: settings.path,
     stdio: [0, 1, 2],
@@ -196,32 +196,34 @@ export function finaliseProject(): boolean {
     return false;
   }
 
-  // Install npm packages.
-  try {
-    if (existsSync(join(settings.path, "package-lock.json"))) {
-      logger.info("Installing npm packages from lock file.");
-      execSync("npm ci --silent --no-fund", options);
-    } else {
-      logger.info("Installing npm packages.");
-      execSync("npm i --silent --no-fund", options);
+  if (settings.install || install) {
+    // Install npm packages.
+    try {
+      if (existsSync(join(settings.path, "package-lock.json"))) {
+        logger.info("Installing npm packages from lock file.");
+        execSync("npm ci --silent --no-fund", options);
+      } else {
+        logger.info("Installing npm packages.");
+        execSync("npm i --silent --no-fund", options);
+      }
+    } catch (e) {
+      logger.warn("Running npm failed.");
+      return false;
     }
-  } catch (e) {
-    logger.warn("Running npm failed.");
-    return false;
+
+    // Install Composer packages.
+    logger.info("Installing composer packages.");
+    try {
+      execSync("composer install --quiet", options);
+    } catch (e) {
+      logger.warn("Composer failed, maybe not installed.");
+      return false;
+    }
+
+    // Update docker images.
+    logger.info("Update Docker Images.");
+    execSync("docker-compose pull", options);
   }
-
-  // Install Composer packages.
-  logger.info("Installing composer packages.");
-  try {
-    execSync("composer install --quiet", options);
-  } catch (e) {
-    logger.warn("Composer failed, maybe not installed.");
-    return false;
-  }
-
-  logger.info("Update Docker Images.");
-  execSync("docker-compose pull", options);
-
   return true;
 }
 

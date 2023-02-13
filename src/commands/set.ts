@@ -20,6 +20,10 @@ export function set(data: cmdData) {
       }
       logger.info("Debug set to " + (settings.debug ? "On" : "Off"));
       break;
+    case "install":
+      settings.install = data.target[1].toLowerCase() === "on" || data.target[1] === "1";
+      logger.info("Install set to " + (settings.debug ? "On" : "Off"));
+      break;
     case "loglevel":
       if (data.target[1].match(/^[0-9]$/)) {
         settings.logLevel = Number(data.target[1]);

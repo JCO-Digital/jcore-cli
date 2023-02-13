@@ -24,8 +24,9 @@ function init() {
 
   // Intro text.
   logger.verbose("JCORE CLI v" + version);
-  logger.debug("Mode: " + settings.mode);
-  logger.debug("Debug: " + (settings.debug ? "On" : "Off"));
+  logger.debug("Mode: ".padEnd(12) + settings.mode);
+  logger.debug("Debug: ".padEnd(12) + (settings.debug ? "On" : "Off"));
+  logger.debug("Install: ".padEnd(12) + (settings.install ? "On" : "Off"));
   if (settings.latest && settings.version && semver.gt(settings.latest, settings.version)) {
     logger.warn(`New version v${settings.latest} available.`);
     logger.verbose(`Update with command "${settings.exec} update self"`);

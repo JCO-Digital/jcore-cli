@@ -61,6 +61,7 @@ export const commands = [
     usage: [
       "mode (fg|bg) - Sets docker to either running in foreground, or in background.",
       "debug (on|off) - Turns XDebug on or off by default.",
+      "install (on|off) - Should npm and composer be run every start.",
     ],
   },
   {

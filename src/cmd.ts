@@ -107,7 +107,7 @@ export function runCmd(data: cmdData): void {
     case "start":
       if (isProject()) {
         // Start the project.
-        start();
+        start(data);
       }
       break;
     case "stop":
