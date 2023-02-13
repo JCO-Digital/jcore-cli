@@ -14,7 +14,7 @@ interface jcoreSettings {
   inProject: boolean;
   path: string;
   mode: string;
-  debug: number;
+  debug: boolean;
   name: string;
   theme: string;
   branch: string;
@@ -37,7 +37,7 @@ export const settings = {
   mode: "foreground",
   branch: "",
   theme: "jcore2-child",
-  debug: 0,
+  debug: false,
   plugins: "remote",
   install: true,
   logLevel: 2,
@@ -228,7 +228,7 @@ function populateSetting() {
           settings.mode = value;
           break;
         case "debug":
-          settings.debug = Number(value);
+          settings.debug = (value === "1" || value === "true");
           break;
         case "name":
           settings.name = value;
@@ -243,7 +243,7 @@ function populateSetting() {
           settings.plugins = value;
           break;
         case "install":
-          settings.install = value === "true";
+          settings.install = (value === "1" || value === "true");
           break;
         case "latest":
           settings.latest = value;

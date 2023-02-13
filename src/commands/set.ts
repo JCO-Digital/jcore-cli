@@ -13,16 +13,12 @@ export function set(data: cmdData) {
       logger.info("Mode set to " + settings.mode);
       break;
     case "debug":
-      if (data.target[1].toLowerCase() === "on" || data.target[1] === "1") {
-        settings.debug = 1;
-      } else {
-        settings.debug = 0;
-      }
+      settings.debug = parseSetting(data.target[1]);
       logger.info("Debug set to " + (settings.debug ? "On" : "Off"));
       break;
     case "install":
-      settings.install = data.target[1].toLowerCase() === "on" || data.target[1] === "1";
-      logger.info("Install set to " + (settings.debug ? "On" : "Off"));
+      settings.install = parseSetting(data.target[1]);
+      logger.info("Install set to " + (settings.install ? "On" : "Off"));
       break;
     case "loglevel":
       if (data.target[1].match(/^[0-9]$/)) {
@@ -32,4 +28,15 @@ export function set(data: cmdData) {
       break;
   }
   writeSettings();
+}
+
+function parseSetting(value: string): boolean {
+  switch (value.toLowerCase()) {
+    case "true":
+    case "on":
+    case "1":
+      return true;
+    default:
+      return false;
+  }
 }
