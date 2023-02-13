@@ -4,7 +4,7 @@ import { commands, flags } from "@/constants";
 import { logger } from "@/logger";
 
 export function help(cmd: cmdData) {
-  logger.info("\nUsage: " + settings.exec + " <command> [options] <target>");
+  logger.info(`Usage: ${settings.exec} <command> [options] <target>`);
 
   if (cmd.flags.includes("help")) {
     const padding = 16;

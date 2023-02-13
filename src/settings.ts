@@ -97,7 +97,7 @@ async function versionCheck() {
   const now = Date.now();
   if (now - settings.lastCheck > 60 * 60 * 1000) {
     settings.lastCheck = now;
-    console.debug("Doing Version check");
+    logger.debug("Doing Version check");
     return fetchVersion().then((newVersion) => {
       settings.latest = newVersion;
       writeGlobalSettings();

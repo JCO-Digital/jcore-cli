@@ -26,7 +26,7 @@ function init() {
   logger.verbose("JCORE CLI v" + version);
   logger.debug("Mode: " + settings.mode);
   logger.debug("Debug: " + (settings.debug ? "On" : "Off"));
-  if (semver.gt(settings.latest, version)) {
+  if (settings.latest && settings.version && semver.gt(settings.latest, settings.version)) {
     logger.warn(`New version v${settings.latest} available.`);
     logger.verbose(`Update with command "${settings.exec} update self"`);
   }

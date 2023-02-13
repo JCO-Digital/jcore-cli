@@ -11,7 +11,12 @@ import { settings, writeSettings } from "@/settings";
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
 
-export function runCmd(data: cmdData) {
+/**
+ * Invokes functions for all the different commands. Sanity checking should be done here,
+ * like if the command needs to be in a project to run.
+ * @param data
+ */
+export function runCmd(data: cmdData): void {
   switch (data.cmd) {
     case "checksum":
       if (isProject()) {

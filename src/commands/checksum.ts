@@ -4,10 +4,18 @@ import { join } from "path";
 import { settings } from "@/settings";
 import { existsSync } from "fs";
 
+/**
+ * Lists the saved checksums, and if they match
+ */
 export function listChecksums() {
   for (const [key, value] of loadChecksums()) {
-    const match = calculateChecksum(join(settings.path, key)) === value ? "OK" : "Changed";
-    logger.info(`Checksum for ${key}:`.padEnd(35) + match);
+    const fullPath = join(settings.path, key);
+    if (existsSync(fullPath)) {
+      const match = calculateChecksum(fullPath) === value ? "OK" : "Changed";
+      logger.info(`Checksum for ${key}:`.padEnd(35) + match);
+    } else {
+      logger.warn(`File ${key}:`.padEnd(35) + "Missing");
+    }
   }
 }
 
