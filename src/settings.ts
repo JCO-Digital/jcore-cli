@@ -228,7 +228,7 @@ function populateSetting() {
           settings.mode = value;
           break;
         case "debug":
-          settings.debug = (value === "1" || value === "true");
+          settings.debug = value === "1" || value === "true";
           break;
         case "name":
           settings.name = value;
@@ -243,7 +243,7 @@ function populateSetting() {
           settings.plugins = value;
           break;
         case "install":
-          settings.install = (value === "1" || value === "true");
+          settings.install = value === "1" || value === "true";
           break;
         case "latest":
           settings.latest = value;

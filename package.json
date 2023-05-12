@@ -1,6 +1,7 @@
 {
   "name": "jcore-cli",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
+  "main": "src/main.ts",
   "scripts": {
     "test": "eslint src && prettier --check src",
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
@@ -28,6 +29,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
+    "@sentry/node": "^7.38.0",
     "adm-zip": "^0.5.10",
     "semver": "^7.3.8"
   },

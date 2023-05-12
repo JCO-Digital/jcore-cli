@@ -6,11 +6,15 @@ import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
 import { version } from "../package.json";
 import semver from "semver/preload";
+import { init } from "@sentry/node";
+
+// Initialize Sentry.
+init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
 
 /**
  * Main init function of the application. This like all other functions expects an initialized settings object.
  */
-function init() {
+function initCli() {
   const data = parser(process.argv);
 
   // Set log level from flags.
@@ -50,4 +54,4 @@ function init() {
 }
 
 // Run the code.
-readSettings().then(init);
+readSettings().then(initCli);

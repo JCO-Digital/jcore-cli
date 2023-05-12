@@ -15,6 +15,8 @@ export const commands = [
   {
     cmd: "checksum",
     text: "Manages file checksums.",
+    description:
+      "This is used to check which files have been changed manually, and should not be overwritten automatically. You can list all existing checksums, and reset checksums for specific files.",
     usage: [
       "list - Lists all checksums, and weather they match.",
       "set [...filename] - Calculate and set checksums for the given files.",
@@ -23,41 +25,50 @@ export const commands = [
   {
     cmd: "child",
     text: "Makes project child theme by copying the local jcore2-child folder.",
+    description:
+      "It uses a file copy operation, rather than checking out the git repository, so uncommitted files in the folder will be included. The default name will be the same as the project name, but a different name can be specified as the target.",
     usage: ["<themename> - Creates a copy the jcore child theme."],
   },
   {
     cmd: "clean",
-    text: "Delete image / VM / temp files.",
+    text: "Delete image / container / temp files.",
+    description: "",
     usage: [""],
   },
   {
     cmd: "clone",
     text: "Clones a project from bitbucket, and sets everything up.",
+    description: "",
     usage: ["<projectname> - Clones project from bitbucket."],
   },
   {
     cmd: "doctor",
-    text: "Check status of the environment.",
+    text: "Checks the status of the environment.",
+    description: "",
     usage: [""],
   },
   {
     cmd: "init",
     text: "Creates a new project in the <target> folder.",
+    description: "",
     usage: ["<projectname>"],
   },
   {
     cmd: "pull",
     text: "Syncs content from upstream.",
+    description: "",
     usage: ["", "db|plugins|media"],
   },
   {
     cmd: "run",
     text: "Runs a command in container.",
+    description: "",
     usage: ["<command>"],
   },
   {
     cmd: "set",
     text: "Set options in config file. Currently mode/debug.",
+    description: "",
     usage: [
       "mode (fg|bg) - Sets docker to either running in foreground, or in background.",
       "debug (on|off) - Turns XDebug on or off by default.",
@@ -67,21 +78,25 @@ export const commands = [
   {
     cmd: "shell",
     text: "Opens a shell in the container / VM.",
+    description: "",
     usage: [""],
   },
   {
     cmd: "start",
-    text: "Installs composer and npm dependencies, starts container and gulp.",
+    text: "Installs composer and npm dependencies, and starts container.",
+    description: "",
     usage: ["- Start normally", "debug - Run with temporary debugging."],
   },
   {
     cmd: "stop",
     text: "Shutdown container. Removes docker ",
+    description: "",
     usage: [""],
   },
   {
     cmd: "update",
     text: "Updates project. If the target is 'self' this script updates itself.",
+    description: "",
     usage: [
       "- Updates the current project.",
       "self - Updates this script.",

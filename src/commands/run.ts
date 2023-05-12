@@ -1,12 +1,12 @@
 import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 import { cmdData } from "@/types";
-import { finaliseProject } from "@/project";
+import { finalizeProject } from "@/project";
 import { settings } from "@/settings";
 import { logger } from "@/logger";
 
 export function start(data: cmdData) {
-  if (finaliseProject(data.flags.includes("install"))) {
+  if (!isRunning() && finalizeProject(data.flags.includes("install"))) {
     // Run only if finalize is successful.
     const options = {
       cwd: settings.path,
@@ -77,6 +77,22 @@ export function pull(data: cmdData) {
   if (runFlags.media) {
     runCommand(mediaScript);
   }
+}
+
+export function isRunning(): boolean {
+  let running = false;
+  const options = {
+    cwd: settings.path,
+  };
+  const output = execSync("docker ps", options).toString();
+  const search = output.matchAll(/^.*jcodigi\/wordpress:.*?([a-zA-Z0-9]+)-wordpress-[0-9]$/gm);
+  for (const line of search) {
+    const project = line[1] ?? "";
+    logger.warn(`Project ${project} already running!`);
+    running = true;
+  }
+
+  return running;
 }
 
 export function runCommand(command: string, spawn = false) {

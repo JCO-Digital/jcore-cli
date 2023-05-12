@@ -2,7 +2,7 @@ import { cmdData } from "@/types";
 import { settings, writeSettings } from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
-import { finaliseProject, replaceInFile, updateFiles } from "@/project";
+import { finalizeProject, replaceInFile, updateFiles } from "@/project";
 import { childGit, childPath, jcoreGit, jcorePath } from "@/constants";
 import { logger } from "@/logger";
 import { mergeFiles, nameToFolder } from "@/utils";
@@ -41,15 +41,15 @@ export function createProject(data: cmdData) {
         copyChildTheme(settings.name);
       }
 
-      // TODO Write config
+      // Write config
       writeSettings();
 
       // GIT commit
       execSync("git add -A", options);
       execSync('git commit -m "Initial Commit"', options);
 
-      // TODO Finalize project.
-      finaliseProject();
+      // Finalize project.
+      finalizeProject();
     });
   }
 }

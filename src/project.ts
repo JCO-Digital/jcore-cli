@@ -4,7 +4,7 @@ import {
   getFile,
   saveChecksums,
   calculateChecksum,
-  mergeFiles
+  mergeFiles,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
@@ -20,7 +20,7 @@ const defaultOptions = {
   package: false,
   build: false,
   composer: false,
-  docker: false
+  docker: false,
 } as updateOptions;
 
 export function updateFiles(options: updateOptions = defaultOptions) {
@@ -44,17 +44,17 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: /#?NAME="[^"]*"/gm,
-              replace: "NAME=\"" + settings.name + "\""
+              replace: 'NAME="' + settings.name + '"',
             },
             {
               search: /#?THEME="[^"]*"/gm,
-              replace: "THEME=\"" + settings.theme + "\""
+              replace: 'THEME="' + settings.theme + '"',
             },
             {
               search: /#?BRANCH="[^"]*"/gm,
-              replace: "BRANCH=\"" + settings.branch + "\""
-            }
-          ]
+              replace: 'BRANCH="' + settings.branch + '"',
+            },
+          ],
         },
         {
           name: "readme.md",
@@ -62,9 +62,9 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "# WordPress Container",
-              replace: "# " + settings.name.charAt(0).toUpperCase() + settings.name.slice(1)
-            }
-          ]
+              replace: "# " + settings.name.charAt(0).toUpperCase() + settings.name.slice(1),
+            },
+          ],
         },
         {
           name: ".drone.yml",
@@ -73,9 +73,9 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "wp-content/themes/projectname",
-              replace: "wp-content/themes/" + settings.theme
-            }
-          ]
+              replace: "wp-content/themes/" + settings.theme,
+            },
+          ],
         },
         {
           name: "package.json",
@@ -83,23 +83,23 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: /"name" *: *"[^"]*"/gm,
-              replace: `"name": "${settings.name}"`
+              replace: `"name": "${settings.name}"`,
             },
             {
               search: /"theme" *: *"[^"]*"/gm,
-              replace: `"theme": "${settings.theme}"`
-            }
-          ]
+              replace: `"theme": "${settings.theme}"`,
+            },
+          ],
         },
         {
           name: "build.mjs",
           force: options.build ?? false,
-          replace: []
+          replace: [],
         },
         {
           name: "composer.json",
           force: options.composer ?? false,
-          replace: []
+          replace: [],
         },
         {
           name: "docker-compose.yml",
@@ -107,10 +107,10 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "- docker.localhost",
-              replace: "- " + settings.name + ".localhost"
-            }
-          ]
-        }
+              replace: "- " + settings.name + ".localhost",
+            },
+          ],
+        },
       ];
 
       for (const file of files) {
@@ -139,7 +139,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
       rmSync(join(settings.path, "config"), { recursive: true, force: true });
       rmSync(join(settings.path, "provisioning"), {
         recursive: true,
-        force: true
+        force: true,
       });
 
       // Remove old config folder.
@@ -154,10 +154,10 @@ export function updateFiles(options: updateOptions = defaultOptions) {
     .catch((reason) => Promise.reject("Unable to extract file " + reason));
 }
 
-export function finaliseProject(install = true): boolean {
+export function finalizeProject(install = true): boolean {
   const options = {
     cwd: settings.path,
-    stdio: [0, 1, 2]
+    stdio: [0, 1, 2],
   };
 
   if (!checkFolders()) {
@@ -168,8 +168,8 @@ export function finaliseProject(install = true): boolean {
   replaceInFile(join(settings.path, ".config/nginx/site.conf"), [
     {
       search: /proxy_pass.*https.*;$/gm,
-      replace: "proxy_pass    https://" + settings.domain + ";"
-    }
+      replace: "proxy_pass    https://" + settings.domain + ";",
+    },
   ]);
 
   // Manage php.ini & debug setting.
@@ -177,7 +177,7 @@ export function finaliseProject(install = true): boolean {
   if (settings.debug) {
     replace.push({
       search: /xdebug.mode=.*$/gm,
-      replace: "xdebug.mode=develop,debug"
+      replace: "xdebug.mode=develop,debug",
     });
   }
   replaceInFile(

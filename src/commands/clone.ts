@@ -6,7 +6,7 @@ import { execSync } from "child_process";
 import { join, parse } from "path";
 import process from "process";
 import { childPath, jcorePath } from "@/constants";
-import { finaliseProject } from "@/project";
+import { finalizeProject } from "@/project";
 
 export function cloneProject(data: cmdData) {
   let source = data.target[0];
@@ -45,8 +45,10 @@ export function cloneProject(data: cmdData) {
       return;
     }
 
-    // After clone settings need to be read again.
-    readSettings().then(setupProject).then(finaliseProject);
+    // After clone settings need to be read again. Run finalizeProject in anonymous function because of optional argument.
+    readSettings()
+      .then(setupProject)
+      .then(() => finalizeProject());
   }
 }
 
@@ -64,7 +66,6 @@ function setupProject() {
     return;
   }
 
-  // TODO Find out if this is controversial, but it doesn't commit automatically, so should be fine.
   if (settings.branch) {
     try {
       // Switch jcore submodule to branch.
