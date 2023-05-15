@@ -1,10 +1,10 @@
 import { cmdData } from "@/types";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { commands, flags } from "@/constants";
 import { logger } from "@/logger";
 
 export function help(cmd: cmdData) {
-  logger.info(`Usage: ${settings.exec} <command> [options] <target>`);
+  logger.info(`Usage: ${jcoreSettingsData.exec} <command> [options] <target>`);
 
   if (cmd.flags.includes("help")) {
     const padding = 16;
@@ -46,5 +46,5 @@ export function helpCmd(cmd: cmdData, text = true, usage = true) {
 }
 
 export function usageText(cmd: string, text: string) {
-  return settings.exec + " " + cmd + " " + text;
+  return jcoreSettingsData.exec + " " + cmd + " " + text;
 }

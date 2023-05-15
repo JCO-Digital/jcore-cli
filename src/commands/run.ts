@@ -2,18 +2,18 @@ import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 import { cmdData } from "@/types";
 import { finalizeProject } from "@/project";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 
 export function start(data: cmdData) {
   if (!isRunning() && finalizeProject(data.flags.includes("install"))) {
     // Run only if finalize is successful.
     const options = {
-      cwd: settings.path,
+      cwd: jcoreSettingsData.path,
       stdio: [0, 1, 2],
     };
     try {
-      if (settings.mode === "foreground") {
+      if (jcoreSettingsData.mode === "foreground") {
         spawnSync("docker-compose", ["up"], options);
       } else {
         execSync("docker-compose up -d", options);
@@ -28,7 +28,7 @@ export function stop() {
   logger.info("Stopping Docker");
 
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
     stdio: [0, 1, 2],
   };
 
@@ -82,7 +82,7 @@ export function pull(data: cmdData) {
 export function isRunning(): boolean {
   let running = false;
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
   };
   const output = execSync("docker ps", options).toString();
   const search = output.matchAll(/^.*jcodigi\/wordpress:.*?([a-zA-Z0-9]+)-wordpress-[0-9]$/gm);
@@ -99,7 +99,7 @@ export function runCommand(command: string, spawn = false) {
   logger.verbose("Executing command on docker");
 
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
     stdio: [0, 1, 2],
   };
 

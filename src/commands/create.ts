@@ -1,5 +1,5 @@
 import { cmdData } from "@/types";
-import { settings, writeSettings } from "@/settings";
+import { jcoreSettingsData, writeSettings } from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
@@ -10,16 +10,16 @@ import { join } from "path";
 import process from "process";
 
 export function createProject(data: cmdData) {
-  settings.name = data.target[0];
-  settings.path = join(process.cwd(), settings.name);
-  if (existsSync(settings.path)) {
-    logger.warn("Project path exists: " + settings.path);
+  jcoreSettingsData.name = data.target[0];
+  jcoreSettingsData.path = join(process.cwd(), jcoreSettingsData.name);
+  if (existsSync(jcoreSettingsData.path)) {
+    logger.warn("Project path exists: " + jcoreSettingsData.path);
   } else {
-    logger.info("Create Project: " + settings.name);
-    mkdirSync(settings.path);
+    logger.info("Create Project: " + jcoreSettingsData.name);
+    mkdirSync(jcoreSettingsData.path);
 
     const options = {
-      cwd: settings.path,
+      cwd: jcoreSettingsData.path,
       stdio: [0, 1, 2],
     };
 
@@ -30,15 +30,15 @@ export function createProject(data: cmdData) {
 
       // Add git submodules.
       let extra = "";
-      if (settings.branch) {
-        extra += "-b " + settings.branch;
+      if (jcoreSettingsData.branch) {
+        extra += "-b " + jcoreSettingsData.branch;
       }
       execSync("git submodule add -f " + extra + ' "' + jcoreGit + '" ' + jcorePath, options);
       execSync("git submodule add -f " + extra + ' "' + childGit + '" ' + childPath, options);
 
       // Copy child theme.
       if (!data.flags.includes("nochild")) {
-        copyChildTheme(settings.name);
+        copyChildTheme(jcoreSettingsData.name);
       }
 
       // Write config
@@ -55,10 +55,10 @@ export function createProject(data: cmdData) {
 }
 
 export function copyChildTheme(name: string): boolean {
-  settings.theme = nameToFolder(name);
-  const themePath = join(settings.path, "wp-content/themes", settings.theme);
+  jcoreSettingsData.theme = nameToFolder(name);
+  const themePath = join(jcoreSettingsData.path, "wp-content/themes", jcoreSettingsData.theme);
   if (!existsSync(themePath)) {
-    mergeFiles(join(settings.path, childPath), themePath, true);
+    mergeFiles(join(jcoreSettingsData.path, childPath), themePath, true);
     replaceInFile(join(themePath, "style.css"), [
       { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
     ]);

@@ -1,7 +1,7 @@
 import { calculateChecksum, loadChecksums, saveChecksums } from "@/utils";
 import { logger } from "@/logger";
 import { join } from "path";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { existsSync } from "fs";
 
 /**
@@ -9,7 +9,7 @@ import { existsSync } from "fs";
  */
 export function listChecksums() {
   for (const [key, value] of loadChecksums()) {
-    const fullPath = join(settings.path, key);
+    const fullPath = join(jcoreSettingsData.path, key);
     if (existsSync(fullPath)) {
       const match = calculateChecksum(fullPath) === value ? "OK" : "Changed";
       logger.info(`Checksum for ${key}:`.padEnd(35) + match);
@@ -22,7 +22,7 @@ export function listChecksums() {
 export function setChecksum(files: string[]) {
   const checksums = loadChecksums();
   for (const file of files) {
-    const filePath = join(settings.path, file);
+    const filePath = join(jcoreSettingsData.path, file);
     if (existsSync(filePath)) {
       const checksum = calculateChecksum(filePath);
       if (checksums.has(file) && checksum === checksums.get(file)) {

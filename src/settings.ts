@@ -6,30 +6,11 @@ import { config, version } from "../package.json";
 import { calculateChecksum, fetchVersion, loadChecksums, saveChecksums } from "@/utils";
 import { replaceInFile } from "@/project";
 import { logger } from "@/logger";
-
-interface jcoreSettings {
-  nodePath: string;
-  execPath: string;
-  exec: string;
-  inProject: boolean;
-  path: string;
-  mode: string;
-  debug: boolean;
-  name: string;
-  theme: string;
-  branch: string;
-  plugins: string;
-  install: boolean;
-  logLevel: number;
-  domain: string;
-  local: string;
-  version: string;
-  latest: string;
-  lastCheck: number;
-}
+import type { jcoreSettings } from "@/types";
+import { dataSchema, jcoreData } from "@/types";
 
 // Default settings.
-export const settings = {
+export const jcoreSettingsData = {
   nodePath: "",
   execPath: "",
   exec: "",
@@ -43,36 +24,47 @@ export const settings = {
   logLevel: 2,
   domain: "",
   local: "",
-  version: version,
-  lastCheck: 0,
 } as jcoreSettings;
+
+export const jcoreDataData = {
+  projects: [],
+  version: version,
+  latest: "",
+  lastCheck: 0,
+} as jcoreData;
 
 const values = new Map() as Map<string, string | string[]>;
 
 const globalConfig = join(homedir(), ".config/jcore/config");
+const globalData = join(homedir(), ".config/jcore/data.json");
 
 export async function readSettings() {
   // Find the project base path.
-  while (settings.path.length > 1 && !existsSync(join(settings.path, "config.sh"))) {
+  while (
+    jcoreSettingsData.path.length > 1 &&
+    !existsSync(join(jcoreSettingsData.path, "config.sh"))
+  ) {
     // Go up one level and try again.
-    settings.path = parse(settings.path).dir;
+    jcoreSettingsData.path = parse(jcoreSettingsData.path).dir;
   }
   // Check if we are in a project.
-  settings.inProject = settings.path.length > 1;
-  if (settings.inProject) {
-    settings.name = parse(settings.path).base;
+  jcoreSettingsData.inProject = jcoreSettingsData.path.length > 1;
+  if (jcoreSettingsData.inProject) {
+    jcoreSettingsData.name = parse(jcoreSettingsData.path).base;
   }
 
-  values.set("name", settings.name);
+  readData();
+
+  values.set("name", jcoreSettingsData.name);
   if (existsSync(globalConfig)) {
     // Read global settings if they exist.
     const data = readFileSync(globalConfig, "utf8");
     parseSettings(data);
   }
 
-  if (settings.inProject) {
+  if (jcoreSettingsData.inProject) {
     // Read project settings if in project.
-    const data = readFileSync(join(settings.path, "/config.sh"), "utf8");
+    const data = readFileSync(join(jcoreSettingsData.path, "/config.sh"), "utf8");
     parseSettings(data);
   }
 
@@ -86,35 +78,54 @@ export async function readSettings() {
       logger.warn(reason);
     });
 
-  if (!settings.name) {
+  if (!jcoreSettingsData.name) {
     // If name is not set, use folder name.
-    settings.name = parse(settings.path).base;
+    jcoreSettingsData.name = parse(jcoreSettingsData.path).base;
   }
 
-  if (!settings.inProject && !settings.branch) {
-    settings.branch = config.branch;
+  if (!jcoreSettingsData.inProject && !jcoreSettingsData.branch) {
+    jcoreSettingsData.branch = config.branch;
   }
+}
+
+function readData(): jcoreData {
+  if (existsSync(globalData)) {
+    // Read global settings if they exist.
+    const json = readFileSync(globalData, "utf8");
+    try {
+      const data = JSON.parse(json);
+      const parsed = dataSchema.safeParse(data);
+      if (parsed.success) {
+        return parsed.data;
+      }
+    } catch (error) {
+      logger.warn("Data parsing failed.");
+    }
+  }
+  return {} as jcoreData;
+}
+
+function writeData() {
+  writeFileSync(globalData, JSON.stringify(jcoreDataData), "utf8");
 }
 
 async function versionCheck() {
   const now = Date.now();
-  if (now - settings.lastCheck > 60 * 60 * 1000) {
-    settings.lastCheck = now;
+  if (now - jcoreDataData.lastCheck > 60 * 60 * 1000) {
+    jcoreDataData.lastCheck = now;
     logger.debug("Doing Version check");
     return fetchVersion().then((newVersion) => {
-      settings.latest = newVersion;
-      writeGlobalSettings();
+      jcoreDataData.latest = newVersion;
+      writeData();
     });
   }
 }
 
 export function writeGlobalSettings() {
   const setValues = [
-    { key: "mode", value: settings.mode },
-    { key: "debug", value: settings.debug.toString() },
-    { key: "loglevel", value: settings.logLevel.toString() },
-    { key: "latest", value: settings.latest },
-    { key: "last_check", value: settings.lastCheck },
+    { key: "mode", value: jcoreSettingsData.mode },
+    { key: "debug", value: jcoreSettingsData.debug.toString() },
+    { key: "loglevel", value: jcoreSettingsData.logLevel.toString() },
   ];
   let data = "";
   for (const row of setValues) {
@@ -126,12 +137,12 @@ export function writeGlobalSettings() {
 export function writeSettings() {
   // Call global settings save.
   writeGlobalSettings();
-  if (settings.inProject) {
+  if (jcoreSettingsData.inProject) {
     // Save project settings.
     const setValues = [
-      { key: "name", value: settings.name },
-      { key: "theme", value: settings.theme },
-      { key: "install", value: settings.install ? "true" : "false" },
+      { key: "name", value: jcoreSettingsData.name },
+      { key: "theme", value: jcoreSettingsData.theme },
+      { key: "install", value: jcoreSettingsData.install ? "true" : "false" },
     ];
 
     const configReplace = [];
@@ -161,7 +172,7 @@ export function writeSettings() {
 
     const checksums = loadChecksums();
     for (const file of files) {
-      const filePath = join(settings.path, file.name);
+      const filePath = join(jcoreSettingsData.path, file.name);
       const checksum = calculateChecksum(filePath);
       replaceInFile(filePath, file.replace);
       if (checksum === checksums.get(file.name)) {
@@ -222,41 +233,35 @@ function populateSetting() {
     if (typeof value === "string") {
       switch (key) {
         case "path":
-          settings.path = value;
+          jcoreSettingsData.path = value;
           break;
         case "mode":
-          settings.mode = value;
+          jcoreSettingsData.mode = value;
           break;
         case "debug":
-          settings.debug = value === "1" || value === "true";
+          jcoreSettingsData.debug = value === "1" || value === "true";
           break;
         case "name":
-          settings.name = value;
+          jcoreSettingsData.name = value;
           break;
         case "theme":
-          settings.theme = value;
+          jcoreSettingsData.theme = value;
           break;
         case "branch":
-          settings.branch = value;
+          jcoreSettingsData.branch = value;
           break;
         case "plugin_install":
-          settings.plugins = value;
+          jcoreSettingsData.plugins = value;
           break;
         case "install":
-          settings.install = value === "1" || value === "true";
-          break;
-        case "latest":
-          settings.latest = value;
-          break;
-        case "last_check":
-          settings.lastCheck = Number(value);
+          jcoreSettingsData.install = value === "1" || value === "true";
           break;
       }
     } else {
       if (key === "domains") {
         const parts = value[0].split(";");
-        settings.domain = parts[0];
-        settings.local = parts[1] + ".localhost";
+        jcoreSettingsData.domain = parts[0];
+        jcoreSettingsData.local = parts[1] + ".localhost";
       }
     }
   }

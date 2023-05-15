@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import parser from "@/parser";
-import { readSettings, settings } from "@/settings";
+import { readSettings, jcoreSettingsData } from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
@@ -19,24 +19,28 @@ function initCli() {
 
   // Set log level from flags.
   if (data.flags.includes("quiet")) {
-    settings.logLevel = logger.levels.error;
+    jcoreSettingsData.logLevel = logger.levels.error;
   } else if (data.flags.includes("debug")) {
-    settings.logLevel = logger.levels.debug;
+    jcoreSettingsData.logLevel = logger.levels.debug;
   } else if (data.flags.includes("verbose") || data.flags.includes("help")) {
-    settings.logLevel = logger.levels.verbose;
+    jcoreSettingsData.logLevel = logger.levels.verbose;
   }
 
   // Intro text.
   logger.verbose("JCORE CLI v" + version);
-  logger.debug("Mode: ".padEnd(12) + settings.mode);
-  logger.debug("Debug: ".padEnd(12) + (settings.debug ? "On" : "Off"));
-  logger.debug("Install: ".padEnd(12) + (settings.install ? "On" : "Off"));
-  if (settings.latest && settings.version && semver.gt(settings.latest, settings.version)) {
-    logger.warn(`New version v${settings.latest} available.`);
-    logger.verbose(`Update with command "${settings.exec} update self"`);
+  logger.debug("Mode: ".padEnd(12) + jcoreSettingsData.mode);
+  logger.debug("Debug: ".padEnd(12) + (jcoreSettingsData.debug ? "On" : "Off"));
+  logger.debug("Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off"));
+  if (
+    jcoreSettingsData.latest &&
+    jcoreSettingsData.version &&
+    semver.gt(jcoreSettingsData.latest, jcoreSettingsData.version)
+  ) {
+    logger.warn(`New version v${jcoreSettingsData.latest} available.`);
+    logger.verbose(`Update with command "${jcoreSettingsData.exec} update self"`);
   }
-  if (settings.inProject) {
-    logger.verbose("Project: " + settings.name);
+  if (jcoreSettingsData.inProject) {
+    logger.verbose("Project: " + jcoreSettingsData.name);
   }
 
   if (data.cmd) {

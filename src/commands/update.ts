@@ -3,7 +3,7 @@ import { fetchVersion, getFileString } from "@/utils";
 import { scriptLocation } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
-import { settings } from "@/settings";
+import { jcoreDataData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import semver from "semver/preload";
 import { join } from "path";
@@ -32,9 +32,9 @@ export function selfUpdate() {
     .then(versionCheck)
     .then((version) => {
       logger.info("Upgrading to v" + version);
-      return getFileString(join(scriptLocation, settings.exec));
+      return getFileString(join(scriptLocation, jcoreSettingsData.exec));
     })
-    .then((body) => writeFile(settings.execPath, body))
+    .then((body) => writeFile(jcoreSettingsData.execPath, body))
     .then(() => {
       logger.info("JCORE CLI Updated.");
     })
@@ -45,7 +45,7 @@ export function selfUpdate() {
 
 function versionCheck(newVersion: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (semver.gt(newVersion, settings.version)) {
+    if (semver.gt(newVersion, jcoreDataData.version)) {
       resolve(newVersion);
     }
     reject("No update available.");

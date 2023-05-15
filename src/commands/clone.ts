@@ -1,5 +1,5 @@
 import { cmdData } from "@/types";
-import { readSettings, settings } from "@/settings";
+import { readSettings, jcoreSettingsData } from "@/settings";
 import { existsSync } from "fs";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
@@ -11,27 +11,27 @@ import { finalizeProject } from "@/project";
 export function cloneProject(data: cmdData) {
   let source = data.target[0];
   if (data.target[1]) {
-    settings.name = data.target[1];
+    jcoreSettingsData.name = data.target[1];
   }
   if (data.target[0].search(/^[a-zA-Z0-9_-]+$/) !== -1) {
     // Target is just name of the project. Needs to be extended.
     source = "git@bitbucket.org:jcodigital/" + source + ".git";
-    if (!settings.name) {
+    if (!jcoreSettingsData.name) {
       // Set argument as project name if second argument not given.
-      settings.name = data.target[0];
+      jcoreSettingsData.name = data.target[0];
     }
-  } else if (!settings.name) {
+  } else if (!jcoreSettingsData.name) {
     // If full git path and not second argument given, read project name from git path.
     const path = parse(data.target[0]);
-    settings.name = path.name;
+    jcoreSettingsData.name = path.name;
   }
 
   // Set project path.
-  settings.path = join(process.cwd(), settings.name);
-  if (existsSync(settings.path)) {
-    logger.warn("Project path exists: " + settings.path);
+  jcoreSettingsData.path = join(process.cwd(), jcoreSettingsData.name);
+  if (existsSync(jcoreSettingsData.path)) {
+    logger.warn("Project path exists: " + jcoreSettingsData.path);
   } else {
-    logger.info("Clone Project: " + settings.name);
+    logger.info("Clone Project: " + jcoreSettingsData.name);
 
     const options = {
       cwd: process.cwd(),
@@ -39,7 +39,7 @@ export function cloneProject(data: cmdData) {
     };
 
     try {
-      execSync("git clone " + source + " " + settings.path, options);
+      execSync("git clone " + source + " " + jcoreSettingsData.path, options);
     } catch (reason) {
       logger.error("Clone Failed");
       return;
@@ -54,7 +54,7 @@ export function cloneProject(data: cmdData) {
 
 function setupProject() {
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
     stdio: [0, 1, 2],
   };
 
@@ -66,18 +66,18 @@ function setupProject() {
     return;
   }
 
-  if (settings.branch) {
+  if (jcoreSettingsData.branch) {
     try {
       // Switch jcore submodule to branch.
-      options.cwd = join(settings.path, jcorePath);
+      options.cwd = join(jcoreSettingsData.path, jcorePath);
       if (existsSync(options.cwd)) {
-        execSync("git switch " + settings.branch, options);
+        execSync("git switch " + jcoreSettingsData.branch, options);
       }
 
       // Switch jcore child submodule to branch.
-      options.cwd = join(settings.path, childPath);
+      options.cwd = join(jcoreSettingsData.path, childPath);
       if (existsSync(options.cwd)) {
-        execSync("git switch " + settings.branch, options);
+        execSync("git switch " + jcoreSettingsData.branch, options);
       }
     } catch (reason) {
       logger.error("Branch Switch Failed");
@@ -86,5 +86,5 @@ function setupProject() {
   }
 
   logger.info("Clone complete.");
-  logger.info('Enter project folder with "cd ' + settings.path + '"');
+  logger.info('Enter project folder with "cd ' + jcoreSettingsData.path + '"');
 }

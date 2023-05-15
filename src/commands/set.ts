@@ -1,29 +1,29 @@
 import { cmdData } from "@/types";
-import { settings, writeSettings } from "@/settings";
+import { jcoreSettingsData, writeSettings } from "@/settings";
 import { logger } from "@/logger";
 
 export function set(data: cmdData) {
   switch (data.target[0].toLowerCase()) {
     case "mode":
       if (data.target[1].toLowerCase() === "fg" || data.target[1].toLowerCase() === "foreground") {
-        settings.mode = "foreground";
+        jcoreSettingsData.mode = "foreground";
       } else {
-        settings.mode = "background";
+        jcoreSettingsData.mode = "background";
       }
-      logger.info("Mode set to " + settings.mode);
+      logger.info("Mode set to " + jcoreSettingsData.mode);
       break;
     case "debug":
-      settings.debug = parseSetting(data.target[1]);
-      logger.info("Debug set to " + (settings.debug ? "On" : "Off"));
+      jcoreSettingsData.debug = parseSetting(data.target[1]);
+      logger.info("Debug set to " + (jcoreSettingsData.debug ? "On" : "Off"));
       break;
     case "install":
-      settings.install = parseSetting(data.target[1]);
-      logger.info("Install set to " + (settings.install ? "On" : "Off"));
+      jcoreSettingsData.install = parseSetting(data.target[1]);
+      logger.info("Install set to " + (jcoreSettingsData.install ? "On" : "Off"));
       break;
     case "loglevel":
       if (data.target[1].match(/^[0-9]$/)) {
-        settings.logLevel = Number(data.target[1]);
-        logger.info(`LogLevel set to ${settings.logLevel}`);
+        jcoreSettingsData.logLevel = Number(data.target[1]);
+        logger.info(`LogLevel set to ${jcoreSettingsData.logLevel}`);
       }
       break;
   }

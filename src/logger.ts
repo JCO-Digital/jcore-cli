@@ -1,4 +1,4 @@
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 
 class Logger {
   levels = {
@@ -13,37 +13,37 @@ class Logger {
   public error(message: string) {
     console.error(message);
   }
-  public warn(message: string, level: number = settings.logLevel) {
+  public warn(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.warn) {
       console.warn(message);
     }
   }
 
-  public info(message: string, level: number = settings.logLevel) {
+  public info(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.info) {
       console.info(message);
     }
   }
 
-  public http(message: string, level: number = settings.logLevel) {
+  public http(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.http) {
       console.log(message);
     }
   }
 
-  public verbose(message: string, level: number = settings.logLevel) {
+  public verbose(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.verbose) {
       console.log(message);
     }
   }
 
-  public debug(message: string, level: number = settings.logLevel) {
+  public debug(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.debug) {
       console.debug(message);
     }
   }
 
-  public silly(message: string, level: number = settings.logLevel) {
+  public silly(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.silly) {
       console.debug(message);
     }

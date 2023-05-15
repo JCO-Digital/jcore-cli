@@ -13,7 +13,7 @@ import {
   renameSync,
   writeFileSync,
 } from "fs";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 
 export function getFileString(url: string): Promise<string> {
@@ -96,7 +96,7 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
 
 export function loadChecksums(): Map<string, string> {
   try {
-    const json = readFileSync(join(settings.path, checksumFile), "utf8");
+    const json = readFileSync(join(jcoreSettingsData.path, checksumFile), "utf8");
     const data = JSON.parse(json);
     return new Map(Object.entries(data));
   } catch {
@@ -108,7 +108,7 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object);
-    writeFileSync(join(settings.path, checksumFile), json, "utf8");
+    writeFileSync(join(jcoreSettingsData.path, checksumFile), json, "utf8");
     return true;
   } catch {
     return false;
@@ -157,13 +157,13 @@ export function mergeFiles(sourceDir: string, destinationDir: string, copy = fal
 }
 
 export function isProject(project = true): boolean {
-  if (!project && settings.inProject) {
+  if (!project && jcoreSettingsData.inProject) {
     logger.error("\nAlready in project.");
   }
-  if (project && !settings.inProject) {
+  if (project && !jcoreSettingsData.inProject) {
     logger.error("\nNot in a project.");
   }
-  return settings.inProject === project;
+  return jcoreSettingsData.inProject === project;
 }
 
 export function nameToFolder(name: string): string {

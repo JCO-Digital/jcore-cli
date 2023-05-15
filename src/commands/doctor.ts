@@ -1,6 +1,6 @@
 import { logger } from "@/logger";
 import { externalCommands, globalFolders, projectFolders } from "@/constants";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { join } from "path";
 import { accessSync, existsSync, mkdirSync } from "fs";
 import { homedir, userInfo } from "os";
@@ -16,11 +16,11 @@ export function doctor() {
   }
 }
 
-export function checkFolders(logLevel: number = settings.logLevel): boolean {
+export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boolean {
   let pass = true;
-  if (settings.inProject) {
+  if (jcoreSettingsData.inProject) {
     for (const folder of projectFolders) {
-      if (!processFolder(join(settings.path, folder), logLevel)) {
+      if (!processFolder(join(jcoreSettingsData.path, folder), logLevel)) {
         pass = false;
       }
     }
@@ -33,9 +33,9 @@ export function checkFolders(logLevel: number = settings.logLevel): boolean {
   return pass;
 }
 
-export function checkCommands(logLevel: number = settings.logLevel): boolean {
+export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): boolean {
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
     stdio: [0, null, null],
   };
 

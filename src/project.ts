@@ -10,7 +10,7 @@ import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
 import { updateOptions } from "@/types";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
@@ -24,9 +24,9 @@ const defaultOptions = {
 } as updateOptions;
 
 export function updateFiles(options: updateOptions = defaultOptions) {
-  const updatePath = join(settings.path, updateFolder);
+  const updatePath = join(jcoreSettingsData.path, updateFolder);
 
-  if (!settings.name || settings.path === "/") {
+  if (!jcoreSettingsData.name || jcoreSettingsData.path === "/") {
     return Promise.reject("Not a project.");
   }
 
@@ -44,15 +44,15 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: /#?NAME="[^"]*"/gm,
-              replace: 'NAME="' + settings.name + '"',
+              replace: 'NAME="' + jcoreSettingsData.name + '"',
             },
             {
               search: /#?THEME="[^"]*"/gm,
-              replace: 'THEME="' + settings.theme + '"',
+              replace: 'THEME="' + jcoreSettingsData.theme + '"',
             },
             {
               search: /#?BRANCH="[^"]*"/gm,
-              replace: 'BRANCH="' + settings.branch + '"',
+              replace: 'BRANCH="' + jcoreSettingsData.branch + '"',
             },
           ],
         },
@@ -62,7 +62,10 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "# WordPress Container",
-              replace: "# " + settings.name.charAt(0).toUpperCase() + settings.name.slice(1),
+              replace:
+                "# " +
+                jcoreSettingsData.name.charAt(0).toUpperCase() +
+                jcoreSettingsData.name.slice(1),
             },
           ],
         },
@@ -73,7 +76,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "wp-content/themes/projectname",
-              replace: "wp-content/themes/" + settings.theme,
+              replace: "wp-content/themes/" + jcoreSettingsData.theme,
             },
           ],
         },
@@ -83,11 +86,11 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: /"name" *: *"[^"]*"/gm,
-              replace: `"name": "${settings.name}"`,
+              replace: `"name": "${jcoreSettingsData.name}"`,
             },
             {
               search: /"theme" *: *"[^"]*"/gm,
-              replace: `"theme": "${settings.theme}"`,
+              replace: `"theme": "${jcoreSettingsData.theme}"`,
             },
           ],
         },
@@ -107,7 +110,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
           replace: [
             {
               search: "- docker.localhost",
-              replace: "- " + settings.name + ".localhost",
+              replace: "- " + jcoreSettingsData.name + ".localhost",
             },
           ],
         },
@@ -115,7 +118,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
 
       for (const file of files) {
         const source = join(updatePath, file.source ?? file.name);
-        const destination = join(settings.path, file.name);
+        const destination = join(jcoreSettingsData.path, file.name);
         // Check if file in project has been modified, and thus automatic update should be skipped.
         const matching = (await calculateChecksum(destination)) === checksums.get(file.name);
         if (matching) {
@@ -136,17 +139,17 @@ export function updateFiles(options: updateOptions = defaultOptions) {
       saveChecksums(checksums);
 
       // Clean up legacy folders.
-      rmSync(join(settings.path, "config"), { recursive: true, force: true });
-      rmSync(join(settings.path, "provisioning"), {
+      rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
+      rmSync(join(jcoreSettingsData.path, "provisioning"), {
         recursive: true,
         force: true,
       });
 
       // Remove old config folder.
-      rmSync(join(settings.path, ".config"), { recursive: true, force: true });
+      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
 
       // Move updated project files to project folder.
-      mergeFiles(updatePath, settings.path);
+      mergeFiles(updatePath, jcoreSettingsData.path);
 
       // Clean up remaining files.
       rmSync(updatePath, { recursive: true, force: true });
@@ -156,7 +159,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
 
 export function finalizeProject(install = true): boolean {
   const options = {
-    cwd: settings.path,
+    cwd: jcoreSettingsData.path,
     stdio: [0, 1, 2],
   };
 
@@ -165,25 +168,25 @@ export function finalizeProject(install = true): boolean {
   }
 
   // Set nginx proxy pass.
-  replaceInFile(join(settings.path, ".config/nginx/site.conf"), [
+  replaceInFile(join(jcoreSettingsData.path, ".config/nginx/site.conf"), [
     {
       search: /proxy_pass.*https.*;$/gm,
-      replace: "proxy_pass    https://" + settings.domain + ";",
+      replace: "proxy_pass    https://" + jcoreSettingsData.domain + ";",
     },
   ]);
 
   // Manage php.ini & debug setting.
   const replace = [];
-  if (settings.debug) {
+  if (jcoreSettingsData.debug) {
     replace.push({
       search: /xdebug.mode=.*$/gm,
       replace: "xdebug.mode=develop,debug",
     });
   }
   replaceInFile(
-    join(settings.path, ".config/php.ini"),
+    join(jcoreSettingsData.path, ".config/php.ini"),
     replace,
-    join(settings.path, ".jcore/php.ini")
+    join(jcoreSettingsData.path, ".jcore/php.ini")
   );
 
   // Set executable bits on scripts.
@@ -196,10 +199,10 @@ export function finalizeProject(install = true): boolean {
     return false;
   }
 
-  if (settings.install || install) {
+  if (jcoreSettingsData.install || install) {
     // Install npm packages.
     try {
-      if (existsSync(join(settings.path, "package-lock.json"))) {
+      if (existsSync(join(jcoreSettingsData.path, "package-lock.json"))) {
         logger.info("Installing npm packages from lock file.");
         execSync("npm ci --silent --no-fund", options);
       } else {

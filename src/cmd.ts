@@ -7,7 +7,7 @@ import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { set } from "@/commands/set";
 import { doctor } from "@/commands/doctor";
-import { settings, writeSettings } from "@/settings";
+import { jcoreSettingsData, writeSettings } from "@/settings";
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
 
@@ -40,7 +40,7 @@ export function runCmd(data: cmdData): void {
           if (copyChildTheme(data.target.join(" "))) {
             // Save settings.
             writeSettings();
-            logger.info(`Theme ${settings.theme} created.`);
+            logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
             logger.error("Theme creation failed!");
           }

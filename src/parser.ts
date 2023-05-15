@@ -1,7 +1,7 @@
 import type { cmdData } from "@/types";
 import { commands, flags } from "@/constants";
 import { parse } from "path";
-import { settings } from "@/settings";
+import { jcoreSettingsData } from "@/settings";
 
 export default function parser(args: Array<string>): cmdData {
   const data = {
@@ -11,9 +11,9 @@ export default function parser(args: Array<string>): cmdData {
   } as cmdData;
 
   if (args.length > 1) {
-    settings.nodePath = args.shift() ?? "";
-    settings.execPath = args.shift() ?? "";
-    settings.exec = parse(settings.execPath).base;
+    jcoreSettingsData.nodePath = args.shift() ?? "";
+    jcoreSettingsData.execPath = args.shift() ?? "";
+    jcoreSettingsData.exec = parse(jcoreSettingsData.execPath).base;
   }
   let count = 0;
   for (const part of args) {
