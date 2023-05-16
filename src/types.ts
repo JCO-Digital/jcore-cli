@@ -39,7 +39,7 @@ export const projectSchema = z.object({
   name: z.string(),
   path: z.string(),
   running: z.boolean(),
-  started: z.date().default(new Date()),
+  started: z.number().default(Date.now()),
 });
 export type projectData = z.infer<typeof projectSchema>;
 

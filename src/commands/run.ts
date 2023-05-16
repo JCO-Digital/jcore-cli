@@ -2,12 +2,13 @@ import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 import { cmdData } from "@/types";
 import { finalizeProject } from "@/project";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreSettingsData, startProject, stopProject } from "@/settings";
 import { logger } from "@/logger";
 
 export function start(data: cmdData) {
   if (!isRunning() && finalizeProject(data.flags.includes("install"))) {
     // Run only if finalize is successful.
+
     const options = {
       cwd: jcoreSettingsData.path,
       stdio: [0, 1, 2],
@@ -18,6 +19,7 @@ export function start(data: cmdData) {
       } else {
         execSync("docker-compose up -d", options);
       }
+      startProject();
     } catch (e) {
       logger.error("Docker failed");
     }
@@ -34,6 +36,7 @@ export function stop() {
 
   try {
     execSync("docker-compose down", options);
+    stopProject();
   } catch (e) {
     logger.error("Docker failed");
   }

@@ -7,7 +7,7 @@ import { calculateChecksum, fetchVersion, loadChecksums, saveChecksums } from "@
 import { replaceInFile } from "@/project";
 import { logger } from "@/logger";
 import type { jcoreSettings } from "@/types";
-import { dataSchema, jcoreData } from "@/types";
+import { dataSchema, jcoreData, projectData } from "@/types";
 
 // Default settings.
 export const jcoreSettingsData = {
@@ -88,7 +88,7 @@ export async function readSettings() {
   }
 }
 
-function readData(): jcoreData {
+function readData() {
   if (existsSync(globalData)) {
     // Read global settings if they exist.
     const json = readFileSync(globalData, "utf8");
@@ -96,17 +96,77 @@ function readData(): jcoreData {
       const data = JSON.parse(json);
       const parsed = dataSchema.safeParse(data);
       if (parsed.success) {
-        return parsed.data;
+        populateData(parsed.data);
       }
     } catch (error) {
       logger.warn("Data parsing failed.");
     }
   }
-  return {} as jcoreData;
 }
 
 function writeData() {
   writeFileSync(globalData, JSON.stringify(jcoreDataData), "utf8");
+}
+
+export function startProject() {
+  cleanProjects();
+
+  let found = false;
+  for (const project of jcoreDataData.projects) {
+    if (project.path === jcoreSettingsData.path) {
+      found = true;
+      project.running = true;
+      project.started = Date.now();
+    }
+  }
+  if (!found) {
+    const project = {
+      name: jcoreSettingsData.name,
+      path: jcoreSettingsData.path,
+      running: true,
+      started: Date.now(),
+    } as projectData;
+    jcoreDataData.projects.push(project);
+  }
+
+  writeData();
+}
+
+export function stopProject() {
+  for (const project of jcoreDataData.projects) {
+    if (project.path === jcoreSettingsData.path) {
+      project.running = false;
+    }
+  }
+
+  cleanProjects();
+
+  writeData();
+}
+
+function cleanProjects() {
+  const paths: string[] = [];
+  const remove: number[] = [];
+  for (let index = 0; index < jcoreDataData.projects.length; index++) {
+    const project = jcoreDataData.projects[index];
+    if (!paths.includes(project.path)) {
+      if (existsSync(project.path)) {
+        // Project ok.
+        paths.push(project.path);
+      } else {
+        // Remove old project.
+        remove.push(index);
+        logger.debug(`Folder ${project.path} doesn't exist, removing.`);
+      }
+    } else {
+      // TODO Remove duplicate.
+      remove.push(index);
+      logger.debug(`Duplicate folder ${project.path}, removing.`);
+    }
+  }
+  for (const index of remove) {
+    jcoreDataData.projects.splice(index, 1);
+  }
 }
 
 async function versionCheck() {
@@ -265,4 +325,10 @@ function populateSetting() {
       }
     }
   }
+}
+
+function populateData(data: jcoreData) {
+  jcoreDataData.projects = data.projects;
+  jcoreDataData.lastCheck = data.lastCheck;
+  jcoreDataData.latest = data.latest;
 }
