@@ -1,6 +1,6 @@
 import type { cmdData } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
-import { start, stop, pull, runCommand } from "@/commands/run";
+import { start, stop, pull, runCommand, isRunning, getRunning } from "@/commands/run";
 import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
@@ -76,13 +76,13 @@ export function runCmd(data: cmdData): void {
       }
       break;
     case "pull":
-      if (isProject()) {
+      if (isProject() && isRunning()) {
         // Pull data from upstream.
         pull(data);
       }
       break;
     case "run":
-      if (isProject()) {
+      if (isProject() && isRunning()) {
         if (data.target.length > 0) {
           // Run command.
           runCommand(data.target.join(" "));
@@ -99,21 +99,36 @@ export function runCmd(data: cmdData): void {
       }
       break;
     case "shell":
-      if (isProject()) {
+      if (isProject() && isRunning()) {
         // Open a shell.
         runCommand("/bin/bash");
       }
       break;
     case "start":
       if (isProject()) {
-        // Start the project.
-        start(data);
+        if (!isRunning(false)) {
+          // Start the project.
+          start(data);
+        } else if (data.flags.includes("force")) {
+          // Stop everything and then start.
+          getRunning().forEach((project) => {
+            // Stop running projects.
+            stop(project.path);
+          });
+          // Start the project.
+          start(data);
+        }
       }
       break;
     case "stop":
-      if (isProject()) {
-        // Start the project.
-        stop();
+      if (
+        getRunning().map((project) => {
+          // Stop running projects.
+          logger.info(`Stopping ${project.name}.`);
+          stop(project.path);
+        }).length === 0
+      ) {
+        logger.info("No running projects.");
       }
       break;
     case "update":

@@ -39,12 +39,10 @@ export const projectSchema = z.object({
   name: z.string(),
   path: z.string(),
   running: z.boolean(),
-  started: z.number().default(Date.now()),
 });
-export type projectData = z.infer<typeof projectSchema>;
+export type jcoreProject = z.infer<typeof projectSchema>;
 
 export const dataSchema = z.object({
-  projects: z.array(projectSchema).default([]),
   version: z.string().default(""),
   latest: z.string().default(""),
   lastCheck: z.number().default(0),
