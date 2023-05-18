@@ -27,7 +27,6 @@ export const jcoreSettingsData = {
 } as jcoreSettings;
 
 export const jcoreDataData = {
-  projects: [],
   version: version,
   latest: "",
   lastCheck: 0,

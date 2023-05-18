@@ -1,6 +1,16 @@
-import type { cmdData } from "@/types";
+import type { cmdData, jcoreProject } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
-import { start, stop, pull, runCommand, isRunning, getRunning } from "@/commands/run";
+import {
+  start,
+  stop,
+  pull,
+  runCommand,
+  isRunning,
+  getRunning,
+  cleanProject,
+  cleanAll,
+  cleanDocker,
+} from "@/commands/run";
 import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
@@ -50,7 +60,21 @@ export function runCmd(data: cmdData): void {
       }
       break;
     case "clean":
-      // TODO Clean
+      if (data.target.includes("all")) {
+        cleanAll();
+      } else if (data.target.includes("docker")) {
+        cleanDocker();
+      } else if (isProject()) {
+        // Clean
+        // TODO Use actual projects instead of jcoreSettings.
+        const project = {
+          name: jcoreSettingsData.name,
+          path: jcoreSettingsData.path,
+          running: false,
+        } as jcoreProject;
+
+        cleanProject(project);
+      }
       break;
     case "clone":
       if (isProject(false)) {
@@ -113,6 +137,7 @@ export function runCmd(data: cmdData): void {
           // Stop everything and then start.
           getRunning().forEach((project) => {
             // Stop running projects.
+            logger.info(`Stopping ${project.name}.`);
             stop(project.path);
           });
           // Start the project.

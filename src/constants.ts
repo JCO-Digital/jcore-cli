@@ -33,7 +33,11 @@ export const commands = [
     cmd: "clean",
     text: "Delete image / container / temp files.",
     description: "",
-    usage: [""],
+    usage: [
+      "",
+      "docker - Clean dangling images, containers and volumes.",
+      "all - Cleans up after all projects. (Might delete non JCORE docker data)",
+    ],
   },
   {
     cmd: "clone",

@@ -35,7 +35,7 @@ export function stop(path = jcoreSettingsData.path) {
   };
 
   try {
-    execSync("docker compose down", options);
+    execSync("docker compose stop", options);
   } catch (e) {
     logger.error("Docker failed");
   }
@@ -78,6 +78,56 @@ export function pull(data: cmdData) {
   }
   if (runFlags.media) {
     runCommand(mediaScript);
+  }
+}
+
+export function cleanProject(project: jcoreProject) {
+  const options = {
+    cwd: project.path,
+    stdio: [0, 1, 2],
+  };
+
+  try {
+    logger.info(`Cleaning containers for ${project.name}.`);
+    execSync("docker compose rm -f", options);
+    logger.info(`Cleaning volumes for project ${project.name}.`);
+    const output = execSync(
+      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`
+    ).toString();
+    for (const volume of output.split(/[\r\n]+/)) {
+      if (volume.length) {
+        logger.debug(`Deleting volume ${volume}.`);
+        execSync(`docker volume rm ${volume}`, options);
+      }
+    }
+  } catch (e) {
+    logger.error("Docker failed");
+  }
+}
+
+export function cleanAll() {
+  for (const project of getProjects()) {
+    if (!project.running) {
+      cleanProject(project);
+    }
+  }
+  cleanDocker(true);
+}
+
+export function cleanDocker(all = false) {
+  const options = {
+    stdio: [0, 1, 2],
+  };
+
+  try {
+    logger.info("Cleaning Containers");
+    execSync("docker container prune -f", options);
+    logger.info("Cleaning Images");
+    execSync("docker image prune -f" + (all ? " -a" : ""), options);
+    logger.info("Cleaning Volumes");
+    execSync("docker volume prune -f" + (all ? " -a" : ""), options);
+  } catch (e) {
+    logger.error("Docker failed");
   }
 }
 
