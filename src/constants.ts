@@ -10,11 +10,11 @@ export const checksumFile = ".file.checksums.json";
 export const projectFolders = [".jcore/wordpress", ".jcore/ssl", ".jcore/sql"];
 export const globalFolders = [".config/jcore/ssl", ".config/jcore/ssh"];
 export const externalCommands = [
-  { name: "node", version: "-v", min: 14},
-  { name: "npm", version: "-v", min: 1},
-  { name: "composer", version: "-V", min: 2},
-  { name: "docker", version: "-v", min: 20},
-  { name: "docker-compose", version: "-v", min: 2},
+  { name: "node", version: "-v", min: 14 },
+  { name: "npm", version: "-v", min: 1 },
+  { name: "composer", version: "-V", min: 2 },
+  { name: "docker", version: "-v", min: 20 },
+  { name: "docker-compose", version: "-v", min: 2 },
 ];
 
 export const commands = [

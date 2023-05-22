@@ -35,7 +35,7 @@ export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boo
 
 export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): boolean {
   const options = {
-    stdio: ['pipe', 'pipe', 'ignore'] as StdioOptions,
+    stdio: ["pipe", "pipe", "ignore"] as StdioOptions,
   };
 
   let pass = true;
@@ -44,7 +44,7 @@ export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): bo
       const output = execSync(`${command.name} ${command.version}`, options).toString();
       const version = output.match(/([0-9]+)\.([0-9]+)\.([0-9]+)/);
       if (version !== null) {
-        logger.info(`${command.name} version ${version[0]} found.`);
+        logger.info(`${command.name} version ${version[0]} found.`, logLevel);
       } else {
         logger.error(`${command.name} version error.`);
       }
