@@ -5,7 +5,7 @@ import { join } from "path";
 import { accessSync, existsSync, mkdirSync } from "fs";
 import { homedir, userInfo } from "os";
 import { W_OK } from "constants";
-import { execSync } from "child_process";
+import { execSync, StdioOptions } from "child_process";
 
 export function doctor() {
   logger.verbose("\nChecking system:");
@@ -35,17 +35,21 @@ export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boo
 
 export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): boolean {
   const options = {
-    cwd: jcoreSettingsData.path,
-    stdio: [0, null, null],
+    stdio: ['pipe', 'pipe', 'ignore'] as StdioOptions,
   };
 
   let pass = true;
   for (const command of externalCommands) {
     try {
-      execSync(`which ${command}`, options);
-      logger.verbose(`${command} OK.`, logLevel);
+      const output = execSync(`${command.name} ${command.version}`, options).toString();
+      const version = output.match(/([0-9]+)\.([0-9]+)\.([0-9]+)/);
+      if (version !== null) {
+        logger.info(`${command.name} version ${version[0]} found.`);
+      } else {
+        logger.error(`${command.name} version error.`);
+      }
     } catch (e) {
-      logger.error(`Command ${command} not found!`);
+      logger.error(`Command ${command.name} not found!`);
       pass = false;
     }
   }
@@ -59,7 +63,7 @@ function processFolder(path: string, logLevel: number): boolean {
     try {
       // Check if folder is writable.
       accessSync(path, W_OK);
-      logger.verbose(`Folder ${path} OK.`);
+      logger.info(`Folder ${path} OK.`);
       // Everything is fine.
       return true;
     } catch (e) {
