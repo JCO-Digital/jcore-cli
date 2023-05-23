@@ -16,7 +16,7 @@ export function start(data: cmdData) {
     };
     try {
       if (jcoreSettingsData.mode === "foreground") {
-        spawnSync("docker compose", ["up"], options);
+        execSync("docker compose up", options);
       } else {
         execSync("docker compose up -d", options);
       }
