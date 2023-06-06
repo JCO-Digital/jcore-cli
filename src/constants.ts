@@ -92,6 +92,12 @@ export const commands = [
     usage: [""],
   },
   {
+    cmd: "status",
+    text: "Shows information about running projects.",
+    description: "",
+    usage: [""],
+  },
+  {
     cmd: "start",
     text: "Installs composer and npm dependencies, and starts container.",
     description: "",
