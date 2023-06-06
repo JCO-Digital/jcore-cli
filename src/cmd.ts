@@ -9,7 +9,7 @@ import {
   getRunning,
   cleanProject,
   cleanAll,
-  cleanDocker,
+  cleanDocker
 } from "@/commands/run";
 import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
@@ -70,7 +70,7 @@ export function runCmd(data: cmdData): void {
         const project = {
           name: jcoreSettingsData.name,
           path: jcoreSettingsData.path,
-          running: false,
+          running: false
         } as jcoreProject;
 
         cleanProject(project);
@@ -127,6 +127,12 @@ export function runCmd(data: cmdData): void {
         // Open a shell.
         runCommand("/bin/bash");
       }
+      break;
+    case "status":
+      getRunning().forEach((project) => {
+        // Stop running projects.
+        logger.info(`Project ${project.name} running.`);
+      });
       break;
     case "start":
       if (isProject()) {
