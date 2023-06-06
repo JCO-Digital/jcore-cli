@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import parser from "@/parser";
-import { readSettings, jcoreSettingsData } from "@/settings";
+import { readSettings, jcoreSettingsData, jcoreDataData } from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
@@ -32,11 +32,11 @@ function initCli() {
   logger.debug("Debug: ".padEnd(12) + (jcoreSettingsData.debug ? "On" : "Off"));
   logger.debug("Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off"));
   if (
-    jcoreSettingsData.latest &&
-    jcoreSettingsData.version &&
-    semver.gt(jcoreSettingsData.latest, jcoreSettingsData.version)
+    jcoreDataData.latest &&
+    jcoreDataData.version &&
+    semver.gt(jcoreDataData.latest, jcoreDataData.version)
   ) {
-    logger.warn(`New version v${jcoreSettingsData.latest} available.`);
+    logger.warn(`New version v${jcoreDataData.latest} available.`);
     logger.verbose(`Update with command "${jcoreSettingsData.exec} update self"`);
   }
   if (jcoreSettingsData.inProject) {
