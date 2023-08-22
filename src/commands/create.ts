@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
 import { childGit, childPath, jcoreGit, jcorePath } from "@/constants";
 import { logger } from "@/logger";
-import { mergeFiles, nameToFolder } from "@/utils";
+import { getFlagValue, mergeFiles, nameToFolder } from "@/utils";
 import { join } from "path";
 import process from "process";
 
@@ -37,7 +37,7 @@ export function createProject(data: cmdData) {
       execSync("git submodule add -f " + extra + ' "' + childGit + '" ' + childPath, options);
 
       // Copy child theme.
-      if (!data.flags.includes("nochild")) {
+      if (!getFlagValue(data, "nochild")) {
         copyChildTheme(jcoreSettingsData.name);
       }
 

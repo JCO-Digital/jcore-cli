@@ -7,6 +7,7 @@ import { logger } from "@/logger";
 import { version } from "../package.json";
 import semver from "semver/preload";
 import { init } from "@sentry/node";
+import { getFlagValue } from "./utils";
 
 // Initialize Sentry.
 init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
@@ -18,11 +19,11 @@ function initCli() {
   const data = parser(process.argv);
 
   // Set log level from flags.
-  if (data.flags.includes("quiet")) {
+  if (getFlagValue(data, "quiet")) {
     jcoreSettingsData.logLevel = logger.levels.error;
-  } else if (data.flags.includes("debug")) {
+  } else if (getFlagValue(data, "debug")) {
     jcoreSettingsData.logLevel = logger.levels.debug;
-  } else if (data.flags.includes("verbose") || data.flags.includes("help")) {
+  } else if (getFlagValue(data, "verbose") || getFlagValue(data, "help")) {
     jcoreSettingsData.logLevel = logger.levels.verbose;
   }
 
@@ -44,7 +45,7 @@ function initCli() {
   }
 
   if (data.cmd) {
-    if (data.flags.includes("help")) {
+    if (getFlagValue(data, "help")) {
       // Show help text for command.
       helpCmd(data);
     } else {

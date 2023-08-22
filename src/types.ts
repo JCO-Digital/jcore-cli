@@ -3,7 +3,7 @@ import { z } from "zod";
 export const cmdSchema = z.object({
   cmd: z.string(),
   target: z.array(z.string()),
-  flags: z.array(z.string()),
+  flags: z.map(z.string(), z.any()),
 });
 export type cmdData = z.infer<typeof cmdSchema>;
 

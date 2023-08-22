@@ -12,7 +12,7 @@ import {
   cleanDocker,
   attach,
 } from "@/commands/run";
-import { isProject } from "@/utils";
+import { getFlagValue, isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
@@ -149,7 +149,7 @@ export function runCmd(data: cmdData): void {
         if (!isRunning(false)) {
           // Start the project.
           start(data);
-        } else if (data.flags.includes("force")) {
+        } else if (getFlagValue(data, "force")) {
           // Stop everything and then start.
           getRunning().forEach((project) => {
             // Stop running projects.

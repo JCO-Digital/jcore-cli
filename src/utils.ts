@@ -15,6 +15,7 @@ import {
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
+import { cmdData } from "@/types";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -168,4 +169,8 @@ export function isProject(project = true): boolean {
 
 export function nameToFolder(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/, "-");
+}
+
+export function getFlagValue(cmd: cmdData, name: string): false | any {
+  return cmd.flags.has(name) ? cmd.flags.get(name) : false
 }

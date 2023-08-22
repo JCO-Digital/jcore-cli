@@ -5,9 +5,10 @@ import { finalizeProject } from "@/project";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { existsSync } from "fs";
+import { getFlagValue } from "@/utils";
 
 export function start(data: cmdData) {
-  if (finalizeProject(data.flags.includes("install"))) {
+  if (finalizeProject(getFlagValue(data, "install"))) {
     // Run only if finalize is successful.
 
     const options = {

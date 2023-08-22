@@ -2,11 +2,12 @@ import { cmdData } from "@/types";
 import { jcoreSettingsData } from "@/settings";
 import { commands, flags } from "@/constants";
 import { logger } from "@/logger";
+import { getFlagValue } from "@/utils";
 
 export function help(cmd: cmdData) {
   logger.info(`Usage: ${jcoreSettingsData.exec} <command> [options] <target>`);
 
-  if (cmd.flags.includes("help")) {
+  if (getFlagValue(cmd, "help")) {
     const padding = 16;
     logger.info("\nPossible commands:");
     for (const cmd of commands) {

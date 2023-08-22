@@ -1,5 +1,5 @@
 import type { cmdData, updateOptions } from "@/types";
-import { fetchVersion, getFileString } from "@/utils";
+import { fetchVersion, getFileString, getFlagValue } from "@/utils";
 import { scriptLocation } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
@@ -10,11 +10,11 @@ import { join } from "path";
 
 export default function (data: cmdData) {
   const options = {
-    drone: data.flags.includes("force") || data.target.includes("drone"),
-    package: data.flags.includes("force") || data.target.includes("package"),
-    build: data.flags.includes("force") || data.target.includes("build"),
-    composer: data.flags.includes("force") || data.target.includes("composer"),
-    docker: data.flags.includes("force") || data.target.includes("docker"),
+    drone: getFlagValue(data, "force") || data.target.includes("drone"),
+    package: getFlagValue(data, "force") || data.target.includes("package"),
+    build: getFlagValue(data, "force") || data.target.includes("build"),
+    composer: getFlagValue(data, "force") || data.target.includes("composer"),
+    docker: getFlagValue(data, "force") || data.target.includes("docker"),
   } as updateOptions;
 
   logger.info("Updating Project");

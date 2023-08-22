@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
 export const archiveLocation = "https://files.jco.fi/wordpress-container-main.zip";
 export const jcoreGit = "git@bitbucket.org:jcodigital/jcore2.git";
@@ -110,6 +112,12 @@ export const commands = [
     usage: [""],
   },
   {
+    cmd: "attach",
+    text: "Attach to the logs of all containers",
+    description: "",
+    usage: [""]
+  },
+  {
     cmd: "update",
     text: "Updates project. If the target is 'self' this script updates itself.",
     description: "",
@@ -156,4 +164,11 @@ export const flags = [
     flag: "d",
     text: "Print everything.",
   },
+  {
+    name: "branch",
+    flag: "b",
+    args: true,
+    type: z.string(),
+    text: "Set the JCORE branch to use, used in the init command."
+  }
 ];
