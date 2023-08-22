@@ -195,3 +195,16 @@ export function runCommand(command: string, spawn = false) {
     logger.warn("Command '" + command + "' failed to run.");
   }
 }
+
+export function attach() {
+  const options = {
+    cwd: jcoreSettingsData.path,
+    stdio: [0, 1, 2],
+  };
+  logger.info("Attaching to project logs");
+  try {
+    execSync("docker compose logs -f --since 5m", options);
+  } catch (e) {
+    logger.warn("Failed to attach to logs");
+  }
+}

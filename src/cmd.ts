@@ -10,6 +10,7 @@ import {
   cleanProject,
   cleanAll,
   cleanDocker,
+  attach,
 } from "@/commands/run";
 import { isProject } from "@/utils";
 import { helpCmd } from "@/help";
@@ -126,6 +127,11 @@ export function runCmd(data: cmdData): void {
       if (isProject() && isRunning()) {
         // Open a shell.
         runCommand("/bin/bash");
+      }
+      break;
+    case "attach":
+      if (isProject() && isRunning()) {
+        attach();
       }
       break;
     case "status":
