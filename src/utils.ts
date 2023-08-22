@@ -172,5 +172,5 @@ export function nameToFolder(name: string): string {
 }
 
 export function getFlagValue(cmd: cmdData, name: string): false | any {
-  return cmd.flags.has(name) ? cmd.flags.get(name) : false
+  return cmd.flags.has(name) ? cmd.flags.get(name) : false;
 }

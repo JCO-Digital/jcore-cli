@@ -115,7 +115,7 @@ export const commands = [
     cmd: "attach",
     text: "Attach to the logs of all containers",
     description: "",
-    usage: [""]
+    usage: [""],
   },
   {
     cmd: "update",
@@ -169,6 +169,6 @@ export const flags = [
     flag: "b",
     args: true,
     type: z.string(),
-    text: "Set the JCORE branch to use, used in the init command."
-  }
+    text: "Set the JCORE branch to use, used in the init command.",
+  },
 ];
