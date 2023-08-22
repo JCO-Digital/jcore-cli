@@ -197,14 +197,15 @@ export function runCommand(command: string, spawn = false) {
   }
 }
 
-export function attach() {
+export function attach(data: cmdData) {
   const options = {
     cwd: jcoreSettingsData.path,
     stdio: [0, 1, 2],
   };
-  logger.info("Attaching to project logs");
+  logger.info("Attaching to logs");
   try {
-    execSync("docker compose logs -f --since 5m", options);
+    const command = `docker compose logs -f --since 5m ${data.target}`
+    execSync(command, options);
   } catch (e) {
     logger.warn("Failed to attach to logs");
   }

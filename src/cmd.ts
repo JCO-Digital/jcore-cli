@@ -29,6 +29,11 @@ import { listChecksums, setChecksum } from "@/commands/checksum";
  */
 export function runCmd(data: cmdData): void {
   switch (data.cmd) {
+    case "attach":
+      if (isProject() && isRunning()) {
+        attach(data);
+      }
+      break;
     case "checksum":
       if (isProject()) {
         switch (data.target.shift()) {
@@ -127,11 +132,6 @@ export function runCmd(data: cmdData): void {
       if (isProject() && isRunning()) {
         // Open a shell.
         runCommand("/bin/bash");
-      }
-      break;
-    case "attach":
-      if (isProject() && isRunning()) {
-        attach();
       }
       break;
     case "status":

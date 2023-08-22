@@ -21,6 +21,12 @@ export const externalCommands = [
 
 export const commands = [
   {
+    cmd: "attach",
+    text: "Attach to the logs of all containers",
+    description: "",
+    usage: ["<container> - A specific container to attach to, leave empty for all."],
+  },
+  {
     cmd: "checksum",
     text: "Manages file checksums.",
     description:
@@ -108,12 +114,6 @@ export const commands = [
   {
     cmd: "stop",
     text: "Shutdown container. Removes docker ",
-    description: "",
-    usage: [""],
-  },
-  {
-    cmd: "attach",
-    text: "Attach to the logs of all containers",
     description: "",
     usage: [""],
   },
