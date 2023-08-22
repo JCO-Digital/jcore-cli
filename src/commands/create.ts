@@ -23,6 +23,13 @@ export function createProject(data: cmdData) {
       stdio: [0, 1, 2],
     };
 
+    // Get the requested branch
+    const branch = getFlagValue(data, "branch");
+
+    if (branch) {
+      jcoreSettingsData.branch = branch;
+    }
+
     // Run project update.
     updateFiles().then(() => {
       // Git init.

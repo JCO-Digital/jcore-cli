@@ -204,7 +204,7 @@ export function attach(data: cmdData) {
   };
   logger.info("Attaching to logs");
   try {
-    const command = `docker compose logs -f --since 5m ${data.target}`
+    const command = `docker compose logs -f --since 5m ${data.target}`;
     execSync(command, options);
   } catch (e) {
     logger.warn("Failed to attach to logs");

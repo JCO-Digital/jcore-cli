@@ -81,7 +81,7 @@ export async function readSettings() {
     // If name is not set, use folder name.
     jcoreSettingsData.name = parse(jcoreSettingsData.path).base;
   }
-
+  config;
   if (!jcoreSettingsData.inProject && !jcoreSettingsData.branch) {
     jcoreSettingsData.branch = config.branch;
   }
