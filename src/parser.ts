@@ -83,6 +83,6 @@ export default function parser(args: Array<string>): cmdData {
       count++;
     }
   }
-  
+
   return data;
 }
