@@ -124,6 +124,7 @@ export function writeGlobalSettings() {
     { key: "mode", value: jcoreSettingsData.mode },
     { key: "debug", value: jcoreSettingsData.debug.toString() },
     { key: "loglevel", value: jcoreSettingsData.logLevel.toString() },
+    { key: "install", value: jcoreSettingsData.install.toString() },
   ];
   let data = "";
   for (const row of setValues) {
