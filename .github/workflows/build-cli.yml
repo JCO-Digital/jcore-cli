@@ -16,11 +16,8 @@ jobs:
       - name: Install Packages
         run: npm ci
 
-      - name: Check eslint
-        run: npx eslint src
-
-      - name: Check Prettier
-        run: npx prettier --check src
+      - name: Testing the code
+        run: npm test
 
       - name: Build
         run: npm run build
