@@ -1,0 +1,26 @@
+name: JCORE-cli build
+run-name: ${{ github.actor }} started a build.
+on: [push]
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+
+      - name: Install Packages
+        run: npm ci
+
+      - name: Check eslint
+        run: npx eslint src
+
+      - name: Check Prettier
+        run: npx prettier --check src
+
+      - name: Build
+        run: npm run build
