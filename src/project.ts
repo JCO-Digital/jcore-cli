@@ -16,11 +16,8 @@ import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
 
 const defaultOptions = {
-  drone: false,
-  package: false,
-  build: false,
-  composer: false,
-  docker: false,
+  force: false,
+  target: [],
 } as updateOptions;
 
 export function updateFiles(options: updateOptions = defaultOptions) {
@@ -71,7 +68,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         },
         {
           name: ".drone.yml",
-          force: options.drone ?? false,
+          force: false,
           source: "project.drone.yml",
           replace: [
             {
@@ -82,7 +79,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         },
         {
           name: "package.json",
-          force: options.package ?? false,
+          force: false,
           replace: [
             {
               search: /"name" *: *"[^"]*"/gm,
@@ -96,17 +93,17 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         },
         {
           name: "build.mjs",
-          force: options.build ?? false,
+          force: false,
           replace: [],
         },
         {
           name: "composer.json",
-          force: options.composer ?? false,
+          force: false,
           replace: [],
         },
         {
           name: "docker-compose.yml",
-          force: options.docker ?? false,
+          force: false,
           replace: [
             {
               search: "- docker.localhost",
@@ -120,7 +117,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         const source = join(updatePath, file.source ?? file.name);
         const destination = join(jcoreSettingsData.path, file.name);
         // Check if file in project has been modified, and thus automatic update should be skipped.
-        const matching = (await calculateChecksum(destination)) === checksums.get(file.name);
+        const matching = (calculateChecksum(destination)) === checksums.get(file.name);
         if (matching) {
           logger.verbose("Matching Checksum: " + file.name);
         }

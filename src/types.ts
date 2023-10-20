@@ -8,11 +8,8 @@ export const cmdSchema = z.object({
 export type cmdData = z.infer<typeof cmdSchema>;
 
 export const updateSchema = z.object({
-  drone: z.boolean(),
-  package: z.boolean(),
-  build: z.boolean(),
-  composer: z.boolean(),
-  docker: z.boolean(),
+  force: z.boolean(),
+  target: z.array(z.string()),
 });
 export type updateOptions = z.infer<typeof updateSchema>;
 

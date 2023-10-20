@@ -10,11 +10,8 @@ import { join } from "path";
 
 export default function (data: cmdData) {
   const options = {
-    drone: getFlagValue(data, "force") || data.target.includes("drone"),
-    package: getFlagValue(data, "force") || data.target.includes("package"),
-    build: getFlagValue(data, "force") || data.target.includes("build"),
-    composer: getFlagValue(data, "force") || data.target.includes("composer"),
-    docker: getFlagValue(data, "force") || data.target.includes("docker"),
+    force: getFlagValue(data, "force"),
+    target: data.target,
   } as updateOptions;
 
   logger.info("Updating Project");
