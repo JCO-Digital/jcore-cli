@@ -34,6 +34,8 @@ export function updateFiles(options: updateOptions = defaultOptions) {
 
       const checksums = loadChecksums();
 
+      console.debug(options);
+
       const files = [
         {
           name: "config.sh",
@@ -137,13 +139,14 @@ export function updateFiles(options: updateOptions = defaultOptions) {
 
       // Clean up legacy folders.
       rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
+      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
       rmSync(join(jcoreSettingsData.path, "provisioning"), {
         recursive: true,
         force: true,
       });
 
-      // Remove old config folder.
-      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
+      // Remove old setup folder.
+      rmSync(join(jcoreSettingsData.path, ".setup"), { recursive: true, force: true });
 
       // Move updated project files to project folder.
       mergeFiles(updatePath, jcoreSettingsData.path);
