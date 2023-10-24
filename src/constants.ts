@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
-export const archiveLocation = "https://github.com/JCO-Digital/wordpress-container/releases/latest/download/release.zip";
+export const archiveLocation =
+  "https://github.com/JCO-Digital/wordpress-container/releases/latest/download/release.zip";
 export const jcoreGit = "git@bitbucket.org:jcodigital/jcore2.git";
 export const jcorePath = "wp-content/themes/jcore2";
 export const childGit = "git@bitbucket.org:jcodigital/jcore2-child.git";

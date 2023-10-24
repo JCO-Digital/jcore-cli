@@ -119,7 +119,7 @@ export function updateFiles(options: updateOptions = defaultOptions) {
         const source = join(updatePath, file.source ?? file.name);
         const destination = join(jcoreSettingsData.path, file.name);
         // Check if file in project has been modified, and thus automatic update should be skipped.
-        const matching = (calculateChecksum(destination)) === checksums.get(file.name);
+        const matching = calculateChecksum(destination) === checksums.get(file.name);
         if (matching) {
           logger.verbose("Matching Checksum: " + file.name);
         }
