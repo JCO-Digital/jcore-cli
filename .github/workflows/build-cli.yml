@@ -1,6 +1,10 @@
 name: JCORE-cli build
-run-name: ${{ github.actor }} started a build.
-on: [push]
+
+on:
+  push:
+    tags:
+      - '*'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,3 +25,7 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "bin/jcore"
