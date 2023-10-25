@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const scriptLocation = "https://files.jco.fi/jcore-cli-main/";
+export const scriptLocation = "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";
 export const archiveLocation =
   "https://github.com/JCO-Digital/wordpress-container/releases/latest/download/release.zip";
 export const jcoreGit = "git@bitbucket.org:jcodigital/jcore2.git";
