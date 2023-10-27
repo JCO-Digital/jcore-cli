@@ -4,7 +4,7 @@ import {
   getFile,
   saveChecksums,
   calculateChecksum,
-  mergeFiles,
+  moveFiles,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
@@ -20,141 +20,145 @@ const defaultOptions = {
   target: [],
 } as updateOptions;
 
-export function updateFiles(options: updateOptions = defaultOptions) {
+export async function updateFiles(options: updateOptions = defaultOptions) {
   const updatePath = join(jcoreSettingsData.path, updateFolder);
 
   if (!jcoreSettingsData.name || jcoreSettingsData.path === "/") {
     return Promise.reject("Not a project.");
   }
 
-  return getFile(archiveLocation)
-    .then((buffer) => extractArchive(buffer, updatePath))
-    .then(async () => {
-      logger.verbose("Unzipped");
+  try {
+    let buffer = await getFile(archiveLocation);
+    await extractArchive(buffer, updatePath);
+    logger.verbose("Unzipped");
 
-      const checksums = loadChecksums();
+    const checksums = loadChecksums();
 
-      console.debug(options);
+    console.debug(options);
 
-      const files = [
-        {
-          name: "config.sh",
-          force: false,
-          replace: [
-            {
-              search: /#?NAME="[^"]*"/gm,
-              replace: 'NAME="' + jcoreSettingsData.name + '"',
-            },
-            {
-              search: /#?THEME="[^"]*"/gm,
-              replace: 'THEME="' + jcoreSettingsData.theme + '"',
-            },
-            {
-              search: /#?BRANCH="[^"]*"/gm,
-              replace: 'BRANCH="' + jcoreSettingsData.branch + '"',
-            },
-          ],
-        },
-        {
-          name: "readme.md",
-          force: false,
-          replace: [
-            {
-              search: "# WordPress Container",
-              replace:
-                "# " +
-                jcoreSettingsData.name.charAt(0).toUpperCase() +
-                jcoreSettingsData.name.slice(1),
-            },
-          ],
-        },
-        {
-          name: ".drone.yml",
-          force: false,
-          source: "project.drone.yml",
-          replace: [
-            {
-              search: "wp-content/themes/projectname",
-              replace: "wp-content/themes/" + jcoreSettingsData.theme,
-            },
-          ],
-        },
-        {
-          name: "package.json",
-          force: false,
-          replace: [
-            {
-              search: /"name" *: *"[^"]*"/gm,
-              replace: `"name": "${jcoreSettingsData.name}"`,
-            },
-            {
-              search: /"theme" *: *"[^"]*"/gm,
-              replace: `"theme": "${jcoreSettingsData.theme}"`,
-            },
-          ],
-        },
-        {
-          name: "build.mjs",
-          force: false,
-          replace: [],
-        },
-        {
-          name: "composer.json",
-          force: false,
-          replace: [],
-        },
-        {
-          name: "docker-compose.yml",
-          force: false,
-          replace: [
-            {
-              search: "- docker.localhost",
-              replace: "- " + jcoreSettingsData.name + ".localhost",
-            },
-          ],
-        },
-      ];
-
-      for (const file of files) {
-        const source = join(updatePath, file.source ?? file.name);
-        const destination = join(jcoreSettingsData.path, file.name);
-        // Check if file in project has been modified, and thus automatic update should be skipped.
-        const matching = calculateChecksum(destination) === checksums.get(file.name);
-        if (matching) {
-          logger.verbose("Matching Checksum: " + file.name);
-        }
-
-        if (matching || file.force || !existsSync(destination)) {
-          replaceInFile(source, file.replace, destination);
-          // Calculate new checksum for file.
-          checksums.set(file.name, calculateChecksum(destination));
-          logger.info("Updated " + file.name);
-        } else {
-          logger.error("Skipping " + file.name);
-        }
-        // Delete the file to avoid having to exclude it from the copy.
-        rmSync(source);
+    const files = [
+      {
+        name: "config.sh",
+        force: false,
+        replace: [
+          {
+            search: /#?NAME="[^"]*"/gm,
+            replace: "NAME=\"" + jcoreSettingsData.name + "\""
+          },
+          {
+            search: /#?THEME="[^"]*"/gm,
+            replace: "THEME=\"" + jcoreSettingsData.theme + "\""
+          },
+          {
+            search: /#?BRANCH="[^"]*"/gm,
+            replace: "BRANCH=\"" + jcoreSettingsData.branch + "\""
+          }
+        ]
+      },
+      {
+        name: "readme.md",
+        force: false,
+        replace: [
+          {
+            search: "# WordPress Container",
+            replace:
+              "# " +
+              jcoreSettingsData.name.charAt(0).toUpperCase() +
+              jcoreSettingsData.name.slice(1)
+          }
+        ]
+      },
+      {
+        name: ".drone.yml",
+        force: false,
+        source: "project.drone.yml",
+        replace: [
+          {
+            search: "wp-content/themes/projectname",
+            replace: "wp-content/themes/" + jcoreSettingsData.theme
+          }
+        ]
+      },
+      {
+        name: "package.json",
+        force: false,
+        replace: [
+          {
+            search: /"name" *: *"[^"]*"/gm,
+            replace: `"name": "${jcoreSettingsData.name}"`
+          },
+          {
+            search: /"theme" *: *"[^"]*"/gm,
+            replace: `"theme": "${jcoreSettingsData.theme}"`
+          }
+        ]
+      },
+      {
+        name: "build.mjs",
+        force: false,
+        replace: []
+      },
+      {
+        name: "composer.json",
+        force: false,
+        replace: []
+      },
+      {
+        name: "docker-compose.yml",
+        force: false,
+        replace: [
+          {
+            search: "- docker.localhost",
+            replace: "- " + jcoreSettingsData.name + ".localhost"
+          }
+        ]
       }
-      saveChecksums(checksums);
+    ];
 
-      // Clean up legacy folders.
-      rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
-      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
-      rmSync(join(jcoreSettingsData.path, "provisioning"), {
-        recursive: true,
-        force: true,
-      });
+    for (const file of files) {
+      const source = join(updatePath, file.source ?? file.name);
+      const destination = join(jcoreSettingsData.path, file.name);
+      // Check if file in project has been modified, and thus automatic update should be skipped.
+      const matching = calculateChecksum(destination) === checksums.get(file.name);
+      if (matching) {
+        logger.verbose("Matching Checksum: " + file.name);
+      }
 
-      // Remove old setup folder.
+      if (matching || file.force || !existsSync(destination)) {
+        replaceInFile(source, file.replace, destination);
+        // Calculate new checksum for file.
+        checksums.set(file.name, calculateChecksum(destination));
+        logger.verbose("Updated " + file.name);
+      } else {
+        logger.error("Skipping " + file.name);
+      }
+      // Delete the file to avoid having to exclude it from the copy.
+      rmSync(source);
+    }
+
+    logger.debug("Cleaning up legacy folders.");
+    rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
+    rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
+    rmSync(join(jcoreSettingsData.path, "provisioning"), {
+      recursive: true,
+      force: true
+    });
+
+    if (options.target.length === 0) {
+      // Remove old setup folder if updating all files.
+      logger.verbose("Remove old setup folder.");
       rmSync(join(jcoreSettingsData.path, ".setup"), { recursive: true, force: true });
+    }
 
-      // Move updated project files to project folder.
-      mergeFiles(updatePath, jcoreSettingsData.path);
+    // Move updated project files to project folder.
+    moveFiles(updatePath, jcoreSettingsData.path, "", checksums);
+    saveChecksums(checksums);
 
-      // Clean up remaining files.
-      rmSync(updatePath, { recursive: true, force: true });
-    })
-    .catch((reason) => Promise.reject("Unable to extract file " + reason));
+    logger.verbose("Clean up remaining files.");
+    rmSync(updatePath, { recursive: true, force: true });
+  } catch (reason) {
+    throw "Unable to extract file " + reason;
+  }
 }
 
 export function finalizeProject(install = true): boolean {

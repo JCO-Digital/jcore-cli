@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
 import { childGit, childPath, jcoreGit, jcorePath } from "@/constants";
 import { logger } from "@/logger";
-import { getFlagValue, mergeFiles, nameToFolder } from "@/utils";
+import { getFlagValue, copyFiles, nameToFolder } from "@/utils";
 import { join } from "path";
 import process from "process";
 
@@ -65,7 +65,7 @@ export function copyChildTheme(name: string): boolean {
   jcoreSettingsData.theme = nameToFolder(name);
   const themePath = join(jcoreSettingsData.path, "wp-content/themes", jcoreSettingsData.theme);
   if (!existsSync(themePath)) {
-    mergeFiles(join(jcoreSettingsData.path, childPath), themePath, true);
+    copyFiles(join(jcoreSettingsData.path, childPath), themePath);
     replaceInFile(join(themePath, "style.css"), [
       { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
     ]);

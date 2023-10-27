@@ -1,4 +1,4 @@
-import { get } from "https";
+import { https } from "follow-redirects";
 import AdmZip from "adm-zip";
 import { join } from "path";
 import { createHash } from "crypto";
@@ -11,7 +11,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
-  writeFileSync,
+  writeFileSync
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
@@ -19,14 +19,14 @@ import { cmdData } from "@/types";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    get(url)
-      .on("response", function (response) {
+    https.get(url)
+      .on("response", function(response) {
         if (response.statusCode === 200) {
           let body = "";
-          response.on("data", function (chunk) {
+          response.on("data", function(chunk) {
             body += chunk;
           });
-          response.on("end", function () {
+          response.on("end", function() {
             resolve(body);
           });
         } else {
@@ -41,15 +41,15 @@ export function getFileString(url: string): Promise<string> {
 
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    get(url).on("response", function (response) {
+    https.get(url).on("response", function(response) {
       if (response.statusCode === 200) {
         const data: Buffer[] = [];
 
         response
-          .on("data", function (chunk) {
+          .on("data", function(chunk) {
             data.push(chunk);
           })
-          .on("end", function () {
+          .on("end", function() {
             //at this point data is an array of Buffers
             //so Buffer.concat() can make us a new Buffer
             //of all of them together
@@ -126,12 +126,11 @@ export function calculateChecksum(file: string): string {
 }
 
 /**
- * Moves or copies source to destination, merging with existing structure, overwriting files.
+ * Copies source to destination, merging with existing structure, overwriting files.
  * @param sourceDir Source Folder
  * @param destinationDir Destination Folder
- * @param copy Copies files if true, moves files if false.
  */
-export function mergeFiles(sourceDir: string, destinationDir: string, copy = false) {
+export function copyFiles(sourceDir: string, destinationDir: string) {
   if (!existsSync(destinationDir)) {
     // Create target if not exists.
     logger.verbose("Creating target folder: " + destinationDir);
@@ -143,15 +142,58 @@ export function mergeFiles(sourceDir: string, destinationDir: string, copy = fal
       continue;
     }
     if (lstatSync(join(sourceDir, file)).isDirectory()) {
+      // Current path is a folder.
       if (!existsSync(join(destinationDir, file))) {
+        // Create destination folder if it doesn't exist.
         mkdirSync(join(destinationDir, file));
       }
-      mergeFiles(join(sourceDir, file), join(destinationDir, file), copy);
+      // Merge files in folder.
+      copyFiles(join(sourceDir, file), join(destinationDir, file));
     } else {
-      if (copy) {
-        copyFileSync(join(sourceDir, file), join(destinationDir, file));
+      // Current path is a file.
+      copyFileSync(join(sourceDir, file), join(destinationDir, file));
+    }
+  }
+}
+
+
+/**
+ * Moves source to destination, merging with existing structure, overwriting files with checksum validation.
+ * @param sourceDir Source Folder
+ * @param destinationDir Destination Folder
+ * @param path Relative path
+ * @param checksums File checksum map, or null to skip checksums.
+ */
+export function moveFiles(sourceDir: string, destinationDir: string, path: string, checksums: Map<string, string>) {
+  if (!existsSync(join(destinationDir, path))) {
+    // Create target if not exists.
+    logger.verbose("Creating target folder: " + destinationDir);
+    mkdirSync(join(destinationDir, path), { recursive: true });
+  }
+  for (const file of readdirSync(join(sourceDir, path))) {
+    if (file === ".git") {
+      // Skip .git folder.
+      continue;
+    }
+    const filePath = join(path, file);
+    if (lstatSync(join(sourceDir, filePath)).isDirectory()) {
+      // Current path is a folder.
+      if (!existsSync(join(destinationDir, filePath))) {
+        // Create destination folder if it doesn't exist.
+        mkdirSync(join(destinationDir, filePath));
+      }
+      // Merge files in folder.
+      moveFiles(sourceDir, destinationDir, filePath, checksums);
+    } else {
+      // Current path is a file.
+      const source = join(sourceDir, filePath);
+      const destination = join(destinationDir, filePath);
+      if (!existsSync(destination) || calculateChecksum(destination) === checksums.get(filePath)) {
+        // Destination matches checksum or doesn't exist.
+        renameSync(source, destination);
+        checksums.set(filePath, calculateChecksum(join(destinationDir, path, file)));
       } else {
-        renameSync(join(sourceDir, file), join(destinationDir, file));
+        logger.error("Skipping " + filePath);
       }
     }
   }
