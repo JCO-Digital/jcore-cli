@@ -5,7 +5,7 @@ import { finalizeProject } from "@/project";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { existsSync } from "fs";
-import { getFlagValue } from "@/utils";
+import { getFlagValue, getSetupFolder } from "@/utils";
 
 export function start(data: cmdData) {
   if (finalizeProject(getFlagValue(data, "install"))) {
@@ -13,7 +13,7 @@ export function start(data: cmdData) {
 
     const options = {
       cwd: jcoreSettingsData.path,
-      stdio: [0, 1, 2],
+      stdio: [0, 1, 2]
     };
     try {
       if (jcoreSettingsData.mode === "foreground") {
@@ -32,7 +32,7 @@ export function stop(path = jcoreSettingsData.path) {
 
   const options = {
     cwd: path,
-    stdio: [0, 1, 2],
+    stdio: [0, 1, 2]
   };
 
   try {
@@ -43,7 +43,7 @@ export function stop(path = jcoreSettingsData.path) {
 }
 
 export function pull(data: cmdData) {
-  const scriptPath = "/project/.config/scripts";
+  const scriptPath = getSetupFolder("scripts", true);
   const pluginScript = join(scriptPath, "importplugins");
   const dbScript = join(scriptPath, "importdb");
   const mediaScript = join(scriptPath, "importmedia");
@@ -53,7 +53,7 @@ export function pull(data: cmdData) {
   const runFlags = {
     plugins: data.target.includes("plugins"),
     db: data.target.includes("db"),
-    media: data.target.includes("media"),
+    media: data.target.includes("media")
   };
 
   if (data.target.length === 0) {
@@ -85,7 +85,7 @@ export function pull(data: cmdData) {
 export function cleanProject(project: jcoreProject) {
   const options = {
     cwd: project.path,
-    stdio: [0, 1, 2],
+    stdio: [0, 1, 2]
   };
 
   try {
@@ -117,7 +117,7 @@ export function cleanAll() {
 
 export function cleanDocker(all = false) {
   const options = {
-    stdio: [0, 1, 2],
+    stdio: [0, 1, 2]
   };
 
   try {
@@ -166,7 +166,7 @@ function getProjects(): jcoreProject[] {
         projects.push({
           name,
           path,
-          running,
+          running
         });
       }
     }
@@ -183,7 +183,7 @@ export function runCommand(command: string, spawn = false) {
 
   const options = {
     cwd: jcoreSettingsData.path,
-    stdio: [0, 1, 2],
+    stdio: [0, 1, 2]
   };
 
   try {
@@ -200,7 +200,7 @@ export function runCommand(command: string, spawn = false) {
 export function attach(data: cmdData) {
   const options = {
     cwd: jcoreSettingsData.path,
-    stdio: [0, 1, 2],
+    stdio: [0, 1, 2]
   };
   logger.info("Attaching to logs");
   try {

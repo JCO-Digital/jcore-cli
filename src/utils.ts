@@ -156,7 +156,6 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
   }
 }
 
-
 /**
  * Moves source to destination, merging with existing structure, overwriting files with checksum validation.
  * @param sourceDir Source Folder
@@ -215,4 +214,12 @@ export function nameToFolder(name: string): string {
 
 export function getFlagValue(cmd: cmdData, name: string): false | any {
   return cmd.flags.has(name) ? cmd.flags.get(name) : false;
+}
+
+export function getSetupFolder(appendPath = "", inContainer = false): string {
+  const path = inContainer ? "/project" : jcoreSettingsData.path;
+  if (existsSync(join(jcoreSettingsData.path, ".setup"))) {
+    return join(path, ".setup", appendPath);
+  }
+  return join(path, ".config", appendPath);
 }

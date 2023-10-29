@@ -4,7 +4,7 @@ import {
   getFile,
   saveChecksums,
   calculateChecksum,
-  moveFiles,
+  moveFiles, getSetupFolder
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
@@ -172,7 +172,7 @@ export function finalizeProject(install = true): boolean {
   }
 
   // Set nginx proxy pass.
-  replaceInFile(join(jcoreSettingsData.path, ".config/nginx/site.conf"), [
+  replaceInFile(getSetupFolder("nginx/site.conf"), [
     {
       search: /proxy_pass.*https.*;$/gm,
       replace: "proxy_pass    https://" + jcoreSettingsData.domain + ";",
@@ -188,7 +188,7 @@ export function finalizeProject(install = true): boolean {
     });
   }
   replaceInFile(
-    join(jcoreSettingsData.path, ".config/php.ini"),
+    join(jcoreSettingsData.path, "php.ini"),
     replace,
     join(jcoreSettingsData.path, ".jcore/php.ini")
   );
@@ -196,11 +196,10 @@ export function finalizeProject(install = true): boolean {
   // Set executable bits on scripts.
   try {
     logger.verbose("Setting executable bits on scripts.");
-    execSync("chmod +x .config/scripts/*", options);
-    execSync("chmod +x .config/*.sh", options);
+    execSync("chmod +x .setup/scripts/*", options);
+    execSync("chmod +x .setup/*.sh", options);
   } catch (e) {
-    logger.warn("chmod failed, maybe Windows environment.");
-    return false;
+    logger.warn("chmod failed.");
   }
 
   if (jcoreSettingsData.install || install) {
