@@ -4,16 +4,27 @@ import {
   getFile,
   saveChecksums,
   calculateChecksum,
-  moveFiles, getSetupFolder
+  getSetupFolder,
+  loadJsonFile,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
 import { updateOptions } from "@/types";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
+import { string } from "zod";
 
 const defaultOptions = {
   force: false,
@@ -36,85 +47,80 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
 
     console.debug(options);
 
-    const files = [
-      {
-        name: "config.sh",
+    const files = {
+      "config.sh": {
         force: false,
+        checksum: true,
         replace: [
           {
             search: /#?NAME="[^"]*"/gm,
-            replace: "NAME=\"" + jcoreSettingsData.name + "\""
+            replace: 'NAME="' + jcoreSettingsData.name + '"',
           },
           {
             search: /#?THEME="[^"]*"/gm,
-            replace: "THEME=\"" + jcoreSettingsData.theme + "\""
+            replace: 'THEME="' + jcoreSettingsData.theme + '"',
           },
           {
             search: /#?BRANCH="[^"]*"/gm,
-            replace: "BRANCH=\"" + jcoreSettingsData.branch + "\""
-          }
-        ]
+            replace: 'BRANCH="' + jcoreSettingsData.branch + '"',
+          },
+        ],
       },
-      {
-        name: "readme.md",
-        force: false,
+      "readme.md": {
+        force: true,
+        checksum: true,
         replace: [
           {
             search: "# WordPress Container",
             replace:
               "# " +
               jcoreSettingsData.name.charAt(0).toUpperCase() +
-              jcoreSettingsData.name.slice(1)
-          }
-        ]
+              jcoreSettingsData.name.slice(1),
+          },
+        ],
       },
-      {
-        name: ".drone.yml",
-        force: false,
-        source: "project.drone.yml",
+      "project.drone.yml": {
+        target: ".drone.yml",
+        force: true,
+        checksum: true,
         replace: [
           {
             search: "wp-content/themes/projectname",
-            replace: "wp-content/themes/" + jcoreSettingsData.theme
-          }
-        ]
+            replace: "wp-content/themes/" + jcoreSettingsData.theme,
+          },
+        ],
       },
-      {
-        name: "package.json",
-        force: false,
+      "package.json": {
+        force: true,
+        checksum: true,
         replace: [
           {
             search: /"name" *: *"[^"]*"/gm,
-            replace: `"name": "${jcoreSettingsData.name}"`
+            replace: `"name": "${jcoreSettingsData.name}"`,
           },
           {
             search: /"theme" *: *"[^"]*"/gm,
-            replace: `"theme": "${jcoreSettingsData.theme}"`
-          }
-        ]
+            replace: `"theme": "${jcoreSettingsData.theme}"`,
+          },
+        ],
       },
-      {
-        name: "build.mjs",
-        force: false,
-        replace: []
-      },
-      {
-        name: "composer.json",
-        force: false,
-        replace: []
-      },
-      {
-        name: "docker-compose.yml",
-        force: false,
+      "docker-compose.yml": {
+        force: true,
+        checksum: true,
         replace: [
           {
             search: "- docker.localhost",
-            replace: "- " + jcoreSettingsData.name + ".localhost"
-          }
-        ]
-      }
-    ];
+            replace: "- " + jcoreSettingsData.name + ".localhost",
+          },
+        ],
+      },
+      "composer.json": {
+        force: true,
+        checksum: true,
+      },
+    };
 
+    /*
     for (const file of files) {
       const source = join(updatePath, file.source ?? file.name);
       const destination = join(jcoreSettingsData.path, file.name);
@@ -135,29 +141,79 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
       // Delete the file to avoid having to exclude it from the copy.
       rmSync(source);
     }
+     */
 
     logger.debug("Cleaning up legacy folders.");
     rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
-    rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "provisioning"), {
       recursive: true,
-      force: true
+      force: true,
     });
 
     if (options.target.length === 0) {
       // Remove old setup folder if updating all files.
       logger.verbose("Remove old setup folder.");
-      rmSync(join(jcoreSettingsData.path, ".setup"), { recursive: true, force: true });
+      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
     }
 
     // Move updated project files to project folder.
-    moveFiles(updatePath, jcoreSettingsData.path, "", checksums);
+    moveFiles(updatePath, jcoreSettingsData.path, "", checksums, files);
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
     rmSync(updatePath, { recursive: true, force: true });
   } catch (reason) {
     throw "Unable to extract file " + reason;
+  }
+}
+
+/**
+ * Moves source to destination, merging with existing structure, overwriting files with checksum validation.
+ * @param sourceDir Source Folder
+ * @param destinationDir Destination Folder
+ * @param path Relative path
+ * @param checksums File checksum map, or null to skip checksums.
+ * @param files
+ */
+export function moveFiles(
+  sourceDir: string,
+  destinationDir: string,
+  path: string,
+  checksums: Map<string, string>,
+  files: Object
+) {
+  console.debug(files);
+  if (!existsSync(join(destinationDir, path))) {
+    // Create target if not exists.
+    logger.verbose("Creating target folder: " + destinationDir);
+    mkdirSync(join(destinationDir, path), { recursive: true });
+  }
+  for (const file of readdirSync(join(sourceDir, path))) {
+    if (file === ".git") {
+      // Skip .git folder.
+      continue;
+    }
+    const filePath = join(path, file);
+    if (lstatSync(join(sourceDir, filePath)).isDirectory()) {
+      // Current path is a folder.
+      if (!existsSync(join(destinationDir, filePath))) {
+        // Create destination folder if it doesn't exist.
+        mkdirSync(join(destinationDir, filePath));
+      }
+      // Merge files in folder.
+      moveFiles(sourceDir, destinationDir, filePath, checksums, files);
+    } else {
+      // Current path is a file.
+      const source = join(sourceDir, filePath);
+      const destination = join(destinationDir, filePath);
+      if (!existsSync(destination) || calculateChecksum(destination) === checksums.get(filePath)) {
+        // Destination matches checksum or doesn't exist.
+        renameSync(source, destination);
+        checksums.set(filePath, calculateChecksum(join(destinationDir, path, file)));
+      } else {
+        logger.error("Skipping " + filePath);
+      }
+    }
   }
 }
 
@@ -170,6 +226,9 @@ export function finalizeProject(install = true): boolean {
   if (!checkFolders()) {
     return false;
   }
+
+  // Write the .env file.
+  createEnv();
 
   // Set nginx proxy pass.
   replaceInFile(getSetupFolder("nginx/site.conf"), [
@@ -196,8 +255,8 @@ export function finalizeProject(install = true): boolean {
   // Set executable bits on scripts.
   try {
     logger.verbose("Setting executable bits on scripts.");
-    execSync("chmod +x .setup/scripts/*", options);
-    execSync("chmod +x .setup/*.sh", options);
+    execSync("chmod +x .config/scripts/*", options);
+    execSync("chmod +x .config/*.sh", options);
   } catch (e) {
     logger.warn("chmod failed.");
   }
@@ -231,6 +290,48 @@ export function finalizeProject(install = true): boolean {
     execSync("docker-compose pull", options);
   }
   return true;
+}
+
+function createEnv() {
+  const values = loadJsonFile(join(jcoreSettingsData.path, "defaults.json"));
+
+  values.project_name = jcoreSettingsData.name;
+  values.upstream_domain = jcoreSettingsData.domain;
+  values.local_domain = jcoreSettingsData.local;
+  values.plugin_install = jcoreSettingsData.plugins;
+  values.domains = jcoreSettingsData.domains;
+  values.replace = jcoreSettingsData.replace;
+  values.remotehost = jcoreSettingsData.remoteHost ?? `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
+  values.remotepath = jcoreSettingsData.remotePath ?? `/sites/${jcoreSettingsData.name}`;
+
+  console.log(values);
+  console.log(jcoreSettingsData);
+
+  let env = "";
+  for (let key in values) {
+    const value = values[key];
+    if (value instanceof Array) {
+      env += `${key.toUpperCase()}=${createEnvVariable(value)}\n`;
+    } else {
+      env += `${key.toUpperCase()}=${value}\n`;
+    }
+  }
+
+  writeFileSync(join(jcoreSettingsData.path, ".env"), env);
+}
+
+function createEnvVariable(value: Array<Array<string> | string>): string {
+  const output: any[] = [];
+  if (value.length && typeof value[0] === "string") {
+    output.push(...value);
+  } else {
+    value.forEach((row) => {
+      if (row instanceof Array) {
+        output.push(row.join(","));
+      }
+    });
+  }
+  return output.join(" ");
 }
 
 interface searchReplace {

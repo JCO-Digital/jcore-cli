@@ -127,6 +127,8 @@ export function cleanDocker(all = false) {
     execSync("docker image prune -f" + (all ? " -a" : ""), options);
     logger.info("Cleaning Volumes");
     execSync("docker volume prune -f" + (all ? " -a" : ""), options);
+    logger.info("Cleaning Networks");
+    execSync("docker network prune -f", options);
   } catch (e) {
     logger.error("Docker failed");
   }

@@ -27,8 +27,15 @@ export const settingsSchema = z.object({
   plugins: z.string(),
   install: z.boolean(),
   logLevel: z.number(),
+  domains: z.array(z.string()),
   domain: z.string(),
   local: z.string(),
+  replace: z.array(z.array(z.string())),
+  remoteHost: z.string(),
+  remotePath: z.string(),
+  dbExclude: z.array(z.string()),
+  pluginExclude: z.array(z.string()),
+  pluginGit: z.array(z.string()),
 });
 export type jcoreSettings = z.infer<typeof settingsSchema>;
 

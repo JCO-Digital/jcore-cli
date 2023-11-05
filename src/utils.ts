@@ -10,7 +10,6 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
   writeFileSync
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
@@ -96,13 +95,8 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
 }
 
 export function loadChecksums(): Map<string, string> {
-  try {
-    const json = readFileSync(join(jcoreSettingsData.path, checksumFile), "utf8");
-    const data = JSON.parse(json);
-    return new Map(Object.entries(data));
-  } catch {
-    return new Map<string, string>();
-  }
+  const data = loadJsonFile(join(jcoreSettingsData.path, checksumFile));
+  return new Map(Object.entries(data));
 }
 
 export function saveChecksums(checksums: Map<string, string>): boolean {
@@ -113,6 +107,15 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+export function loadJsonFile (file: string): Record<string,any> {
+  try {
+    const json = readFileSync(file, "utf8");
+    return JSON.parse(json);
+  } catch {
+    return {};
   }
 }
 
@@ -156,48 +159,6 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
   }
 }
 
-/**
- * Moves source to destination, merging with existing structure, overwriting files with checksum validation.
- * @param sourceDir Source Folder
- * @param destinationDir Destination Folder
- * @param path Relative path
- * @param checksums File checksum map, or null to skip checksums.
- */
-export function moveFiles(sourceDir: string, destinationDir: string, path: string, checksums: Map<string, string>) {
-  if (!existsSync(join(destinationDir, path))) {
-    // Create target if not exists.
-    logger.verbose("Creating target folder: " + destinationDir);
-    mkdirSync(join(destinationDir, path), { recursive: true });
-  }
-  for (const file of readdirSync(join(sourceDir, path))) {
-    if (file === ".git") {
-      // Skip .git folder.
-      continue;
-    }
-    const filePath = join(path, file);
-    if (lstatSync(join(sourceDir, filePath)).isDirectory()) {
-      // Current path is a folder.
-      if (!existsSync(join(destinationDir, filePath))) {
-        // Create destination folder if it doesn't exist.
-        mkdirSync(join(destinationDir, filePath));
-      }
-      // Merge files in folder.
-      moveFiles(sourceDir, destinationDir, filePath, checksums);
-    } else {
-      // Current path is a file.
-      const source = join(sourceDir, filePath);
-      const destination = join(destinationDir, filePath);
-      if (!existsSync(destination) || calculateChecksum(destination) === checksums.get(filePath)) {
-        // Destination matches checksum or doesn't exist.
-        renameSync(source, destination);
-        checksums.set(filePath, calculateChecksum(join(destinationDir, path, file)));
-      } else {
-        logger.error("Skipping " + filePath);
-      }
-    }
-  }
-}
-
 export function isProject(project = true): boolean {
   if (!project && jcoreSettingsData.inProject) {
     logger.error("\nAlready in project.");
@@ -218,8 +179,5 @@ export function getFlagValue(cmd: cmdData, name: string): false | any {
 
 export function getSetupFolder(appendPath = "", inContainer = false): string {
   const path = inContainer ? "/project" : jcoreSettingsData.path;
-  if (existsSync(join(jcoreSettingsData.path, ".setup"))) {
-    return join(path, ".setup", appendPath);
-  }
   return join(path, ".config", appendPath);
 }
