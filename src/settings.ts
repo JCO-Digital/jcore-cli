@@ -3,7 +3,7 @@ import { join, parse } from "path";
 import { homedir } from "os";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
-import { fetchVersion } from "@/utils";
+import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
 import type { jcoreSettings } from "@/types";
 import { dataSchema, jcoreData } from "@/types";
@@ -58,19 +58,10 @@ export async function readSettings() {
   // Convert old format to new.
   convertGlobalSettings();
 
-  const values = new Map() as Map<string, string | string[]>;
-
-  values.set("name", jcoreSettingsData.name);
-
   if (jcoreSettingsData.inProject) {
     // Read project settings if in project.
-
-    // TODO Fix this to use config.json.
-    const data = readFileSync(join(jcoreSettingsData.path, "/config.sh"), "utf8");
-    parseSettings(values, data);
+    convertProjectSettings();
   }
-
-  populateSetting(values);
 
   versionCheck()
     .then(() => {
@@ -91,57 +82,32 @@ export async function readSettings() {
 }
 
 function readData() {
-  if (existsSync(globalData)) {
-    // Read global settings if they exist.
-    const json = readFileSync(globalData, "utf8");
-    try {
-      const data = JSON.parse(json);
-      const parsed = dataSchema.safeParse(data);
-      if (parsed.success) {
-        populateData(parsed.data);
-      }
-    } catch (error) {
-      logger.warn("Data parsing failed.");
-    }
+  const values = loadJsonFile(globalData);
+  if (values.latest !== undefined) {
+    jcoreDataData.latest = values.latest;
   }
-}
-
-function readSettingsFile(filename: string): Object {
-  if (existsSync(filename)) {
-    // Read global settings if they exist.
-    const json = readFileSync(filename, "utf8");
-    try {
-      const data = JSON.parse(json);
-      const parsed = dataSchema.safeParse(data);
-      if (parsed.success) {
-        return parsed.data;
-      }
-    } catch (error) {
-      logger.warn("Data parsing failed.");
-    }
+  if (values.lastCheck !== undefined) {
+    jcoreDataData.lastCheck = values.lastCheck;
   }
-  return {};
 }
 
 function writeData(data = {}) {
-  const values = readSettingsFile(globalData);
-
-  writeFileSync(globalData, JSON.stringify(Object.assign(values, data), null, 2), "utf8");
+  writeFileSync(globalData, JSON.stringify(jcoreDataData, null, 2), "utf8");
 }
 
 export function writeGlobalSettings(settings = {}) {
-  const values = readSettingsFile(globalConfig);
+  const values = loadJsonFile(globalConfig);
   writeFileSync(globalConfig, JSON.stringify(Object.assign(values, settings), null, 2), "utf8");
 }
 
 export function writeSettings(settings = {}, _global: boolean = false) {
-  if (global) {
+  if (_global) {
     // Call global settings save.
     writeGlobalSettings(settings);
   } else if (jcoreSettingsData.inProject) {
     const localConfig = join(jcoreSettingsData.path, "config.json");
 
-    const values = readSettingsFile(localConfig);
+    const values = loadJsonFile(localConfig);
     writeFileSync(localConfig, JSON.stringify(Object.assign(values, settings), null, 2));
   }
 }
@@ -188,6 +154,19 @@ function convertGlobalSettings() {
       logger.error("Global settings conversion failed.");
     }
   }
+}
+
+function convertProjectSettings() {
+  const values = new Map() as Map<string, string | string[]>;
+
+  values.set("name", jcoreSettingsData.name);
+
+  // TODO Fix this to use config.json.
+  const data = readFileSync(join(jcoreSettingsData.path, "/config.sh"), "utf8");
+  parseSettings(values, data);
+
+  console.log(values);
+
 }
 
 function parseSettings(values: Map<string, string | string[]>, data: string): void {

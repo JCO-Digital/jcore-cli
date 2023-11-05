@@ -131,6 +131,11 @@ export const commands = [
 ];
 export const flags = [
   {
+    name: "global",
+    flag: "g",
+    text: "Write settings globally.",
+  },
+  {
     name: "help",
     flag: "h",
     text: "This info.",
