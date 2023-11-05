@@ -12,7 +12,7 @@
     "postversion": "git push && git push --tags"
   },
   "config": {
-    "branch": "fluffycritter"
+    "branch": "grasshopper"
   },
   "engines": {
     "node": ">=14.0.0"

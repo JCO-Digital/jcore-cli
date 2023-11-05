@@ -5,25 +5,14 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
 import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
-import type { jcoreSettings } from "@/types";
-import { dataSchema, jcoreData } from "@/types";
+import { type jcoreData, settingsSchema } from "@/types";
 
 // Default settings.
-export const jcoreSettingsData = {
-  nodePath: "",
-  execPath: "",
-  exec: "",
+export const jcoreSettingsData = settingsSchema.parse({
   path: process.cwd(),
   mode: "foreground",
-  branch: "",
   theme: "jcore2-child",
-  debug: false,
-  plugins: "remote",
-  install: true,
-  logLevel: 2,
-  domain: "",
-  local: "",
-} as jcoreSettings;
+});
 
 export const jcoreDataData = {
   version: version,
@@ -57,10 +46,17 @@ export async function readSettings() {
 
   // Convert old format to new.
   convertGlobalSettings();
+  // Read global settings.
+  readProjectSettings();
 
   if (jcoreSettingsData.inProject) {
-    // Read project settings if in project.
+    // Convert project settings if in project.
     convertProjectSettings();
+
+    if (!jcoreSettingsData.branch) {
+      // Set default branch if not set.
+      jcoreSettingsData.branch = config.branch;
+    }
   }
 
   versionCheck()
@@ -70,15 +66,6 @@ export async function readSettings() {
     .catch((reason) => {
       logger.warn(reason);
     });
-
-  if (!jcoreSettingsData.name) {
-    // If name is not set, use folder name.
-    jcoreSettingsData.name = parse(jcoreSettingsData.path).base;
-  }
-  config;
-  if (!jcoreSettingsData.inProject && !jcoreSettingsData.branch) {
-    jcoreSettingsData.branch = config.branch;
-  }
 }
 
 function readData() {
@@ -91,7 +78,30 @@ function readData() {
   }
 }
 
-function writeData(data = {}) {
+function readProjectSettings() {
+  const localConfig = join(jcoreSettingsData.path, "/config.json");
+  // Make a copy of the current settings object.
+  const data = Object.assign({}, jcoreSettingsData);
+
+  // Add global settings to the object.
+  const globalValues = loadJsonFile(globalConfig);
+  Object.assign(data, globalValues);
+  if (jcoreSettingsData.inProject) {
+    // Add local settings if in project.
+    const localValues = loadJsonFile(localConfig);
+    Object.assign(data, localValues);
+  }
+  const result = settingsSchema.safeParse(data);
+  if (result.success) {
+    // Safe parse the resulting data into a new settings object.
+    Object.assign(jcoreSettingsData, result.data);
+  } else {
+    console.error(result.error);
+    logger.error("Invalid data in settings file.");
+  }
+}
+
+function writeData() {
   writeFileSync(globalData, JSON.stringify(jcoreDataData, null, 2), "utf8");
 }
 
@@ -100,7 +110,7 @@ export function writeGlobalSettings(settings = {}) {
   writeFileSync(globalConfig, JSON.stringify(Object.assign(values, settings), null, 2), "utf8");
 }
 
-export function writeSettings(settings = {}, _global: boolean = false) {
+export function writeSettings(settings = {}, _global = false) {
   if (_global) {
     // Call global settings save.
     writeGlobalSettings(settings);
@@ -157,16 +167,65 @@ function convertGlobalSettings() {
 }
 
 function convertProjectSettings() {
-  const values = new Map() as Map<string, string | string[]>;
+  const localConfigLegacy = join(jcoreSettingsData.path, "/config.sh");
+  if (existsSync(localConfigLegacy)) {
+    try {
+      const values = new Map() as Map<string, string | string[]>;
 
-  values.set("name", jcoreSettingsData.name);
+      values.set("name", jcoreSettingsData.name);
 
-  // TODO Fix this to use config.json.
-  const data = readFileSync(join(jcoreSettingsData.path, "/config.sh"), "utf8");
-  parseSettings(values, data);
+      // Read and parse config.sh.
+      const data = readFileSync(localConfigLegacy, "utf8");
+      parseSettings(values, data);
 
-  console.log(values);
+      let newDomain = "";
+      let newLocal = "";
+      const domains: string[] = [];
+      const replace = [];
+      const domainsValue = values.get("domains");
+      if (domainsValue instanceof Array) {
+        for (const domain of domainsValue) {
+          const parts = domain.split(";");
+          const local = `${parts[1]}.localhost`;
+          replace.push(["//" + parts[0], "//" + local]);
+          if (!domains.includes(local)) {
+            domains.push(local);
+          }
+          if (newDomain === "") {
+            newDomain = parts[0];
+            newLocal = local;
+          }
+        }
+      }
 
+      const newValues = {
+        name: values.get("name"),
+        theme: values.get("theme"),
+        remoteHost: values.get("remotehost"),
+        remotePath: values.get("remotepath"),
+        replace,
+        domains,
+        domain: newDomain,
+        local: newLocal,
+        dbExclude: values.get("db_exclude"),
+        pluginExclude: values.get("plugin_exclude"),
+        pluginGit: values.get("plugin_git"),
+        pluginInstall: values.get("plugin_install"),
+        install: values.get("install") === "true",
+      };
+      const localConfig = join(jcoreSettingsData.path, "/config.json");
+      const config = loadJsonFile(localConfig);
+
+      writeFileSync(
+        localConfig,
+        JSON.stringify(Object.assign(newValues, config), null, 2),
+        "utf-8"
+      );
+      unlinkSync(localConfigLegacy);
+    } catch (e) {
+      logger.error("Error convertion project settings.");
+    }
+  }
 }
 
 function parseSettings(values: Map<string, string | string[]>, data: string): void {
@@ -211,74 +270,4 @@ function cleanBashVar(values: Map<string, string | string[]>, text: string): str
     }
   }
   return value;
-}
-
-function populateSetting(values: Map<string, string | string[]>) {
-  for (const [key, value] of values) {
-    if (typeof value === "string") {
-      switch (key) {
-        case "plugin_install":
-          jcoreSettingsData.plugins = value;
-          break;
-        case "debug":
-          jcoreSettingsData.debug = value === "1" || value === "true";
-          break;
-        case "install":
-          jcoreSettingsData.install = value === "1" || value === "true";
-          break;
-        case "path":
-          jcoreSettingsData.path = value;
-          break;
-        case "mode":
-          jcoreSettingsData.mode = value;
-          break;
-        case "name":
-          jcoreSettingsData.name = value;
-          break;
-        case "theme":
-          jcoreSettingsData.theme = value;
-          break;
-        case "branch":
-          jcoreSettingsData.branch = value;
-          break;
-        case "remotehost":
-          jcoreSettingsData.remoteHost = value;
-          break;
-        case "remotepath":
-          jcoreSettingsData.remotePath = value;
-          break;
-      }
-    } else {
-      if (key === "domains") {
-        jcoreSettingsData.domains = [];
-        jcoreSettingsData.replace = [];
-        value.forEach((domain) => {
-          const parts = domain.split(";");
-          const upstream = parts[0];
-          const local = parts[1] + ".localhost";
-          if (!jcoreSettingsData.domains.includes(local)) {
-            jcoreSettingsData.domains.push(local);
-          }
-          jcoreSettingsData.replace.push([upstream, local]);
-          if (!jcoreSettingsData.domain) {
-            jcoreSettingsData.domain = upstream;
-          }
-          if (!jcoreSettingsData.local) {
-            jcoreSettingsData.local = local;
-          }
-        });
-      } else if (key === "db_exclude") {
-        jcoreSettingsData.dbExclude = value;
-      } else if (key === "plugin_exclude") {
-        jcoreSettingsData.pluginExclude = value;
-      } else if (key === "plugin_git") {
-        jcoreSettingsData.pluginGit = value;
-      }
-    }
-  }
-}
-
-function populateData(data: jcoreData) {
-  jcoreDataData.lastCheck = data.lastCheck;
-  jcoreDataData.latest = data.latest;
 }

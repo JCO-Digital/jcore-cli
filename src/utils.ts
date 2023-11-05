@@ -10,7 +10,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  writeFileSync
+  writeFileSync,
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
@@ -18,14 +18,15 @@ import { cmdData } from "@/types";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    https.get(url)
-      .on("response", function(response) {
+    https
+      .get(url)
+      .on("response", function (response) {
         if (response.statusCode === 200) {
           let body = "";
-          response.on("data", function(chunk) {
+          response.on("data", function (chunk) {
             body += chunk;
           });
-          response.on("end", function() {
+          response.on("end", function () {
             resolve(body);
           });
         } else {
@@ -40,15 +41,15 @@ export function getFileString(url: string): Promise<string> {
 
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    https.get(url).on("response", function(response) {
+    https.get(url).on("response", function (response) {
       if (response.statusCode === 200) {
         const data: Buffer[] = [];
 
         response
-          .on("data", function(chunk) {
+          .on("data", function (chunk) {
             data.push(chunk);
           })
-          .on("end", function() {
+          .on("end", function () {
             //at this point data is an array of Buffers
             //so Buffer.concat() can make us a new Buffer
             //of all of them together
@@ -102,7 +103,7 @@ export function loadChecksums(): Map<string, string> {
 export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
-    const json = JSON.stringify(object);
+    const json = JSON.stringify(object, null, 2);
     writeFileSync(join(jcoreSettingsData.path, checksumFile), json, "utf8");
     return true;
   } catch {
@@ -110,7 +111,7 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   }
 }
 
-export function loadJsonFile (file: string): Record<string,any> {
+export function loadJsonFile(file: string): Record<string, any> {
   try {
     const json = readFileSync(file, "utf8");
     return JSON.parse(json);

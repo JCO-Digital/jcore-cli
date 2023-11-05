@@ -24,7 +24,6 @@ import { jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
-import { string } from "zod";
 
 const defaultOptions = {
   force: false,
@@ -39,109 +38,11 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
   }
 
   try {
-    let buffer = await getFile(archiveLocation);
+    const buffer = await getFile(archiveLocation);
     await extractArchive(buffer, updatePath);
     logger.verbose("Unzipped");
 
     const checksums = loadChecksums();
-
-    console.debug(options);
-
-    const files = {
-      "config.sh": {
-        force: false,
-        checksum: true,
-        replace: [
-          {
-            search: /#?NAME="[^"]*"/gm,
-            replace: 'NAME="' + jcoreSettingsData.name + '"',
-          },
-          {
-            search: /#?THEME="[^"]*"/gm,
-            replace: 'THEME="' + jcoreSettingsData.theme + '"',
-          },
-          {
-            search: /#?BRANCH="[^"]*"/gm,
-            replace: 'BRANCH="' + jcoreSettingsData.branch + '"',
-          },
-        ],
-      },
-      "readme.md": {
-        force: true,
-        checksum: true,
-        replace: [
-          {
-            search: "# WordPress Container",
-            replace:
-              "# " +
-              jcoreSettingsData.name.charAt(0).toUpperCase() +
-              jcoreSettingsData.name.slice(1),
-          },
-        ],
-      },
-      "project.drone.yml": {
-        target: ".drone.yml",
-        force: true,
-        checksum: true,
-        replace: [
-          {
-            search: "wp-content/themes/projectname",
-            replace: "wp-content/themes/" + jcoreSettingsData.theme,
-          },
-        ],
-      },
-      "package.json": {
-        force: true,
-        checksum: true,
-        replace: [
-          {
-            search: /"name" *: *"[^"]*"/gm,
-            replace: `"name": "${jcoreSettingsData.name}"`,
-          },
-          {
-            search: /"theme" *: *"[^"]*"/gm,
-            replace: `"theme": "${jcoreSettingsData.theme}"`,
-          },
-        ],
-      },
-      "docker-compose.yml": {
-        force: true,
-        checksum: true,
-        replace: [
-          {
-            search: "- docker.localhost",
-            replace: "- " + jcoreSettingsData.name + ".localhost",
-          },
-        ],
-      },
-      "composer.json": {
-        force: true,
-        checksum: true,
-      },
-    };
-
-    /*
-    for (const file of files) {
-      const source = join(updatePath, file.source ?? file.name);
-      const destination = join(jcoreSettingsData.path, file.name);
-      // Check if file in project has been modified, and thus automatic update should be skipped.
-      const matching = calculateChecksum(destination) === checksums.get(file.name);
-      if (matching) {
-        logger.verbose("Matching Checksum: " + file.name);
-      }
-
-      if (matching || file.force || !existsSync(destination)) {
-        replaceInFile(source, file.replace, destination);
-        // Calculate new checksum for file.
-        checksums.set(file.name, calculateChecksum(destination));
-        logger.verbose("Updated " + file.name);
-      } else {
-        logger.error("Skipping " + file.name);
-      }
-      // Delete the file to avoid having to exclude it from the copy.
-      rmSync(source);
-    }
-     */
 
     logger.debug("Cleaning up legacy folders.");
     rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
@@ -157,7 +58,7 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     }
 
     // Move updated project files to project folder.
-    moveFiles(updatePath, jcoreSettingsData.path, "", checksums, files);
+    moveFiles(updatePath, jcoreSettingsData.path, "", checksums, options);
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
@@ -180,9 +81,8 @@ export function moveFiles(
   destinationDir: string,
   path: string,
   checksums: Map<string, string>,
-  files: Object
+  options: updateOptions
 ) {
-  console.debug(files);
   if (!existsSync(join(destinationDir, path))) {
     // Create target if not exists.
     logger.verbose("Creating target folder: " + destinationDir);
@@ -201,20 +101,125 @@ export function moveFiles(
         mkdirSync(join(destinationDir, filePath));
       }
       // Merge files in folder.
-      moveFiles(sourceDir, destinationDir, filePath, checksums, files);
+      moveFiles(sourceDir, destinationDir, filePath, checksums, options);
     } else {
       // Current path is a file.
-      const source = join(sourceDir, filePath);
-      const destination = join(destinationDir, filePath);
-      if (!existsSync(destination) || calculateChecksum(destination) === checksums.get(filePath)) {
-        // Destination matches checksum or doesn't exist.
-        renameSync(source, destination);
-        checksums.set(filePath, calculateChecksum(join(destinationDir, path, file)));
-      } else {
-        logger.error("Skipping " + filePath);
+      if (options.target.length === 0 || options.target.includes(filePath)) {
+        // Only run if no target given, or file is in target list.
+        const fileInfo = getFileInfo(destinationDir, filePath, checksums, options);
+
+        if (fileInfo.overwrite) {
+          // File should be overwritten.
+          const source = join(sourceDir, filePath);
+          const destination = join(destinationDir, fileInfo.target);
+          if (fileInfo.replace.length) {
+            logger.verbose(`Updating ${filePath} with replacement string.`);
+            replaceInFile(source, fileInfo.replace, destination);
+          } else {
+            logger.verbose(`Updating ${filePath}.`);
+            renameSync(source, destination);
+          }
+          checksums.set(fileInfo.target, calculateChecksum(destination));
+        } else {
+          logger.warn("Skipping " + fileInfo.target);
+        }
       }
     }
   }
+}
+
+function getFileInfo(
+  path: string,
+  file: string,
+  checksums: Map<string, string>,
+  options: updateOptions
+) {
+  const files: Record<string, object> = {
+    "readme.md": {
+      force: false,
+      checksum: true,
+      replace: [
+        {
+          search: "# WordPress Container",
+          replace:
+            "# " + jcoreSettingsData.name.charAt(0).toUpperCase() + jcoreSettingsData.name.slice(1),
+        },
+      ],
+    },
+    "project.drone.yml": {
+      target: ".drone.yml",
+      force: true,
+      checksum: true,
+      replace: [
+        {
+          search: "wp-content/themes/projectname",
+          replace: "wp-content/themes/" + jcoreSettingsData.theme,
+        },
+      ],
+    },
+    "package.json": {
+      force: true,
+      checksum: true,
+    },
+    "docker-compose.yml": {
+      force: true,
+      checksum: true,
+      replace: [
+        {
+          search: "- docker.localhost",
+          replace: "- " + jcoreSettingsData.name + ".localhost",
+        },
+      ],
+    },
+    "composer.json": {
+      force: false,
+      checksum: true,
+    },
+  };
+
+  const fileInfo = Object.assign(
+    {
+      target: file, // Destination has different name.
+      force: true, // Allow overwrite with force flag.
+      checksum: false, // Is file allowed to be overwritten on missing checksum.
+      replace: [], // String replace in file.
+      overwrite: false, // Flag to tell "moveFiles" to overwrite file.
+    },
+    files[file] ?? {}
+  );
+
+  // Check if force flag is set and file is allowed to be forced or targeted.
+  if (options.force && (fileInfo.force || options.target.includes(fileInfo.target))) {
+    logger.debug(`Force overwrite ${fileInfo.target}`);
+    fileInfo.overwrite = true;
+    return fileInfo;
+  }
+
+  // If destination doesn't exist, set overwrite.
+  const destination = join(path, fileInfo.target);
+  if (!existsSync(destination)) {
+    logger.debug(`File ${fileInfo.target} doesn't exist, overwriting.`);
+    fileInfo.overwrite = true;
+    return fileInfo;
+  }
+
+  // If checksum doesn't exist, check if checksum is needed, and return.
+  const checksum = checksums.get(fileInfo.target);
+  if (!checksum) {
+    logger.debug(`File ${fileInfo.target} doesn't have a checksum.`);
+    if (!fileInfo.checksum) {
+      logger.debug("Overwriting anyway.");
+      fileInfo.overwrite = true;
+    }
+    return fileInfo;
+  }
+
+  if (calculateChecksum(destination) === checksum) {
+    // Checksum matches.
+    logger.debug(`Checksum matches for ${fileInfo.target}.`);
+    fileInfo.overwrite = true;
+  }
+  return fileInfo;
 }
 
 export function finalizeProject(install = true): boolean {
@@ -301,14 +306,16 @@ function createEnv() {
   values.plugin_install = jcoreSettingsData.plugins;
   values.domains = jcoreSettingsData.domains;
   values.replace = jcoreSettingsData.replace;
-  values.remotehost = jcoreSettingsData.remoteHost ?? `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
+  values.remotehost =
+    jcoreSettingsData.remoteHost ??
+    `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
   values.remotepath = jcoreSettingsData.remotePath ?? `/sites/${jcoreSettingsData.name}`;
 
   console.log(values);
   console.log(jcoreSettingsData);
 
   let env = "";
-  for (let key in values) {
+  for (const key in values) {
     const value = values[key];
     if (value instanceof Array) {
       env += `${key.toUpperCase()}=${createEnvVariable(value)}\n`;

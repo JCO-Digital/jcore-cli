@@ -33,7 +33,7 @@ export function set(data: cmdData) {
       }
       break;
   }
-  writeSettings(settings, getFlagValue(data,"global"));
+  writeSettings(settings, getFlagValue(data, "global"));
 }
 
 function parseSetting(value: string): boolean {
