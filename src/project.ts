@@ -314,9 +314,6 @@ function createEnv() {
     `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
   values.remotepath = jcoreSettingsData.remotePath ?? `/sites/${jcoreSettingsData.name}`;
 
-  console.log(values);
-  console.log(jcoreSettingsData);
-
   let env = "";
   for (const key in values) {
     const value = values[key];

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const scriptLocation = "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";
+export const scriptName = "jcore";
 export const archiveLocation =
   "https://github.com/JCO-Digital/wordpress-container/releases/latest/download/release.zip";
 export const jcoreGit = "git@bitbucket.org:jcodigital/jcore2.git";
@@ -85,13 +86,13 @@ export const commands = [
     usage: ["<command>"],
   },
   {
-    cmd: "set",
+    cmd: "config",
     text: "Set options in config file. Currently mode/debug.",
     description: "",
     usage: [
-      "mode (fg|bg) - Sets docker to either running in foreground, or in background.",
-      "debug (on|off) - Turns XDebug on or off by default.",
-      "install (on|off) - Should npm and composer be run every start.",
+      "list - List all settings.",
+      "set - Sets config value.",
+      "unset - Removes a setting, probably returning it to defaults.",
     ],
   },
   {

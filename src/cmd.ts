@@ -16,7 +16,7 @@ import { getFlagValue, isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
-import { set } from "@/commands/set";
+import { config } from "@/commands/config";
 import { doctor } from "@/commands/doctor";
 import { jcoreSettingsData, writeSettings } from "@/settings";
 import { logger } from "@/logger";
@@ -92,6 +92,13 @@ export function runCmd(data: cmdData): void {
         }
       }
       break;
+    case "config":
+      if (data.target.length > 1) {
+        config(data);
+      } else {
+        helpCmd(data, false);
+      }
+      break;
     case "doctor":
       doctor();
       break;
@@ -119,13 +126,6 @@ export function runCmd(data: cmdData): void {
         } else {
           helpCmd(data, false);
         }
-      }
-      break;
-    case "set":
-      if (data.target.length > 1) {
-        set(data);
-      } else {
-        helpCmd(data, false);
       }
       break;
     case "shell":
@@ -175,7 +175,7 @@ export function runCmd(data: cmdData): void {
     case "update":
       if (data.target.includes("self")) {
         // Update self.
-        selfUpdate();
+        selfUpdate(data);
       } else {
         if (isProject()) {
           // Update project.

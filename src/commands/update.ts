@@ -1,6 +1,6 @@
 import type { cmdData, updateOptions } from "@/types";
 import { fetchVersion, getFileString, getFlagValue } from "@/utils";
-import { scriptLocation } from "@/constants";
+import { scriptLocation, scriptName } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
 import { jcoreDataData, jcoreSettingsData } from "@/settings";
@@ -24,12 +24,13 @@ export default function (data: cmdData) {
     });
 }
 
-export function selfUpdate() {
+export function selfUpdate(data: cmdData) {
+  const force = getFlagValue(data, "force");
   fetchVersion()
-    .then(versionCheck)
+    .then((version) => versionCheck(version, force))
     .then((version) => {
       logger.info("Upgrading to v" + version);
-      return getFileString(join(scriptLocation, jcoreSettingsData.exec));
+      return getFileString(join(scriptLocation, scriptName));
     })
     .then((body) => writeFile(jcoreSettingsData.execPath, body))
     .then(() => {
@@ -40,9 +41,9 @@ export function selfUpdate() {
     });
 }
 
-function versionCheck(newVersion: string): Promise<string> {
+function versionCheck(newVersion: string, force = false): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (semver.gt(newVersion, jcoreDataData.version)) {
+    if (force || semver.gt(newVersion, jcoreDataData.version)) {
       resolve(newVersion);
     }
     reject("No update available.");

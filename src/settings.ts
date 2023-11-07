@@ -98,7 +98,6 @@ function readProjectSettings() {
     // Safe parse the resulting data into a new settings object.
     Object.assign(jcoreSettingsData, result.data);
   } else {
-    console.error(result.error);
     logger.error("Invalid data in settings file.");
   }
 }
@@ -153,9 +152,9 @@ function convertGlobalSettings() {
         JSON.stringify(
           {
             mode: values.get("mode"),
-            debug: values.get("debug"),
+            debug: values.get("debug") === "true",
             logLevel: Number(values.get("loglevel")),
-            install: values.get("install"),
+            install: values.get("install") === "true",
           },
           null,
           2
