@@ -308,6 +308,7 @@ function createEnv() {
   values.plugin_install = jcoreSettingsData.plugins;
   values.domains = jcoreSettingsData.domains;
   values.replace = jcoreSettingsData.replace;
+  values.wordpress_image = "jcodigi/wordpress:latest";
   values.remotehost =
     jcoreSettingsData.remoteHost ??
     `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
