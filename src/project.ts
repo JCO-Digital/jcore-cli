@@ -45,6 +45,8 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     const checksums = loadChecksums();
 
     logger.debug("Cleaning up legacy folders.");
+    rmSync(join(jcoreSettingsData.path, "Vagrantfile"));
+    rmSync(join(jcoreSettingsData.path, ".vagrant"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "provisioning"), {
       recursive: true,

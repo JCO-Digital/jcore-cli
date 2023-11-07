@@ -20,6 +20,8 @@ export const jcoreDataData = {
   lastCheck: 0,
 } as jcoreData;
 
+const projectConfigFilename = "jcore.json";
+const projectConfigLegacyFilename = "config.sh";
 const globalConfig = join(homedir(), ".config/jcore/config.json");
 const globalData = join(homedir(), ".config/jcore/data.json");
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
@@ -28,8 +30,8 @@ export async function readSettings() {
   // Find the project base path.
   while (
     jcoreSettingsData.path.length > 1 &&
-    !existsSync(join(jcoreSettingsData.path, "config.json")) &&
-    !existsSync(join(jcoreSettingsData.path, "config.sh"))
+    !existsSync(join(jcoreSettingsData.path, projectConfigFilename)) &&
+    !existsSync(join(jcoreSettingsData.path, projectConfigLegacyFilename))
   ) {
     // Go up one level and try again.
     jcoreSettingsData.path = parse(jcoreSettingsData.path).dir;
@@ -79,7 +81,7 @@ function readData() {
 }
 
 function readProjectSettings() {
-  const localConfig = join(jcoreSettingsData.path, "/config.json");
+  const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
   // Make a copy of the current settings object.
   const data = Object.assign({}, jcoreSettingsData);
 
@@ -115,7 +117,7 @@ export function writeSettings(settings = {}, _global = false) {
     // Call global settings save.
     writeGlobalSettings(settings);
   } else if (jcoreSettingsData.inProject) {
-    const localConfig = join(jcoreSettingsData.path, "config.json");
+    const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
 
     const values = loadJsonFile(localConfig);
     writeFileSync(localConfig, JSON.stringify(Object.assign(values, settings), null, 2));
@@ -139,7 +141,7 @@ async function versionCheck() {
  */
 
 function convertGlobalSettings() {
-  if (existsSync(globalConfigLegacy)) {
+  if (!existsSync(globalConfig) && existsSync(globalConfigLegacy)) {
     // Read global settings if they exist.
     try {
       const values = new Map() as Map<string, string | string[]>;
@@ -159,7 +161,6 @@ function convertGlobalSettings() {
           2
         )
       );
-      unlinkSync(globalConfigLegacy);
     } catch (e) {
       logger.error("Global settings conversion failed.");
     }
@@ -167,8 +168,9 @@ function convertGlobalSettings() {
 }
 
 function convertProjectSettings() {
-  const localConfigLegacy = join(jcoreSettingsData.path, "/config.sh");
-  if (existsSync(localConfigLegacy)) {
+  const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
+  const localConfigLegacy = join(jcoreSettingsData.path, projectConfigLegacyFilename);
+  if (!existsSync(localConfig) && existsSync(localConfigLegacy)) {
     try {
       const values = new Map() as Map<string, string | string[]>;
 
@@ -213,7 +215,7 @@ function convertProjectSettings() {
         pluginInstall: values.get("plugin_install"),
         install: values.get("install") === "true",
       };
-      const localConfig = join(jcoreSettingsData.path, "/config.json");
+      const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
       const config = loadJsonFile(localConfig);
 
       writeFileSync(
@@ -221,7 +223,6 @@ function convertProjectSettings() {
         JSON.stringify(Object.assign(newValues, config), null, 2),
         "utf-8"
       );
-      unlinkSync(localConfigLegacy);
     } catch (e) {
       logger.error("Error convertion project settings.");
     }
