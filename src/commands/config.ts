@@ -1,5 +1,5 @@
 import { cmdData, settingsSchema } from "@/types";
-import { jcoreSettingsData, updateSetting, writeSettings } from "@/settings";
+import { jcoreSettingsData, updateSetting } from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
 
@@ -20,7 +20,8 @@ export function config(data: cmdData) {
 }
 
 function set(target: string, value: string, _global: boolean) {
-  const model: Record<string,string|number|boolean|Array<string|Array<string>>> = settingsSchema.parse({});
+  const model: Record<string, string | number | boolean | Array<string | Array<string>>> =
+    settingsSchema.parse({});
   for (const key in model) {
     if (key.toLowerCase() === target.toLowerCase()) {
       switch (typeof model[key]) {
@@ -28,11 +29,11 @@ function set(target: string, value: string, _global: boolean) {
           updateSetting(key, value, _global);
           return;
         case "number":
-          const num = Number(value);
-          if (isNaN(num)) {
+          if (isNaN(Number(value))) {
             logger.error(`Error: ${value} is not numeric`);
+          } else {
+            updateSetting(key, Number(value), _global);
           }
-          updateSetting(key, num, _global);
           return;
         case "boolean":
           updateSetting(key, parseBoolean(value), _global);
@@ -42,7 +43,7 @@ function set(target: string, value: string, _global: boolean) {
       }
     }
   }
-  logger.info(`Target ${target} not found.`)
+  logger.info(`Target ${target} not found.`);
 }
 
 function parseBoolean(value: string): boolean {

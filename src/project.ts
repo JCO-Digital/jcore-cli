@@ -329,16 +329,10 @@ function createEnv() {
 }
 
 function createEnvVariable(value: Array<Array<string> | string>): string {
-  const output: any[] = [];
-  if (value.length && typeof value[0] === "string") {
-    output.push(...value);
-  } else {
-    value.forEach((row) => {
-      if (row instanceof Array) {
-        output.push(row.join(","));
-      }
-    });
-  }
+  const output: Array<string> = [];
+  value.forEach((row) => {
+    output.push(row instanceof Array ? row.join(",") : row);
+  });
   return output.join(" ");
 }
 

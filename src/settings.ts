@@ -7,19 +7,18 @@ import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
 import { type jcoreData, settingsSchema } from "@/types";
 import { forbiddenSettings, projectSettings } from "@/constants";
-import { boolean } from "zod";
 
 // Default settings.
 export const jcoreSettingsData = settingsSchema.parse({
   path: process.cwd(),
   mode: "foreground",
-  theme: "jcore2-child"
+  theme: "jcore2-child",
 });
 
 export const jcoreDataData = {
   version: version,
   latest: "",
-  lastCheck: 0
+  lastCheck: 0,
 } as jcoreData;
 
 const projectConfigFilename = "jcore.json";
@@ -35,7 +34,7 @@ export async function readSettings() {
     jcoreSettingsData.path.length > 1 &&
     !existsSync(join(jcoreSettingsData.path, projectConfigFilename)) &&
     !existsSync(join(jcoreSettingsData.path, projectConfigLegacyFilename))
-    ) {
+  ) {
     // Go up one level and try again.
     jcoreSettingsData.path = parse(jcoreSettingsData.path).dir;
   }
@@ -207,7 +206,7 @@ function convertGlobalSettings() {
             mode: values.get("mode"),
             debug: values.get("debug") === "true",
             logLevel: Number(values.get("loglevel")),
-            install: values.get("install") === "true"
+            install: values.get("install") === "true",
           },
           null,
           2
@@ -265,7 +264,7 @@ function convertProjectSettings() {
         pluginExclude: values.get("plugin_exclude"),
         pluginGit: values.get("plugin_git"),
         pluginInstall: values.get("plugin_install"),
-        install: values.get("install") === "true"
+        install: values.get("install") === "true",
       };
       const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
       const config = loadJsonFile(localConfig);
