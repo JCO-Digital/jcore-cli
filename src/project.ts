@@ -18,6 +18,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
@@ -45,7 +46,7 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     const checksums = loadChecksums();
 
     logger.debug("Cleaning up legacy folders.");
-    rmSync(join(jcoreSettingsData.path, "Vagrantfile"));
+    unlinkSync(join(jcoreSettingsData.path, "Vagrantfile"));
     rmSync(join(jcoreSettingsData.path, ".vagrant"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "provisioning"), {
@@ -76,7 +77,7 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
  * @param destinationDir Destination Folder
  * @param path Relative path
  * @param checksums File checksum map, or null to skip checksums.
- * @param files
+ * @param options Some options passed to the command.
  */
 export function moveFiles(
   sourceDir: string,

@@ -93,7 +93,7 @@ export function runCmd(data: cmdData): void {
       }
       break;
     case "config":
-      if (data.target.length > 1) {
+      if (data.target.length > 0) {
         config(data);
       } else {
         helpCmd(data, false);

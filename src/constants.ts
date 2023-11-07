@@ -21,6 +21,30 @@ export const externalCommands = [
   { name: "docker-compose", version: "-v", min: 2 },
 ];
 
+export const forbiddenSettings = [
+  "nodePath",
+  "execPath",
+  "exec",
+  "inProject",
+  "path"
+];
+
+export const projectSettings = [
+  "name",
+  "theme",
+  "branch",
+  "plugins",
+  "domain",
+  "local",
+  "domains",
+  "replace",
+  "remoteHost",
+  "remotePath",
+  "dbExclude",
+  "pluginExclude",
+  "pluginGit"
+];
+
 export const commands = [
   {
     cmd: "attach",

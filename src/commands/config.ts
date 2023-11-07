@@ -1,5 +1,5 @@
-import { cmdData } from "@/types";
-import { jcoreSettingsData, writeSettings } from "@/settings";
+import { cmdData, settingsSchema } from "@/types";
+import { jcoreSettingsData, updateSetting, writeSettings } from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
 
@@ -7,9 +7,12 @@ export function config(data: cmdData) {
   const _global: boolean = getFlagValue(data, "global");
   switch (data.target[0].toLowerCase()) {
     case "list":
+      console.log(jcoreSettingsData);
       break;
     case "set":
-      set(data.target[1].toLowerCase(), data.target[2].toLowerCase(), _global);
+      if (data.target.length > 2) {
+        set(data.target[1], data.target[2], _global);
+      }
       break;
     case "unset":
       break;
@@ -17,42 +20,38 @@ export function config(data: cmdData) {
 }
 
 function set(target: string, value: string, _global: boolean) {
-  const settings: Record<string, any> = {};
-  switch (target) {
-    case "mode":
-      if (value === "fg" || value === "foreground") {
-        jcoreSettingsData.mode = "foreground";
-      } else {
-        jcoreSettingsData.mode = "background";
+  const model: Record<string,string|number|boolean|Array<string|Array<string>>> = settingsSchema.parse({});
+  for (const key in model) {
+    if (key.toLowerCase() === target.toLowerCase()) {
+      switch (typeof model[key]) {
+        case "string":
+          updateSetting(key, value, _global);
+          return;
+        case "number":
+          const num = Number(value);
+          if (isNaN(num)) {
+            logger.error(`Error: ${value} is not numeric`);
+          }
+          updateSetting(key, num, _global);
+          return;
+        case "boolean":
+          updateSetting(key, parseBoolean(value), _global);
+          return;
+        default:
+          console.log(key);
       }
-      settings.mode = jcoreSettingsData.mode;
-      logger.info("Mode set to " + jcoreSettingsData.mode);
-      break;
-    case "debug":
-      jcoreSettingsData.debug = parseSetting(value);
-      settings.debug = jcoreSettingsData.debug;
-      logger.info("Debug set to " + (jcoreSettingsData.debug ? "On" : "Off"));
-      break;
-    case "install":
-      jcoreSettingsData.install = parseSetting(value);
-      settings.install = jcoreSettingsData.install;
-      logger.info("Install set to " + (jcoreSettingsData.install ? "On" : "Off"));
-      break;
-    case "loglevel":
-      if (value.match(/^[0-9]$/)) {
-        jcoreSettingsData.logLevel = Number(value);
-        settings.logLevel = jcoreSettingsData.logLevel;
-        logger.info(`LogLevel set to ${jcoreSettingsData.logLevel}`);
-      }
-      break;
+    }
   }
-  writeSettings(settings, _global);
+  logger.info(`Target ${target} not found.`)
 }
 
-function parseSetting(value: string): boolean {
+function parseBoolean(value: string): boolean {
   switch (value.toLowerCase()) {
     case "true":
+    case "yes":
     case "on":
+    case "y":
+    case "t":
     case "1":
       return true;
     default:

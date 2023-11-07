@@ -6,22 +6,25 @@ import { config, version } from "../package.json";
 import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
 import { type jcoreData, settingsSchema } from "@/types";
+import { forbiddenSettings, projectSettings } from "@/constants";
+import { boolean } from "zod";
 
 // Default settings.
 export const jcoreSettingsData = settingsSchema.parse({
   path: process.cwd(),
   mode: "foreground",
-  theme: "jcore2-child",
+  theme: "jcore2-child"
 });
 
 export const jcoreDataData = {
   version: version,
   latest: "",
-  lastCheck: 0,
+  lastCheck: 0
 } as jcoreData;
 
 const projectConfigFilename = "jcore.json";
 const projectConfigLegacyFilename = "config.sh";
+const localConfigFilename = ".localConfig.json";
 const globalConfig = join(homedir(), ".config/jcore/config.json");
 const globalData = join(homedir(), ".config/jcore/data.json");
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
@@ -32,7 +35,7 @@ export async function readSettings() {
     jcoreSettingsData.path.length > 1 &&
     !existsSync(join(jcoreSettingsData.path, projectConfigFilename)) &&
     !existsSync(join(jcoreSettingsData.path, projectConfigLegacyFilename))
-  ) {
+    ) {
     // Go up one level and try again.
     jcoreSettingsData.path = parse(jcoreSettingsData.path).dir;
   }
@@ -81,7 +84,8 @@ function readData() {
 }
 
 function readProjectSettings() {
-  const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
+  const projectConfig = join(jcoreSettingsData.path, projectConfigFilename);
+  const localConfig = join(jcoreSettingsData.path, localConfigFilename);
   // Make a copy of the current settings object.
   const data = Object.assign({}, jcoreSettingsData);
 
@@ -92,6 +96,10 @@ function readProjectSettings() {
     // Add local settings if in project.
     const localValues = loadJsonFile(localConfig);
     Object.assign(data, localValues);
+
+    // Add project settings if in project.
+    const projectValues = loadJsonFile(projectConfig);
+    Object.assign(data, projectValues);
   }
   const result = settingsSchema.safeParse(data);
   if (result.success) {
@@ -135,6 +143,51 @@ async function versionCheck() {
   }
 }
 
+export function updateSetting(key: string, value: string | number | boolean, _global = false) {
+  if (forbiddenSettings.includes(key)) {
+    logger.debug(`Setting ${key} is not allowed!`);
+    return false;
+  }
+  const projectConfig = join(jcoreSettingsData.path, projectConfigFilename);
+  const localConfig = join(jcoreSettingsData.path, localConfigFilename);
+
+  if (projectSettings.includes(key)) {
+    if (!jcoreSettingsData.inProject) {
+      logger.error("Project setting, but not in Project!");
+      return false;
+    }
+    if (setConfigValue(key, value, projectConfig)) {
+      logger.info(`Project setting ${key} updated to ${value}`);
+    }
+  } else if (_global) {
+    if (setConfigValue(key, value, globalConfig)) {
+      logger.info(`Global setting ${key} updated to ${value}`);
+    }
+  } else {
+    if (!jcoreSettingsData.inProject) {
+      logger.error("Not in Project. Use -g for global setting.");
+      return false;
+    }
+    if (setConfigValue(key, value, localConfig)) {
+      logger.info(`Project setting ${key} updated to ${value}`);
+    }
+  }
+  return true;
+}
+
+function setConfigValue(key: string, value: string | number | boolean, file: string) {
+  try {
+    const settings: Record<string, string | number | boolean> = {};
+    settings[key] = value;
+    const values = loadJsonFile(file);
+    writeFileSync(file, JSON.stringify(Object.assign(values, settings), null, 2));
+  } catch (e) {
+    logger.error(`Updating ${key} failed.`);
+    return false;
+  }
+  return true;
+}
+
 /*
  * Legacy functions.
  */
@@ -154,7 +207,7 @@ function convertGlobalSettings() {
             mode: values.get("mode"),
             debug: values.get("debug") === "true",
             logLevel: Number(values.get("loglevel")),
-            install: values.get("install") === "true",
+            install: values.get("install") === "true"
           },
           null,
           2
@@ -212,7 +265,7 @@ function convertProjectSettings() {
         pluginExclude: values.get("plugin_exclude"),
         pluginGit: values.get("plugin_git"),
         pluginInstall: values.get("plugin_install"),
-        install: values.get("install") === "true",
+        install: values.get("install") === "true"
       };
       const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
       const config = loadJsonFile(localConfig);
