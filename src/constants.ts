@@ -27,7 +27,6 @@ export const projectSettings = [
   "name",
   "theme",
   "branch",
-  "plugins",
   "domain",
   "local",
   "domains",
@@ -35,6 +34,7 @@ export const projectSettings = [
   "remoteHost",
   "remotePath",
   "dbExclude",
+  "pluginInstall",
   "pluginExclude",
   "pluginGit",
 ];

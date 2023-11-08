@@ -18,7 +18,6 @@ import {
   readFileSync,
   renameSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from "fs";
 import { jcoreSettingsData } from "@/settings";
@@ -46,7 +45,7 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     const checksums = loadChecksums();
 
     logger.debug("Cleaning up legacy folders.");
-    unlinkSync(join(jcoreSettingsData.path, "Vagrantfile"));
+    rmSync(join(jcoreSettingsData.path, "Vagrantfile"), { recursive: false, force: true });
     rmSync(join(jcoreSettingsData.path, ".vagrant"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
     rmSync(join(jcoreSettingsData.path, "provisioning"), {
@@ -163,6 +162,12 @@ function getFileInfo(
     "package.json": {
       force: true,
       checksum: true,
+      replace: [
+        {
+          search: '"name": "jcore",',
+          replace: `"name": "${jcoreSettingsData.name}",`,
+        },
+      ],
     },
     "docker-compose.yml": {
       force: true,
@@ -247,16 +252,14 @@ export function finalizeProject(install = true): boolean {
   ]);
 
   // Manage php.ini & debug setting.
-  const replace = [];
-  if (jcoreSettingsData.debug) {
-    replace.push({
-      search: /xdebug.mode=.*$/gm,
-      replace: "xdebug.mode=develop,debug",
-    });
-  }
   replaceInFile(
     join(jcoreSettingsData.path, "php.ini"),
-    replace,
+    [
+      {
+        search: /xdebug.mode=.*$/gm,
+        replace: jcoreSettingsData.debug ? "xdebug.mode=develop,debug" : "xdebug.mode=off",
+      },
+    ],
     join(jcoreSettingsData.path, ".jcore/php.ini")
   );
 
@@ -306,7 +309,7 @@ function createEnv() {
   values.project_name = jcoreSettingsData.name;
   values.upstream_domain = jcoreSettingsData.domain;
   values.local_domain = jcoreSettingsData.local;
-  values.plugin_install = jcoreSettingsData.plugins;
+  values.plugin_install = jcoreSettingsData.pluginInstall;
   values.domains = jcoreSettingsData.domains;
   values.replace = jcoreSettingsData.replace;
   values.wordpress_image = "jcodigi/wordpress:latest";

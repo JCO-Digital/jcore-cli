@@ -24,7 +24,7 @@ export const settingsSchema = z.object({
   name: z.string().default(""),
   theme: z.string().default(""),
   branch: z.string().default(""),
-  plugins: z.string().default("remote"),
+  pluginInstall: z.string().default("remote"),
   install: z.boolean().default(true),
   logLevel: z.number().default(2),
   domains: z.array(z.string()).default([]),
@@ -36,6 +36,7 @@ export const settingsSchema = z.object({
   dbExclude: z.array(z.string()).default([]),
   pluginExclude: z.array(z.string()).default([]),
   pluginGit: z.array(z.string()).default([]),
+  wpImage: z.string().default(""),
 });
 export type jcoreSettings = z.infer<typeof settingsSchema>;
 
