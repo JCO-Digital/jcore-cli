@@ -1,4 +1,5 @@
 import { jcoreSettingsData } from "@/settings";
+import chalk from "chalk";
 
 class Logger {
   levels = {
@@ -11,11 +12,11 @@ class Logger {
     silly: 6,
   };
   public error(message: string) {
-    console.error(message);
+    console.error(chalk.redBright.bold(message));
   }
   public warn(message: string, level: number = jcoreSettingsData.logLevel) {
     if (level >= this.levels.warn) {
-      console.warn(message);
+      console.warn(chalk.yellowBright(message));
     }
   }
 

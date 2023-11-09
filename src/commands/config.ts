@@ -1,49 +1,126 @@
 import { cmdData, settingsSchema } from "@/types";
-import { jcoreSettingsData, updateSetting } from "@/settings";
+import { getConfig, jcoreSettingsData, updateSetting } from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
+import { configScope } from "@/constants";
+import chalk from "chalk";
 
 export function config(data: cmdData) {
-  const _global: boolean = getFlagValue(data, "global");
+  const scope = getFlagValue(data, "global")
+    ? configScope.GLOBAL
+    : getFlagValue(data, "local")
+    ? configScope.LOCAL
+    : configScope.PROJECT;
   switch (data.target[0].toLowerCase()) {
     case "list":
-      console.log(jcoreSettingsData);
+      list(data.target[1] ?? "");
       break;
     case "set":
       if (data.target.length > 2) {
-        set(data.target[1], data.target[2], _global);
+        set(data.target[1], data.target[2], scope);
       }
       break;
     case "unset":
+      if (data.target.length > 1) {
+        unset(data.target[1], scope);
+      }
       break;
   }
 }
 
-function set(target: string, value: string, _global: boolean) {
+function set(target: string, value: string, scope: configScope) {
+  // Pseudo setters.
+  switch (target.toLowerCase()) {
+    case "wpe":
+      updateSetting("remoteHost", `${value}@${value}.ssh.wpengine.net`, scope);
+      updateSetting("remotePath", `/sites/${value}`, scope);
+      return;
+    case "php":
+      updateSetting("wpImage", `jcodigital/wordpress:${value}`, scope);
+      return;
+  }
+
   const model: Record<string, string | number | boolean | Array<string | Array<string>>> =
     settingsSchema.parse({});
   for (const key in model) {
     if (key.toLowerCase() === target.toLowerCase()) {
       switch (typeof model[key]) {
         case "string":
-          updateSetting(key, value, _global);
+          updateSetting(key, value, scope);
           return;
         case "number":
           if (isNaN(Number(value))) {
             logger.error(`Error: ${value} is not numeric`);
           } else {
-            updateSetting(key, Number(value), _global);
+            updateSetting(key, Number(value), scope);
           }
           return;
         case "boolean":
-          updateSetting(key, parseBoolean(value), _global);
+          updateSetting(key, parseBoolean(value), scope);
           return;
         default:
           console.log(key);
       }
     }
   }
-  logger.info(`Target ${target} not found.`);
+  logger.error(`Target ${target} not found.`);
+}
+
+function unset(target: string, scope: configScope) {
+  const model: Record<string, string | number | boolean | Array<string | Array<string>>> =
+    settingsSchema.parse({});
+  for (const key in model) {
+    if (key.toLowerCase() === target.toLowerCase()) {
+      updateSetting(key, null, scope);
+      return;
+    }
+  }
+  logger.error(`Target ${target} not found.`);
+}
+
+function list(option = "") {
+  if (option === "active") {
+    logger.info(chalk.bold("Active settings:"));
+    listConfig(jcoreSettingsData);
+  } else {
+    logger.info(chalk.bold("Global settings:"));
+    listConfig(getConfig(configScope.GLOBAL));
+
+    logger.info(chalk.bold("Project settings:"));
+    listConfig(getConfig(configScope.PROJECT));
+
+    logger.info(chalk.bold("Local settings:"));
+    listConfig(getConfig(configScope.LOCAL));
+  }
+}
+
+function listConfig(values: Record<string, any>) {
+  for (const key in values) {
+    const value = values[key];
+    logger.info(`${chalk.green(key)}: ${formatValue(value)}`);
+  }
+  logger.info("");
+}
+
+export function formatValue(
+  value: string | number | boolean | Array<string | Array<string>>
+): string {
+  if (Array.isArray(value)) {
+    return `[\n${value.reduce((a, v) => {
+      return `${a}   ${formatValue(
+        Array.isArray(v) ? v.join(`" ${chalk.whiteBright("=>")} "`) : v
+      )}\n`;
+    }, "")}]`;
+  } else {
+    switch (typeof value) {
+      case "string":
+        return chalk.magenta(`"${value}"`);
+      case "number":
+        return chalk.yellow(value);
+      case "boolean":
+        return chalk.cyan(value);
+    }
+  }
 }
 
 function parseBoolean(value: string): boolean {

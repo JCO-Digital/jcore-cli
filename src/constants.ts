@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export enum configScope {
+  GLOBAL = 1,
+  PROJECT = 2,
+  LOCAL = 3,
+}
+
 export const scriptLocation = "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";
 export const scriptName = "jcore";
 export const archiveLocation =
@@ -37,6 +43,7 @@ export const projectSettings = [
   "pluginInstall",
   "pluginExclude",
   "pluginGit",
+  "wpImage",
 ];
 
 export const commands = [
@@ -150,6 +157,11 @@ export const commands = [
 ];
 export const flags = [
   {
+    name: "force",
+    flag: "f",
+    text: "Overwrites existing files.",
+  },
+  {
     name: "global",
     flag: "g",
     text: "Write settings globally.",
@@ -160,14 +172,14 @@ export const flags = [
     text: "This info.",
   },
   {
-    name: "force",
-    flag: "f",
-    text: "Overwrites existing files.",
-  },
-  {
     name: "install",
     flag: "i",
     text: "Installs node modules even if they are already installed.",
+  },
+  {
+    name: "local",
+    flag: "l",
+    text: "Write settings locally.",
   },
   {
     name: "nochild",
