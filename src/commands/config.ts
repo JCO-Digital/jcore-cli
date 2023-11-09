@@ -114,18 +114,18 @@ export function formatValue(
 ): string {
   if (Array.isArray(value)) {
     return `[\n${value.reduce((a, v) => {
-      return `${a}   ${formatValue(
+      return `${a}   ${chalk.italic.blueBright(
         Array.isArray(v) ? v.join(`" ${chalk.whiteBright("=>")} "`) : v
       )}\n`;
     }, "")}]`;
   } else {
     switch (typeof value) {
       case "string":
-        return chalk.magenta(`"${value}"`);
+        return chalk.cyan(`"${value}"`);
       case "number":
         return chalk.yellow(value);
       case "boolean":
-        return chalk.cyan(value);
+        return chalk.magenta(value);
     }
   }
 }
