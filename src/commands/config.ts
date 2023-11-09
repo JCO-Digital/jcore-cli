@@ -13,7 +13,7 @@ export function config(data: cmdData) {
     : configScope.PROJECT;
   switch (data.target[0].toLowerCase()) {
     case "list":
-      list(data.target[1] ?? "");
+      list((data.target[1] ?? "all").toLowerCase());
       break;
     case "set":
       if (data.target.length > 2) {
@@ -79,25 +79,32 @@ function unset(target: string, scope: configScope) {
 }
 
 function list(option = "") {
+  logger.info("");
   if (option === "active") {
     logger.info(chalk.bold("Active settings:"));
     listConfig(jcoreSettingsData);
   } else {
-    logger.info(chalk.bold("Global settings:"));
-    listConfig(getConfig(configScope.GLOBAL));
+    if (option === "global" || option === "all") {
+      logger.info(chalk.bold("Global settings:"));
+      listConfig(getConfig(configScope.GLOBAL));
+    }
 
-    logger.info(chalk.bold("Project settings:"));
-    listConfig(getConfig(configScope.PROJECT));
+    if (option === "project" || option === "all") {
+      logger.info(chalk.bold("Project settings:"));
+      listConfig(getConfig(configScope.PROJECT));
+    }
 
-    logger.info(chalk.bold("Local settings:"));
-    listConfig(getConfig(configScope.LOCAL));
+    if (option === "local" || option === "all") {
+      logger.info(chalk.bold("Local settings:"));
+      listConfig(getConfig(configScope.LOCAL));
+    }
   }
 }
 
 function listConfig(values: Record<string, any>) {
   for (const key in values) {
     const value = values[key];
-    logger.info(`${chalk.green(key)}: ${formatValue(value)}`);
+    logger.info(`${chalk.green(`${key}:`.padEnd(14))} ${formatValue(value)}`);
   }
   logger.info("");
 }
