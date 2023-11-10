@@ -1,6 +1,6 @@
 {
   "name": "jcore-cli",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "src/main.ts",
   "scripts": {
     "test": "eslint src && prettier --check src",
