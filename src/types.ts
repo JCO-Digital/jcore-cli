@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export type configValue = string | number | boolean | Array<string | Array<string>>;
+
 export const cmdSchema = z.object({
   cmd: z.string(),
   target: z.array(z.string()),
@@ -13,29 +15,38 @@ export const updateSchema = z.object({
 });
 export type updateOptions = z.infer<typeof updateSchema>;
 
-export const settingsSchema = z.object({
-  nodePath: z.string().default(""),
-  execPath: z.string().default(""),
+export const runtimeSchema = z.object({
   exec: z.string().default(""),
+  execPath: z.string().default(""),
   inProject: z.boolean().default(false),
-  path: z.string().default(""),
-  mode: z.string().default(""),
-  debug: z.boolean().default(false),
-  name: z.string().default(""),
-  theme: z.string().default(""),
+  nodePath: z.string().default(""),
+  workDir: z.string().default(""),
+});
+
+export type jcoreRuntime = z.infer<typeof runtimeSchema>;
+
+export const settingsSchema = z.object({
   branch: z.string().default(""),
-  pluginInstall: z.string().default("remote"),
-  install: z.boolean().default(true),
-  logLevel: z.number().default(2),
-  domains: z.array(z.string()).default([]),
-  domain: z.string().default(""),
-  local: z.string().default(""),
-  replace: z.array(z.array(z.string())).default([]),
-  remoteHost: z.string().default(""),
-  remotePath: z.string().default(""),
   dbExclude: z.array(z.string()).default([]),
+  debug: z.boolean().default(false),
+  domains: z.array(z.string()).default([]),
+  install: z.boolean().default(true),
+  localDomain: z.string().default(""),
+  logLevel: z.number().default(2),
+  mode: z.string().default(""),
   pluginExclude: z.array(z.string()).default([]),
   pluginGit: z.array(z.string()).default([]),
+  pluginInstall: z.string().default("remote"),
+  pluginLocal: z.array(z.string()).default([]),
+  projectName: z.string().default(""),
+  remoteDomain: z.string().default(""),
+  remoteHost: z.string().default(""),
+  remotePath: z.string().default(""),
+  replace: z.array(z.array(z.string())).default([]),
+  theme: z.string().default(""),
+  wpDebug: z.boolean().default(true),
+  wpDebugDisplay: z.boolean().default(true),
+  wpDebugLog: z.boolean().default(false),
   wpImage: z.string().default(""),
 });
 export type jcoreSettings = z.infer<typeof settingsSchema>;

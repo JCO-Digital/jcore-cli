@@ -1,6 +1,6 @@
 import { logger } from "@/logger";
 import { externalCommands, globalFolders, projectFolders } from "@/constants";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { join } from "path";
 import { accessSync, existsSync, mkdirSync } from "fs";
 import { homedir, userInfo } from "os";
@@ -18,9 +18,9 @@ export function doctor() {
 
 export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boolean {
   let pass = true;
-  if (jcoreSettingsData.inProject) {
+  if (jcoreRuntimeData.inProject) {
     for (const folder of projectFolders) {
-      if (!processFolder(join(jcoreSettingsData.path, folder), logLevel)) {
+      if (!processFolder(join(jcoreRuntimeData.workDir, folder), logLevel)) {
         pass = false;
       }
     }

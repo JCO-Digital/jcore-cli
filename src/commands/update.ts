@@ -3,7 +3,7 @@ import { fetchVersion, getFileString, getFlagValue } from "@/utils";
 import { scriptLocation, scriptName } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
-import { jcoreDataData, jcoreSettingsData } from "@/settings";
+import { jcoreDataData, jcoreRuntimeData } from "@/settings";
 import { logger } from "@/logger";
 import semver from "semver/preload";
 import { join } from "path";
@@ -32,7 +32,7 @@ export function selfUpdate(data: cmdData) {
       logger.info("Upgrading to v" + version);
       return getFileString(join(scriptLocation, scriptName));
     })
-    .then((body) => writeFile(jcoreSettingsData.execPath, body))
+    .then((body) => writeFile(jcoreRuntimeData.execPath, body))
     .then(() => {
       logger.info("JCORE CLI Updated.");
     })

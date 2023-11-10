@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import parser from "@/parser";
-import { readSettings, jcoreSettingsData, jcoreDataData } from "@/settings";
+import { readSettings, jcoreSettingsData, jcoreDataData, jcoreRuntimeData } from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
@@ -38,10 +38,10 @@ function initCli() {
     semver.gt(jcoreDataData.latest, jcoreDataData.version)
   ) {
     logger.warn(`New version v${jcoreDataData.latest} available.`);
-    logger.verbose(`Update with command "${jcoreSettingsData.exec} update self"`);
+    logger.verbose(`Update with command "${jcoreRuntimeData.exec} update self"`);
   }
-  if (jcoreSettingsData.inProject) {
-    logger.verbose("Project: " + jcoreSettingsData.name);
+  if (jcoreRuntimeData.inProject) {
+    logger.verbose("Project: " + jcoreSettingsData.projectName);
   }
 
   if (data.cmd) {

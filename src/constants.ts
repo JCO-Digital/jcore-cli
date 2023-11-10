@@ -27,10 +27,8 @@ export const externalCommands = [
   { name: "docker-compose", version: "-v", min: 2 },
 ];
 
-export const forbiddenSettings = ["nodePath", "execPath", "exec", "inProject", "path"];
-
 export const projectSettings = [
-  "name",
+  "projectName",
   "theme",
   "branch",
   "domain",
@@ -44,6 +42,9 @@ export const projectSettings = [
   "pluginExclude",
   "pluginGit",
   "wpImage",
+  "wpDebug",
+  "wpDebugLog",
+  "wpDebugDisplay",
 ];
 
 export const commands = [

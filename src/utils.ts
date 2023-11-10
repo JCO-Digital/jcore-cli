@@ -12,7 +12,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "fs";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData } from "@/settings";
 import { logger } from "@/logger";
 import { cmdData } from "@/types";
 
@@ -96,7 +96,7 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
 }
 
 export function loadChecksums(): Map<string, string> {
-  const data = loadJsonFile(join(jcoreSettingsData.path, checksumFile));
+  const data = loadJsonFile(join(jcoreRuntimeData.workDir, checksumFile));
   return new Map(Object.entries(data));
 }
 
@@ -104,7 +104,7 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
     const json = JSON.stringify(object, null, 2);
-    writeFileSync(join(jcoreSettingsData.path, checksumFile), json, "utf8");
+    writeFileSync(join(jcoreRuntimeData.workDir, checksumFile), json, "utf8");
     return true;
   } catch {
     return false;
@@ -165,13 +165,13 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
 }
 
 export function isProject(project = true): boolean {
-  if (!project && jcoreSettingsData.inProject) {
+  if (!project && jcoreRuntimeData.inProject) {
     logger.error("\nAlready in project.");
   }
-  if (project && !jcoreSettingsData.inProject) {
+  if (project && !jcoreRuntimeData.inProject) {
     logger.error("\nNot in a project.");
   }
-  return jcoreSettingsData.inProject === project;
+  return jcoreRuntimeData.inProject === project;
 }
 
 export function nameToFolder(name: string): string {
@@ -183,6 +183,6 @@ export function getFlagValue(cmd: cmdData, name: string): false | any {
 }
 
 export function getSetupFolder(appendPath = "", inContainer = false): string {
-  const path = inContainer ? "/project" : jcoreSettingsData.path;
+  const path = inContainer ? "/project" : jcoreRuntimeData.workDir;
   return join(path, ".config", appendPath);
 }

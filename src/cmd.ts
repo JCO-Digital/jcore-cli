@@ -1,16 +1,16 @@
 import type { cmdData, jcoreProject } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
 import {
-  start,
-  stop,
-  pull,
-  runCommand,
-  isRunning,
-  getRunning,
-  cleanProject,
+  attach,
   cleanAll,
   cleanDocker,
-  attach,
+  cleanProject,
+  getRunning,
+  isRunning,
+  pull,
+  runCommand,
+  start,
+  stop,
 } from "@/commands/run";
 import { getFlagValue, isProject } from "@/utils";
 import { helpCmd } from "@/help";
@@ -18,9 +18,10 @@ import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
 import { doctor } from "@/commands/doctor";
-import { jcoreSettingsData, updateSetting } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData, updateSetting } from "@/settings";
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
+import { configScope } from "@/constants";
 
 /**
  * Invokes functions for all the different commands. Sanity checking should be done here,
@@ -55,7 +56,7 @@ export function runCmd(data: cmdData): void {
         if (data.target[0]) {
           if (copyChildTheme(data.target.join(" "))) {
             // Save settings.
-            updateSetting("theme", jcoreSettingsData.theme);
+            updateSetting("theme", jcoreSettingsData.theme, configScope.PROJECT);
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
             logger.error("Theme creation failed!");
@@ -74,8 +75,8 @@ export function runCmd(data: cmdData): void {
         // Clean
         // TODO Use actual projects instead of jcoreSettings.
         const project = {
-          name: jcoreSettingsData.name,
-          path: jcoreSettingsData.path,
+          name: jcoreSettingsData.projectName,
+          path: jcoreRuntimeData.workDir,
           running: false,
         } as jcoreProject;
 

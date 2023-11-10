@@ -1,5 +1,5 @@
 import { cmdData } from "@/types";
-import { jcoreSettingsData, writeSettings } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData, writeSettings } from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
@@ -10,16 +10,16 @@ import { join } from "path";
 import process from "process";
 
 export function createProject(data: cmdData) {
-  jcoreSettingsData.name = data.target[0];
-  jcoreSettingsData.path = join(process.cwd(), jcoreSettingsData.name);
-  if (existsSync(jcoreSettingsData.path)) {
-    logger.warn("Project path exists: " + jcoreSettingsData.path);
+  jcoreSettingsData.projectName = data.target[0];
+  jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
+  if (existsSync(jcoreRuntimeData.workDir)) {
+    logger.warn("Project path exists: " + jcoreRuntimeData.workDir);
   } else {
-    logger.info("Create Project: " + jcoreSettingsData.name);
-    mkdirSync(jcoreSettingsData.path);
+    logger.info("Create Project: " + jcoreSettingsData.projectName);
+    mkdirSync(jcoreRuntimeData.workDir);
 
     const options = {
-      cwd: jcoreSettingsData.path,
+      cwd: jcoreRuntimeData.workDir,
       stdio: [0, 1, 2],
     };
 
@@ -45,7 +45,7 @@ export function createProject(data: cmdData) {
 
       // Copy child theme.
       if (!getFlagValue(data, "nochild")) {
-        copyChildTheme(jcoreSettingsData.name);
+        copyChildTheme(jcoreSettingsData.projectName);
       }
 
       // Write config
@@ -63,9 +63,9 @@ export function createProject(data: cmdData) {
 
 export function copyChildTheme(name: string): boolean {
   jcoreSettingsData.theme = nameToFolder(name);
-  const themePath = join(jcoreSettingsData.path, "wp-content/themes", jcoreSettingsData.theme);
+  const themePath = join(jcoreRuntimeData.workDir, "wp-content/themes", jcoreSettingsData.theme);
   if (!existsSync(themePath)) {
-    copyFiles(join(jcoreSettingsData.path, childPath), themePath);
+    copyFiles(join(jcoreRuntimeData.workDir, childPath), themePath);
     replaceInFile(join(themePath, "style.css"), [
       { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
     ]);

@@ -1,7 +1,7 @@
 import type { cmdData } from "@/types";
 import { commands, flags } from "@/constants";
 import { parse } from "path";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData } from "@/settings";
 import { logger } from "@/logger";
 
 export default function parser(args: Array<string>): cmdData {
@@ -12,9 +12,9 @@ export default function parser(args: Array<string>): cmdData {
   } as cmdData;
 
   if (args.length > 1) {
-    jcoreSettingsData.nodePath = args.shift() ?? "";
-    jcoreSettingsData.execPath = args.shift() ?? "";
-    jcoreSettingsData.exec = parse(jcoreSettingsData.execPath).base;
+    jcoreRuntimeData.nodePath = args.shift() ?? "";
+    jcoreRuntimeData.execPath = args.shift() ?? "";
+    jcoreRuntimeData.exec = parse(jcoreRuntimeData.execPath).base;
   }
   let count = 0;
   for (let i = 0; i < args.length; i++) {

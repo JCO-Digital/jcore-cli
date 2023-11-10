@@ -2,7 +2,7 @@ import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 import { cmdData, jcoreProject } from "@/types";
 import { finalizeProject } from "@/project";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { existsSync } from "fs";
 import { getFlagValue, getSetupFolder } from "@/utils";
@@ -12,7 +12,7 @@ export function start(data: cmdData) {
     // Run only if finalize is successful.
 
     const options = {
-      cwd: jcoreSettingsData.path,
+      cwd: jcoreRuntimeData.workDir,
       stdio: [0, 1, 2],
     };
     try {
@@ -27,7 +27,7 @@ export function start(data: cmdData) {
   }
 }
 
-export function stop(path = jcoreSettingsData.path) {
+export function stop(path = jcoreRuntimeData.workDir) {
   logger.debug("Stopping Docker");
 
   const options = {
@@ -184,7 +184,7 @@ export function runCommand(command: string, spawn = false) {
   logger.verbose("Executing command on docker");
 
   const options = {
-    cwd: jcoreSettingsData.path,
+    cwd: jcoreRuntimeData.workDir,
     stdio: [0, 1, 2],
   };
 
@@ -201,7 +201,7 @@ export function runCommand(command: string, spawn = false) {
 
 export function attach(data: cmdData) {
   const options = {
-    cwd: jcoreSettingsData.path,
+    cwd: jcoreRuntimeData.workDir,
     stdio: [0, 1, 2],
   };
   logger.info("Attaching to logs");

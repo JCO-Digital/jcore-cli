@@ -1,4 +1,4 @@
-import { cmdData, settingsSchema } from "@/types";
+import { cmdData, configValue, settingsSchema } from "@/types";
 import { getConfig, jcoreSettingsData, updateSetting } from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
@@ -36,12 +36,11 @@ function set(target: string, value: string, scope: configScope) {
       updateSetting("remotePath", `/sites/${value}`, scope);
       return;
     case "php":
-      updateSetting("wpImage", `jcodigital/wordpress:${value}`, scope);
+      updateSetting("wpImage", `jcodigi/wordpress:${value}`, scope);
       return;
   }
 
-  const model: Record<string, string | number | boolean | Array<string | Array<string>>> =
-    settingsSchema.parse({});
+  const model: Record<string, configValue> = settingsSchema.parse({});
   for (const key in model) {
     if (key.toLowerCase() === target.toLowerCase()) {
       switch (typeof model[key]) {
@@ -59,7 +58,8 @@ function set(target: string, value: string, scope: configScope) {
           updateSetting(key, parseBoolean(value), scope);
           return;
         default:
-          console.log(key);
+          logger.warn(`${key} is a list, use "add" instead of "set"`);
+          return;
       }
     }
   }
@@ -67,8 +67,7 @@ function set(target: string, value: string, scope: configScope) {
 }
 
 function unset(target: string, scope: configScope) {
-  const model: Record<string, string | number | boolean | Array<string | Array<string>>> =
-    settingsSchema.parse({});
+  const model: Record<string, configValue> = settingsSchema.parse({});
   for (const key in model) {
     if (key.toLowerCase() === target.toLowerCase()) {
       updateSetting(key, null, scope);
@@ -101,7 +100,7 @@ function list(option = "") {
   }
 }
 
-function listConfig(values: Record<string, any>) {
+function listConfig(values: Record<string, configValue>) {
   for (const key in values) {
     const value = values[key];
     logger.info(`${chalk.green(`${key}:`.padEnd(14))} ${formatValue(value)}`);
@@ -109,9 +108,7 @@ function listConfig(values: Record<string, any>) {
   logger.info("");
 }
 
-export function formatValue(
-  value: string | number | boolean | Array<string | Array<string>>
-): string {
+export function formatValue(value: configValue): string {
   if (Array.isArray(value)) {
     return `[\n${value.reduce((a, v) => {
       return `${a}   ${chalk.italic.blueBright(

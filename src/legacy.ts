@@ -6,7 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { logger } from "@/logger";
 import { join } from "path";
 import { homedir } from "os";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { loadJsonFile } from "@/utils";
 
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
@@ -42,13 +42,13 @@ export function convertGlobalSettings(globalConfig: string) {
 }
 
 export function convertProjectSettings(projectConfigFilename: string) {
-  const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
-  const localConfigLegacy = join(jcoreSettingsData.path, projectConfigLegacyFilename);
+  const localConfig = join(jcoreRuntimeData.workDir, projectConfigFilename);
+  const localConfigLegacy = join(jcoreRuntimeData.workDir, projectConfigLegacyFilename);
   if (!existsSync(localConfig) && existsSync(localConfigLegacy)) {
     try {
       const values = new Map() as Map<string, string | string[]>;
 
-      values.set("name", jcoreSettingsData.name);
+      values.set("name", jcoreSettingsData.projectName);
 
       // Read and parse config.sh.
       const data = readFileSync(localConfigLegacy, "utf8");
@@ -89,7 +89,7 @@ export function convertProjectSettings(projectConfigFilename: string) {
         pluginInstall: values.get("plugin_install"),
         install: values.get("install") === "true",
       };
-      const localConfig = join(jcoreSettingsData.path, projectConfigFilename);
+      const localConfig = join(jcoreRuntimeData.workDir, projectConfigFilename);
       const config = loadJsonFile(localConfig);
 
       writeFileSync(

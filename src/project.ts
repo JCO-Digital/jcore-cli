@@ -9,7 +9,7 @@ import {
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
-import { updateOptions } from "@/types";
+import { configValue, updateOptions } from "@/types";
 import {
   existsSync,
   lstatSync,
@@ -20,7 +20,7 @@ import {
   rmSync,
   writeFileSync,
 } from "fs";
-import { jcoreSettingsData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
@@ -31,9 +31,9 @@ const defaultOptions = {
 } as updateOptions;
 
 export async function updateFiles(options: updateOptions = defaultOptions) {
-  const updatePath = join(jcoreSettingsData.path, updateFolder);
+  const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
 
-  if (!jcoreSettingsData.name || jcoreSettingsData.path === "/") {
+  if (!jcoreSettingsData.projectName || jcoreRuntimeData.workDir === "/") {
     return Promise.reject("Not a project.");
   }
 
@@ -45,10 +45,10 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     const checksums = loadChecksums();
 
     logger.debug("Cleaning up legacy folders.");
-    rmSync(join(jcoreSettingsData.path, "Vagrantfile"), { recursive: false, force: true });
-    rmSync(join(jcoreSettingsData.path, ".vagrant"), { recursive: true, force: true });
-    rmSync(join(jcoreSettingsData.path, "config"), { recursive: true, force: true });
-    rmSync(join(jcoreSettingsData.path, "provisioning"), {
+    rmSync(join(jcoreRuntimeData.workDir, "Vagrantfile"), { recursive: false, force: true });
+    rmSync(join(jcoreRuntimeData.workDir, ".vagrant"), { recursive: true, force: true });
+    rmSync(join(jcoreRuntimeData.workDir, "config"), { recursive: true, force: true });
+    rmSync(join(jcoreRuntimeData.workDir, "provisioning"), {
       recursive: true,
       force: true,
     });
@@ -56,11 +56,11 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
     if (options.target.length === 0) {
       // Remove old setup folder if updating all files.
       logger.verbose("Remove old setup folder.");
-      rmSync(join(jcoreSettingsData.path, ".config"), { recursive: true, force: true });
+      rmSync(join(jcoreRuntimeData.workDir, ".config"), { recursive: true, force: true });
     }
 
     // Move updated project files to project folder.
-    moveFiles(updatePath, jcoreSettingsData.path, "", checksums, options);
+    moveFiles(updatePath, jcoreRuntimeData.workDir, "", checksums, options);
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
@@ -144,7 +144,9 @@ function getFileInfo(
         {
           search: "# WordPress Container",
           replace:
-            "# " + jcoreSettingsData.name.charAt(0).toUpperCase() + jcoreSettingsData.name.slice(1),
+            "# " +
+            jcoreSettingsData.projectName.charAt(0).toUpperCase() +
+            jcoreSettingsData.projectName.slice(1),
         },
       ],
     },
@@ -165,7 +167,7 @@ function getFileInfo(
       replace: [
         {
           search: '"name": "jcore",',
-          replace: `"name": "${jcoreSettingsData.name}",`,
+          replace: `"name": "${jcoreSettingsData.projectName}",`,
         },
       ],
     },
@@ -175,7 +177,7 @@ function getFileInfo(
       replace: [
         {
           search: "- docker.localhost",
-          replace: "- " + jcoreSettingsData.name + ".localhost",
+          replace: "- " + jcoreSettingsData.projectName + ".localhost",
         },
       ],
     },
@@ -232,7 +234,7 @@ function getFileInfo(
 
 export function finalizeProject(install = true): boolean {
   const options = {
-    cwd: jcoreSettingsData.path,
+    cwd: jcoreRuntimeData.workDir,
     stdio: [0, 1, 2],
   };
 
@@ -247,20 +249,20 @@ export function finalizeProject(install = true): boolean {
   replaceInFile(getSetupFolder("nginx/site.conf"), [
     {
       search: /proxy_pass.*https.*;$/gm,
-      replace: "proxy_pass    https://" + jcoreSettingsData.domain + ";",
+      replace: "proxy_pass    https://" + jcoreSettingsData.remoteDomain + ";",
     },
   ]);
 
   // Manage php.ini & debug setting.
   replaceInFile(
-    join(jcoreSettingsData.path, "php.ini"),
+    join(jcoreRuntimeData.workDir, "php.ini"),
     [
       {
         search: /xdebug.mode=.*$/gm,
         replace: jcoreSettingsData.debug ? "xdebug.mode=develop,debug" : "xdebug.mode=off",
       },
     ],
-    join(jcoreSettingsData.path, ".jcore/php.ini")
+    join(jcoreRuntimeData.workDir, ".jcore/php.ini")
   );
 
   // Set executable bits on scripts.
@@ -275,7 +277,7 @@ export function finalizeProject(install = true): boolean {
   if (jcoreSettingsData.install || install) {
     // Install npm packages.
     try {
-      if (existsSync(join(jcoreSettingsData.path, "package-lock.json"))) {
+      if (existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))) {
         logger.info("Installing npm packages from lock file.");
         execSync("npm ci --silent --no-fund", options);
       } else {
@@ -304,39 +306,37 @@ export function finalizeProject(install = true): boolean {
 }
 
 function createEnv() {
-  const values = loadJsonFile(join(jcoreSettingsData.path, "defaults.json"));
-
-  values.project_name = jcoreSettingsData.name;
-  values.upstream_domain = jcoreSettingsData.domain;
-  values.local_domain = jcoreSettingsData.local;
-  values.plugin_install = jcoreSettingsData.pluginInstall;
-  values.domains = jcoreSettingsData.domains;
-  values.replace = jcoreSettingsData.replace;
-  values.wordpress_image = "jcodigi/wordpress:latest";
-  values.remotehost =
-    jcoreSettingsData.remoteHost ??
-    `${jcoreSettingsData.name}@${jcoreSettingsData.name}.ssh.wpengine.net`;
-  values.remotepath = jcoreSettingsData.remotePath ?? `/sites/${jcoreSettingsData.name}`;
+  const values = loadJsonFile(join(jcoreRuntimeData.workDir, "env-values.json"));
 
   let env = "";
-  for (const key in values) {
-    const value = values[key];
-    if (value instanceof Array) {
-      env += `${key.toUpperCase()}=${createEnvVariable(value)}\n`;
-    } else {
-      env += `${key.toUpperCase()}=${value}\n`;
-    }
+  for (const key in Object.assign(values, jcoreSettingsData)) {
+    env += `${createEnvName(key)}="${createEnvVariable(values[key])}"\n`;
   }
 
-  writeFileSync(join(jcoreSettingsData.path, ".env"), env);
+  writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
 }
 
-function createEnvVariable(value: Array<Array<string> | string>): string {
-  const output: Array<string> = [];
-  value.forEach((row) => {
-    output.push(row instanceof Array ? row.join(",") : row);
-  });
-  return output.join(" ");
+function createEnvName(name: string) {
+  // Convert camelCase to UPPERCASE_SNAKE.
+  return name.replace(/([A-Z])/g, "_$1").toUpperCase();
+}
+
+function createEnvVariable(value: configValue): string {
+  if (value instanceof Array) {
+    const output: Array<string> = [];
+    value.forEach((row) => {
+      output.push(row instanceof Array ? row.join(",") : row);
+    });
+    return output.join(" ");
+  }
+  switch (typeof value) {
+    case "string":
+      return value;
+    case "number":
+      return value.toString();
+    case "boolean":
+      return value ? "true" : "false";
+  }
 }
 
 interface searchReplace {
