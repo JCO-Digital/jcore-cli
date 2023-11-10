@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 export enum configScope {
-  GLOBAL = 1,
-  PROJECT = 2,
-  LOCAL = 3,
+  INVALID = 0,
+  DEFAULT = 1,
+  GLOBAL = 2,
+  PROJECT = 3,
+  LOCAL = 4,
 }
 
 export const scriptLocation = "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";

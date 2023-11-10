@@ -5,7 +5,7 @@ import { existsSync, writeFileSync } from "fs";
 import { config, version } from "../package.json";
 import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
-import { type jcoreData, runtimeSchema, settingsSchema } from "@/types";
+import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
 import { configScope, projectSettings } from "@/constants";
 import {
   convertGlobalSettings,
@@ -35,6 +35,7 @@ export const jcoreDataData = {
 
 const projectConfigFilename = "jcore.json";
 const localConfigFilename = ".localConfig.json";
+const defaultConfigFilename = "defaults.json";
 const globalConfig = join(homedir(), ".config/jcore/config.json");
 const globalData = join(homedir(), ".config/jcore/data.json");
 
@@ -96,26 +97,35 @@ function readProjectSettings() {
   // Make a copy of the current settings object.
   const data = Object.assign({}, jcoreSettingsData);
 
+  // Add default settings.
+  getConfig(configScope.DEFAULT, data);
+
   // Add global settings to the object.
   getConfig(configScope.GLOBAL, data);
-  if (jcoreRuntimeData.inProject) {
-    // Add project settings if in project.
-    getConfig(configScope.PROJECT, data);
 
-    // Add local settings if in project.
-    getConfig(configScope.LOCAL, data);
-  }
+  // Add project settings if in project.
+  getConfig(configScope.PROJECT, data);
+
+  // Add local settings if in project.
+  getConfig(configScope.LOCAL, data);
+
   const result = settingsSchema.safeParse(data);
   if (result.success) {
     // Safe parse the resulting data into a new settings object.
     Object.assign(jcoreSettingsData, result.data);
   } else {
     logger.error("Invalid data in settings file.");
+    process.exit();
   }
 }
 
 export function getConfig(scope: configScope = configScope.GLOBAL, data = {}) {
   switch (scope) {
+    case configScope.DEFAULT:
+      return Object.assign(
+        data,
+        loadJsonFile(join(jcoreRuntimeData.workDir, defaultConfigFilename))
+      );
     case configScope.GLOBAL:
       return Object.assign(data, loadJsonFile(globalConfig));
     case configScope.PROJECT:
@@ -125,28 +135,13 @@ export function getConfig(scope: configScope = configScope.GLOBAL, data = {}) {
       );
     case configScope.LOCAL:
       return Object.assign(data, loadJsonFile(join(jcoreRuntimeData.workDir, localConfigFilename)));
+    default:
+      return data;
   }
 }
 
 function writeData() {
   writeFileSync(globalData, JSON.stringify(jcoreDataData, null, 2), "utf8");
-}
-
-export function writeGlobalSettings(settings = {}) {
-  const values = loadJsonFile(globalConfig);
-  writeFileSync(globalConfig, JSON.stringify(Object.assign(values, settings), null, 2), "utf8");
-}
-
-export function writeSettings(settings = {}, _global = false) {
-  if (_global) {
-    // Call global settings save.
-    writeGlobalSettings(settings);
-  } else if (jcoreRuntimeData.inProject) {
-    const localConfig = join(jcoreRuntimeData.workDir, projectConfigFilename);
-
-    const values = loadJsonFile(localConfig);
-    writeFileSync(localConfig, JSON.stringify(Object.assign(values, settings), null, 2));
-  }
 }
 
 async function versionCheck() {
@@ -161,49 +156,49 @@ async function versionCheck() {
   }
 }
 
-export function updateSetting(
-  key: string,
-  value: null | string | number | boolean,
-  scope: configScope
-) {
+export function updateSetting(key: string, value: null | configValue, requestedScope: configScope) {
+  const scope = validateScope(key, requestedScope);
+  const configFile = getScopeConfigFile(scope);
+
+  if (setConfigValue(key, value, configFile)) {
+    updateInfo(key, value, scope);
+    return true;
+  }
+  return false;
+}
+
+function getScopeConfigFile(scope: configScope) {
+  switch (scope) {
+    case configScope.DEFAULT:
+      return join(jcoreRuntimeData.workDir, defaultConfigFilename);
+    case configScope.GLOBAL:
+      return globalConfig;
+    case configScope.LOCAL:
+      return join(jcoreRuntimeData.workDir, localConfigFilename);
+    case configScope.PROJECT:
+      return join(jcoreRuntimeData.workDir, projectConfigFilename);
+  }
+  return "";
+}
+
+function validateScope(key: string, scope: configScope) {
   if (!jcoreRuntimeData.inProject && scope !== configScope.GLOBAL) {
     if (scope === configScope.PROJECT) {
       logger.error("Project setting, but not in Project!");
     } else {
       logger.error("Not in Project. Use -g for global setting.");
     }
-    return false;
+    return configScope.INVALID;
   }
 
   if (scope === configScope.PROJECT && !projectSettings.includes(key)) {
     logger.debug(`Project settings doesn't include ${key}, switching to local`);
-    scope = configScope.LOCAL;
+    return configScope.LOCAL;
   }
-
-  switch (scope) {
-    case configScope.GLOBAL:
-      if (setConfigValue(key, value, globalConfig)) {
-        updateInfo(key, value, scope);
-        return true;
-      }
-      break;
-    case configScope.LOCAL:
-      if (setConfigValue(key, value, join(jcoreRuntimeData.workDir, localConfigFilename))) {
-        updateInfo(key, value, scope);
-        return true;
-      }
-      break;
-    case configScope.PROJECT:
-      if (setConfigValue(key, value, join(jcoreRuntimeData.workDir, projectConfigFilename))) {
-        updateInfo(key, value, scope);
-        return true;
-      }
-      break;
-  }
-  return false;
+  return scope;
 }
 
-function updateInfo(key: string, value: null | string | number | boolean, scope: configScope) {
+function updateInfo(key: string, value: null | configValue, scope: configScope) {
   const scopeText =
     scope === configScope.GLOBAL ? "Global" : scope === configScope.PROJECT ? "Project" : "Local";
 
@@ -214,9 +209,9 @@ function updateInfo(key: string, value: null | string | number | boolean, scope:
   }
 }
 
-function setConfigValue(key: string, value: null | string | number | boolean, file: string) {
+function setConfigValue(key: string, value: null | configValue, file: string) {
   try {
-    const settings: Record<string, string | number | boolean> = {};
+    const settings: Record<string, configValue> = {};
     const values = loadJsonFile(file);
     if (value === null) {
       delete values[key];

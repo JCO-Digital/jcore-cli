@@ -112,16 +112,16 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
 }
 
 export function loadJsonFile(file: string): Record<string, any> {
-  if (!existsSync(file)) {
-    return {};
+  if (existsSync(file)) {
+    try {
+      const json = readFileSync(file, "utf8");
+      return JSON.parse(json);
+    } catch {
+      logger.error(`JSON parse error in file ${file}`);
+      process.exit();
+    }
   }
-  try {
-    const json = readFileSync(file, "utf8");
-    return JSON.parse(json);
-  } catch {
-    logger.error(`JSON parse error in file ${file}`);
-    return {};
-  }
+  return {};
 }
 
 export function calculateChecksum(file: string): string {

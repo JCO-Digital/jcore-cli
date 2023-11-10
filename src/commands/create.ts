@@ -1,5 +1,5 @@
 import { cmdData } from "@/types";
-import { jcoreRuntimeData, jcoreSettingsData, writeSettings } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
@@ -48,8 +48,8 @@ export function createProject(data: cmdData) {
         copyChildTheme(jcoreSettingsData.projectName);
       }
 
-      // Write config
-      writeSettings();
+      // TODO Write config
+      // writeSettings();
 
       // GIT commit
       execSync("git add -A", options);

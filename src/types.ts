@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type configValue = string | number | boolean | Array<string | Array<string>>;
+export type configValue = string | number | boolean | Array<string>;
 
 export const cmdSchema = z.object({
   cmd: z.string(),
@@ -42,7 +42,7 @@ export const settingsSchema = z.object({
   remoteDomain: z.string().default(""),
   remoteHost: z.string().default(""),
   remotePath: z.string().default(""),
-  replace: z.array(z.array(z.string())).default([]),
+  replace: z.array(z.string()).default([]),
   theme: z.string().default(""),
   wpDebug: z.boolean().default(true),
   wpDebugDisplay: z.boolean().default(true),
