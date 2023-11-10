@@ -50,7 +50,8 @@ function set(target: string, values: string[], scope: configScope) {
           const newValues = values.slice(1);
           const current = (jcoreSettingsData as Record<string, configValue>)[key];
           if (current instanceof Array<string>) {
-            for (const newValue of newValues) {
+            for (let newValue of newValues) {
+              newValue = newValue.replace(/ *=> */,"|");
               const index = current.indexOf(newValue);
               if (value === "add") {
                 if (index === -1) {
