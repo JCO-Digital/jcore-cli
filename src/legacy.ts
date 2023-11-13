@@ -6,8 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { logger } from "@/logger";
 import { join } from "path";
 import { homedir } from "os";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
-import { loadJsonFile } from "@/utils";
+import { jcoreRuntimeData, jcoreSettingsData, saveConfigFile } from "@/settings";
 
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
 export const projectConfigLegacyFilename = "config.sh";
@@ -22,19 +21,12 @@ export function convertGlobalSettings(globalConfig: string) {
 
       const logLevel = Number(values.get("loglevel"));
 
-      writeFileSync(
-        globalConfig,
-        JSON.stringify(
-          {
-            mode: values.get("mode"),
-            debug: values.get("debug") === "true",
-            logLevel: isNaN(logLevel) ? 2 : logLevel,
-            install: values.get("install") === "true",
-          },
-          null,
-          2
-        )
-      );
+      saveConfigFile(globalConfig, {
+        mode: values.get("mode"),
+        debug: values.get("debug") === "true",
+        logLevel: isNaN(logLevel) ? 2 : logLevel,
+        install: values.get("install") === "true"
+      });
     } catch (e) {
       logger.error("Global settings conversion failed.");
     }
@@ -87,18 +79,12 @@ export function convertProjectSettings(projectConfigFilename: string) {
         pluginExclude: values.get("plugin_exclude"),
         pluginGit: values.get("plugin_git"),
         pluginInstall: values.get("plugin_install"),
-        install: values.get("install") === "true",
+        install: values.get("install") === "true"
       };
-      const localConfig = join(jcoreRuntimeData.workDir, projectConfigFilename);
-      const config = loadJsonFile(localConfig);
+      saveConfigFile(localConfig, newValues);
 
-      writeFileSync(
-        localConfig,
-        JSON.stringify(Object.assign(newValues, config), null, 2),
-        "utf-8"
-      );
     } catch (e) {
-      logger.error("Error convertion project settings.");
+      logger.error("Error converting project settings.");
     }
   }
 }

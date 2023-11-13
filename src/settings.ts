@@ -1,42 +1,40 @@
 import * as process from "process";
 import { join, parse } from "path";
+import { parse as tomlParse, stringify as tomlStringify, TomlError } from "smol-toml";
 import { homedir } from "os";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { config, version } from "../package.json";
 import { fetchVersion, loadJsonFile } from "@/utils";
 import { logger } from "@/logger";
 import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
 import { configScope, projectSettings } from "@/constants";
-import {
-  convertGlobalSettings,
-  convertProjectSettings,
-  projectConfigLegacyFilename,
-} from "@/legacy";
+import { convertGlobalSettings, convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import chalk from "chalk";
 import { formatValue } from "@/commands/config";
+import { ZodError } from "zod";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
-  workDir: process.cwd(),
+  workDir: process.cwd()
 });
 
 // Default settings.
 export const jcoreSettingsData = settingsSchema.parse({
   mode: "foreground",
   theme: "jcore2-child",
-  wpImage: "jcodigi/wordpress:latest",
+  wpImage: "jcodigi/wordpress:latest"
 });
 
 export const jcoreDataData = {
   version: version,
   latest: "",
-  lastCheck: 0,
+  lastCheck: 0
 } as jcoreData;
 
-const projectConfigFilename = "jcore.json";
-const localConfigFilename = ".localConfig.json";
-const defaultConfigFilename = "defaults.json";
-const globalConfig = join(homedir(), ".config/jcore/config.json");
+const projectConfigFilename = "jcore.toml";
+const localConfigFilename = ".localConfig.toml";
+const defaultConfigFilename = "defaults.toml";
+const globalConfig = join(homedir(), ".config/jcore/config.toml");
 const globalData = join(homedir(), ".config/jcore/data.json");
 
 export async function readSettings() {
@@ -45,7 +43,7 @@ export async function readSettings() {
     jcoreRuntimeData.workDir.length > 1 &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename)) &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigLegacyFilename))
-  ) {
+    ) {
     // Go up one level and try again.
     jcoreRuntimeData.workDir = parse(jcoreRuntimeData.workDir).dir;
   }
@@ -83,16 +81,6 @@ export async function readSettings() {
     });
 }
 
-function readData() {
-  const values = loadJsonFile(globalData);
-  if (values.latest !== undefined) {
-    jcoreDataData.latest = values.latest;
-  }
-  if (values.lastCheck !== undefined) {
-    jcoreDataData.lastCheck = values.lastCheck;
-  }
-}
-
 function readProjectSettings() {
   // Make a copy of the current settings object.
   const data = Object.assign({}, jcoreSettingsData);
@@ -120,23 +108,16 @@ function readProjectSettings() {
 }
 
 export function getConfig(scope: configScope = configScope.GLOBAL, data = {}) {
-  switch (scope) {
-    case configScope.DEFAULT:
-      return Object.assign(
-        data,
-        loadJsonFile(join(jcoreRuntimeData.workDir, defaultConfigFilename))
-      );
-    case configScope.GLOBAL:
-      return Object.assign(data, loadJsonFile(globalConfig));
-    case configScope.PROJECT:
-      return Object.assign(
-        data,
-        loadJsonFile(join(jcoreRuntimeData.workDir, projectConfigFilename))
-      );
-    case configScope.LOCAL:
-      return Object.assign(data, loadJsonFile(join(jcoreRuntimeData.workDir, localConfigFilename)));
-    default:
-      return data;
+  return Object.assign(data, loadConfigFile(getScopeConfigFile(scope)));
+}
+
+function readData() {
+  const values = loadJsonFile(globalData);
+  if (values.latest !== undefined) {
+    jcoreDataData.latest = values.latest;
+  }
+  if (values.lastCheck !== undefined) {
+    jcoreDataData.lastCheck = values.lastCheck;
   }
 }
 
@@ -212,16 +193,66 @@ function updateInfo(key: string, value: null | configValue, scope: configScope) 
 function setConfigValue(key: string, value: null | configValue, file: string) {
   try {
     const settings: Record<string, configValue> = {};
-    const values = loadJsonFile(file);
+    const values = loadConfigFile(file);
     if (value === null) {
       delete values[key];
     } else {
       settings[key] = value;
     }
-    writeFileSync(file, JSON.stringify(Object.assign(values, settings), null, 2));
+    saveConfigFile(file, Object.assign(values, settings));
   } catch (e) {
     logger.error(`Updating ${key} failed.`);
     return false;
   }
   return true;
+}
+
+function loadConfigFile(file: string): Record<string, configValue> {
+  const info = parse(file);
+  const jsonFile = file.replace(info.ext, ".json");
+
+  if (existsSync(file)) {
+    try {
+      const toml = readFileSync(file, "utf8");
+      const parsed = tomlParse(toml);
+      return settingsSchema.partial().parse(parsed);
+    } catch (error) {
+      if (error instanceof TomlError) {
+        logger.error(`TOML parse error in file ${file}`);
+      } else if (error instanceof ZodError) {
+        logger.error(`Settings parse error in file ${file}`);
+        for (const issue of error.issues) {
+          logger.error(`Property [${issue.path.join(".")}]: ${issue.message}`);
+        }
+      } else {
+        console.log(error);
+      }
+      process.exit();
+    }
+  } else if (existsSync(jsonFile)) {
+    try {
+      const json = readFileSync(jsonFile, "utf8");
+      const parsed = JSON.parse(json);
+      return settingsSchema.partial().parse(parsed);
+    } catch {
+      logger.error(`JSON parse error in file ${jsonFile}`);
+      process.exit();
+    }
+  }
+  return {};
+}
+
+export function saveConfigFile(file: string, data: Record<string, configValue | undefined>) {
+  try {
+    const info = parse(file);
+    const jsonFile = file.replace(info.ext, ".json");
+    const dataString = tomlStringify(data);
+    writeFileSync(file, dataString, "utf8");
+    if (existsSync(jsonFile)) {
+      unlinkSync(jsonFile);
+    }
+  } catch {
+    logger.error(`Error in writing config file: ${file}`);
+    process.exit();
+  }
 }
