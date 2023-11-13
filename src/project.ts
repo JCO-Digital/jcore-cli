@@ -249,7 +249,7 @@ export function finalizeProject(install = true): boolean {
   replaceInFile(getSetupFolder("nginx/site.conf"), [
     {
       search: /proxy_pass.*https.*;$/gm,
-      replace: "proxy_pass    https://" + jcoreSettingsData.remoteDomain + ";",
+      replace: `proxy_pass    https://${jcoreSettingsData.remoteDomain};`,
     },
   ]);
 
@@ -325,7 +325,7 @@ function createEnvVariable(value: configValue): string {
   if (value instanceof Array) {
     const output: Array<string> = [];
     value.forEach((row) => {
-      output.push(row instanceof Array ? row.join(",") : row);
+      output.push(row);
     });
     return output.join(" ");
   }
@@ -358,7 +358,8 @@ export function replaceInFile(file: string, replace: Array<searchReplace>, desti
     if (!existsSync(path.dir)) {
       mkdirSync(path.dir, { recursive: true });
     }
-
     writeFileSync(destination, data, "utf8");
+  } else {
+    logger.debug(`${file} doesn't exist.`);
   }
 }

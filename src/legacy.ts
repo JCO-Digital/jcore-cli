@@ -63,7 +63,7 @@ export function convertProjectSettings(projectConfigFilename: string) {
         for (const domain of domainsValue) {
           const parts = domain.split(";");
           const local = `${parts[1]}.localhost`;
-          replace.push(["//" + parts[0], "//" + local]);
+          replace.push(`//${parts[0]}|//${local}`);
           if (!domains.includes(local)) {
             domains.push(local);
           }
