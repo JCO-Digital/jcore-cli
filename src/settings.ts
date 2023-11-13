@@ -218,7 +218,8 @@ function loadConfigFile(file: string): Record<string, configValue> {
       return settingsSchema.partial().parse(parsed);
     } catch (error) {
       if (error instanceof TomlError) {
-        logger.error(`TOML parse error in file ${file}`);
+        logger.error(`TOML error in file ${file} on line ${error.line}`);
+        logger.debug(error.message);
       } else if (error instanceof ZodError) {
         logger.error(`Settings parse error in file ${file}`);
         for (const issue of error.issues) {
