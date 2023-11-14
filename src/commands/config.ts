@@ -1,5 +1,5 @@
 import { cmdData, configValue, settingsSchema } from "@/types";
-import { getConfig, jcoreRuntimeData, jcoreSettingsData, updateSetting } from "@/settings";
+import { deleteSetting, getConfig, jcoreRuntimeData, jcoreSettingsData, setConfigValue } from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
 import { configScope } from "@/constants";
@@ -34,11 +34,11 @@ function set(target: string, values: string[], scope: configScope) {
   // Pseudo setters.
   switch (target.toLowerCase()) {
     case "wpe":
-      updateSetting("remoteHost", `${value}@${value}.ssh.wpengine.net`, scope);
-      updateSetting("remotePath", `/sites/${value}`, scope);
+      setConfigValue("remoteHost", `${value}@${value}.ssh.wpengine.net`, scope);
+      setConfigValue("remotePath", `/sites/${value}`, scope);
       return;
     case "php":
-      updateSetting("wpImage", `jcodigi/wordpress:${value}`, scope);
+      setConfigValue("wpImage", `jcodigi/wordpress:${value}`, scope);
       return;
   }
 
@@ -73,26 +73,26 @@ function set(target: string, values: string[], scope: configScope) {
                 }
               }
             }
-            updateSetting(key, current, scope);
+            setConfigValue(key, current, scope);
           }
         } else {
-          updateSetting(key, values, scope);
+          setConfigValue(key, values, scope);
         }
         return;
       } else {
         switch (typeof model[key]) {
           case "string":
-            updateSetting(key, value, scope);
+            setConfigValue(key, value, scope);
             return;
           case "number":
             if (isNaN(Number(value))) {
               logger.error(`Error: ${value} is not numeric`);
             } else {
-              updateSetting(key, Number(value), scope);
+              setConfigValue(key, Number(value), scope);
             }
             return;
           case "boolean":
-            updateSetting(key, parseBoolean(value), scope);
+            setConfigValue(key, parseBoolean(value), scope);
             return;
         }
       }
@@ -105,7 +105,7 @@ function unset(target: string, scope: configScope) {
   const model: Record<string, configValue> = settingsSchema.parse({});
   for (const key in model) {
     if (key.toLowerCase() === target.toLowerCase()) {
-      updateSetting(key, null, scope);
+      deleteSetting(key, scope);
       return;
     }
   }

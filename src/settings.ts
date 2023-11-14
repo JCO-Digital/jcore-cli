@@ -4,7 +4,7 @@ import { parse as tomlParse, stringify as tomlStringify, TomlError } from "smol-
 import { homedir } from "os";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { config, version } from "../package.json";
-import { fetchVersion, loadJsonFile } from "@/utils";
+import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
 import { logger } from "@/logger";
 import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
 import { configScope, projectSettings } from "@/constants";
@@ -39,9 +39,12 @@ const globalData = join(homedir(), ".config/jcore/data.json");
 
 export async function readSettings() {
   // Find the project base path.
+  const info = parse(projectConfigFilename);
+  const jsonFile = projectConfigFilename.replace(info.ext, ".json");
   while (
     jcoreRuntimeData.workDir.length > 1 &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename)) &&
+    !existsSync(join(jcoreRuntimeData.workDir, jsonFile)) &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigLegacyFilename))
     ) {
     // Go up one level and try again.
@@ -137,18 +140,35 @@ async function versionCheck() {
   }
 }
 
-export function updateSetting(key: string, value: null | configValue, requestedScope: configScope) {
+export function setConfigValue(key: string, value: configValue, requestedScope: configScope) {
   const scope = validateScope(key, requestedScope);
   const configFile = getScopeConfigFile(scope);
-
-  if (setConfigValue(key, value, configFile)) {
-    updateInfo(key, value, scope);
+  const settings: Record<string,configValue> = {};
+  settings[key] = value;
+  if (updateConfigValues(settings, configFile)) {
+    logger.info(`${getScopeText(scope)} setting ${chalk.green(key)} updated to ${formatValue(value)}`);
     return true;
   }
   return false;
 }
 
-function getScopeConfigFile(scope: configScope) {
+export function deleteSetting(key: string, requestedScope: configScope) {
+  const scope = validateScope(key, requestedScope);
+  const configFile = getScopeConfigFile(scope);
+
+  try {
+    const values = loadConfigFile(configFile);
+    delete values[key];
+    saveConfigFile(configFile, values);
+    logger.info(`${getScopeText(scope)} setting ${chalk.green(key)} removed`);
+  } catch (e) {
+    logger.error(`Deleting ${key} failed.`);
+    return false;
+  }
+  return true;
+}
+
+export function getScopeConfigFile(scope: configScope) {
   switch (scope) {
     case configScope.DEFAULT:
       return join(jcoreRuntimeData.workDir, defaultConfigFilename);
@@ -179,29 +199,27 @@ function validateScope(key: string, scope: configScope) {
   return scope;
 }
 
-function updateInfo(key: string, value: null | configValue, scope: configScope) {
-  const scopeText =
-    scope === configScope.GLOBAL ? "Global" : scope === configScope.PROJECT ? "Project" : "Local";
-
-  if (value === null) {
-    logger.info(`${scopeText} setting ${chalk.green(key)} removed`);
-  } else {
-    logger.info(`${scopeText} setting ${chalk.green(key)} updated to ${formatValue(value)}`);
+function getScopeText (scope: configScope) {
+  switch (scope) {
+    case configScope.DEFAULT:
+      return "Default";
+    case configScope.GLOBAL:
+      return "Global";
+    case configScope.PROJECT:
+      return "Project";
+    case configScope.LOCAL:
+      return "Local";
+    default:
+      return "Unknown";
   }
 }
 
-function setConfigValue(key: string, value: null | configValue, file: string) {
+export function updateConfigValues(settings: Record<string, configValue>, file: string) {
   try {
-    const settings: Record<string, configValue> = {};
     const values = loadConfigFile(file);
-    if (value === null) {
-      delete values[key];
-    } else {
-      settings[key] = value;
-    }
     saveConfigFile(file, Object.assign(values, settings));
   } catch (e) {
-    logger.error(`Updating ${key} failed.`);
+    logger.error("Updating of settings failed.");
     return false;
   }
   return true;
@@ -217,17 +235,7 @@ function loadConfigFile(file: string): Record<string, configValue> {
       const parsed = tomlParse(toml);
       return settingsSchema.partial().parse(parsed);
     } catch (error) {
-      if (error instanceof TomlError) {
-        logger.error(`TOML error in file ${file} on line ${error.line}`);
-        logger.debug(error.message);
-      } else if (error instanceof ZodError) {
-        logger.error(`Settings parse error in file ${file}`);
-        for (const issue of error.issues) {
-          logger.error(`Property [${issue.path.join(".")}]: ${issue.message}`);
-        }
-      } else {
-        console.log(error);
-      }
+      parseErrorHandler(error,file);
       process.exit();
     }
   } else if (existsSync(jsonFile)) {

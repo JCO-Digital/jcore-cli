@@ -5,11 +5,11 @@ import {
   saveChecksums,
   calculateChecksum,
   getSetupFolder,
-  loadJsonFile,
+  parseErrorHandler
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
-import { configValue, updateOptions } from "@/types";
+import { configValue, settingsSchema, updateOptions } from "@/types";
 import {
   existsSync,
   lstatSync,
@@ -24,6 +24,8 @@ import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
+import { parse as tomlParse } from "smol-toml";
+import process from "process";
 
 const defaultOptions = {
   force: false,
@@ -248,8 +250,8 @@ export function finalizeProject(install = true): boolean {
   // Set nginx proxy pass.
   replaceInFile(getSetupFolder("nginx/site.conf"), [
     {
-      search: /proxy_pass.*https.*;$/gm,
-      replace: `proxy_pass    https://${jcoreSettingsData.remoteDomain};`,
+      search: /proxy_pass(\s*)https[^;]*;/gm,
+      replace: `proxy_pass$1https://${jcoreSettingsData.remoteDomain};`,
     },
   ]);
 
@@ -306,14 +308,23 @@ export function finalizeProject(install = true): boolean {
 }
 
 function createEnv() {
-  const values = loadJsonFile(join(jcoreRuntimeData.workDir, "env-values.json"));
+  const file = join(jcoreRuntimeData.workDir, "env-values.toml")
+  if (existsSync(file)) {
+    try {
+      const toml = readFileSync(file, "utf8");
+      const values = tomlParse(toml) as Record<string, configValue>;
 
-  let env = "";
-  for (const key in Object.assign(values, jcoreSettingsData)) {
-    env += `${createEnvName(key)}="${createEnvVariable(values[key])}"\n`;
+      let env = "";
+      for (const key in Object.assign(values, jcoreSettingsData)) {
+        env += `${createEnvName(key)}="${createEnvVariable(values[key])}"\n`;
+      }
+
+      writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
+    } catch (error) {
+      parseErrorHandler(error,file);
+      process.exit();
+    }
   }
-
-  writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
 }
 
 function createEnvName(name: string) {

@@ -1,9 +1,9 @@
-import { cmdData } from "@/types";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
+import { cmdData, configValue } from "@/types";
+import { getScopeConfigFile, jcoreRuntimeData, jcoreSettingsData, updateConfigValues } from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
-import { childGit, childPath, jcoreGit, jcorePath } from "@/constants";
+import { childGit, childPath, configScope, jcoreGit, jcorePath } from "@/constants";
 import { logger } from "@/logger";
 import { getFlagValue, copyFiles, nameToFolder } from "@/utils";
 import { join } from "path";
@@ -18,6 +18,12 @@ export function createProject(data: cmdData) {
     logger.info("Create Project: " + jcoreSettingsData.projectName);
     mkdirSync(jcoreRuntimeData.workDir);
 
+    const settings: Record<string, configValue> = {
+      projectName: jcoreSettingsData.projectName,
+      localDomain: `${jcoreSettingsData.projectName}.localhost`,
+      domains: [`${jcoreSettingsData.projectName}.localhost`],
+    }
+
     const options = {
       cwd: jcoreRuntimeData.workDir,
       stdio: [0, 1, 2],
@@ -28,6 +34,7 @@ export function createProject(data: cmdData) {
 
     if (branch) {
       jcoreSettingsData.branch = branch;
+      settings.branch = branch;
     }
 
     // Run project update.
@@ -46,10 +53,13 @@ export function createProject(data: cmdData) {
       // Copy child theme.
       if (!getFlagValue(data, "nochild")) {
         copyChildTheme(jcoreSettingsData.projectName);
+        jcoreSettingsData.theme = jcoreSettingsData.projectName;
+        settings.theme = jcoreSettingsData.projectName;
       }
 
-      // TODO Write config
-      // writeSettings();
+      // Write config
+      const configFile = getScopeConfigFile(configScope.PROJECT);
+      updateConfigValues(settings, configFile)
 
       // GIT commit
       execSync("git add -A", options);

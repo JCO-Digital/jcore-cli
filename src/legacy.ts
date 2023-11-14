@@ -2,7 +2,7 @@
  * Legacy functions.
  */
 
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { logger } from "@/logger";
 import { join } from "path";
 import { homedir } from "os";
@@ -67,14 +67,14 @@ export function convertProjectSettings(projectConfigFilename: string) {
       }
 
       const newValues = {
-        name: values.get("name"),
+        projectName: values.get("name"),
         theme: values.get("theme"),
         remoteHost: values.get("remotehost"),
         remotePath: values.get("remotepath"),
         replace,
         domains,
-        domain: newDomain,
-        local: newLocal,
+        remoteDomain: newDomain,
+        localDomain: newLocal,
         dbExclude: values.get("db_exclude"),
         pluginExclude: values.get("plugin_exclude"),
         pluginGit: values.get("plugin_git"),

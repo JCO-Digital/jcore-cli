@@ -15,6 +15,8 @@ import {
 import { jcoreRuntimeData } from "@/settings";
 import { logger } from "@/logger";
 import { cmdData } from "@/types";
+import { TomlError } from "smol-toml";
+import { ZodError } from "zod";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -185,4 +187,18 @@ export function getFlagValue(cmd: cmdData, name: string): false | any {
 export function getSetupFolder(appendPath = "", inContainer = false): string {
   const path = inContainer ? "/project" : jcoreRuntimeData.workDir;
   return join(path, ".config", appendPath);
+}
+
+export function parseErrorHandler (error: any, file: string) {
+  if (error instanceof TomlError) {
+    logger.error(`TOML error in file ${file} on line ${error.line}`);
+    logger.debug(error.message);
+  } else if (error instanceof ZodError) {
+    logger.error(`Settings parse error in file ${file}`);
+    for (const issue of error.issues) {
+      logger.error(`Property [${issue.path.join(".")}]: ${issue.message}`);
+    }
+  } else {
+    console.log(error);
+  }
 }

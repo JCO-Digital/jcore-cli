@@ -18,7 +18,7 @@ import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
 import { doctor } from "@/commands/doctor";
-import { jcoreRuntimeData, jcoreSettingsData, updateSetting } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData, setConfigValue } from "@/settings";
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { configScope } from "@/constants";
@@ -56,7 +56,7 @@ export function runCmd(data: cmdData): void {
         if (data.target[0]) {
           if (copyChildTheme(data.target.join(" "))) {
             // Save settings.
-            updateSetting("theme", jcoreSettingsData.theme, configScope.PROJECT);
+            setConfigValue("theme", jcoreSettingsData.theme, configScope.PROJECT);
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
             logger.error("Theme creation failed!");
