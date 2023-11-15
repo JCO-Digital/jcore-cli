@@ -5,7 +5,7 @@ import {
   saveChecksums,
   calculateChecksum,
   getSetupFolder,
-  parseErrorHandler
+  parseErrorHandler,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
@@ -308,7 +308,7 @@ export function finalizeProject(install = true): boolean {
 }
 
 function createEnv() {
-  const file = join(jcoreRuntimeData.workDir, "env-values.toml")
+  const file = join(jcoreRuntimeData.workDir, "env-values.toml");
   if (existsSync(file)) {
     try {
       const toml = readFileSync(file, "utf8");
@@ -321,7 +321,7 @@ function createEnv() {
 
       writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
     } catch (error) {
-      parseErrorHandler(error,file);
+      parseErrorHandler(error, file);
       process.exit();
     }
   }

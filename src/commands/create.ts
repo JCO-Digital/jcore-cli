@@ -1,5 +1,10 @@
 import { cmdData, configValue } from "@/types";
-import { getScopeConfigFile, jcoreRuntimeData, jcoreSettingsData, updateConfigValues } from "@/settings";
+import {
+  getScopeConfigFile,
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  updateConfigValues,
+} from "@/settings";
 import { existsSync, mkdirSync } from "fs";
 import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
@@ -22,7 +27,7 @@ export function createProject(data: cmdData) {
       projectName: jcoreSettingsData.projectName,
       localDomain: `${jcoreSettingsData.projectName}.localhost`,
       domains: [`${jcoreSettingsData.projectName}.localhost`],
-    }
+    };
 
     const options = {
       cwd: jcoreRuntimeData.workDir,
@@ -59,7 +64,7 @@ export function createProject(data: cmdData) {
 
       // Write config
       const configFile = getScopeConfigFile(configScope.PROJECT);
-      updateConfigValues(settings, configFile)
+      updateConfigValues(settings, configFile);
 
       // GIT commit
       execSync("git add -A", options);

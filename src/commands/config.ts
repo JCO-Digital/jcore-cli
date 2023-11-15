@@ -1,5 +1,11 @@
 import { cmdData, configValue, settingsSchema } from "@/types";
-import { deleteSetting, getConfig, jcoreRuntimeData, jcoreSettingsData, setConfigValue } from "@/settings";
+import {
+  deleteSetting,
+  getConfig,
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  setConfigValue,
+} from "@/settings";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
 import { configScope } from "@/constants";

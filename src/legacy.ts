@@ -25,7 +25,7 @@ export function convertGlobalSettings(globalConfig: string) {
         mode: values.get("mode"),
         debug: values.get("debug") === "true",
         logLevel: isNaN(logLevel) ? 2 : logLevel,
-        install: values.get("install") === "true"
+        install: values.get("install") === "true",
       });
     } catch (e) {
       logger.error("Global settings conversion failed.");
@@ -79,10 +79,9 @@ export function convertProjectSettings(projectConfigFilename: string) {
         pluginExclude: values.get("plugin_exclude"),
         pluginGit: values.get("plugin_git"),
         pluginInstall: values.get("plugin_install"),
-        install: values.get("install") === "true"
+        install: values.get("install") === "true",
       };
       saveConfigFile(localConfig, newValues);
-
     } catch (e) {
       logger.error("Error converting project settings.");
     }

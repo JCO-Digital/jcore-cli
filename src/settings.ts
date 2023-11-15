@@ -8,27 +8,31 @@ import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
 import { logger } from "@/logger";
 import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
 import { configScope, projectSettings } from "@/constants";
-import { convertGlobalSettings, convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
+import {
+  convertGlobalSettings,
+  convertProjectSettings,
+  projectConfigLegacyFilename,
+} from "@/legacy";
 import chalk from "chalk";
 import { formatValue } from "@/commands/config";
 import { ZodError } from "zod";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
-  workDir: process.cwd()
+  workDir: process.cwd(),
 });
 
 // Default settings.
 export const jcoreSettingsData = settingsSchema.parse({
   mode: "foreground",
   theme: "jcore2-child",
-  wpImage: "jcodigi/wordpress:latest"
+  wpImage: "jcodigi/wordpress:latest",
 });
 
 export const jcoreDataData = {
   version: version,
   latest: "",
-  lastCheck: 0
+  lastCheck: 0,
 } as jcoreData;
 
 const projectConfigFilename = "jcore.toml";
@@ -46,7 +50,7 @@ export async function readSettings() {
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename)) &&
     !existsSync(join(jcoreRuntimeData.workDir, jsonFile)) &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigLegacyFilename))
-    ) {
+  ) {
     // Go up one level and try again.
     jcoreRuntimeData.workDir = parse(jcoreRuntimeData.workDir).dir;
   }
@@ -143,10 +147,12 @@ async function versionCheck() {
 export function setConfigValue(key: string, value: configValue, requestedScope: configScope) {
   const scope = validateScope(key, requestedScope);
   const configFile = getScopeConfigFile(scope);
-  const settings: Record<string,configValue> = {};
+  const settings: Record<string, configValue> = {};
   settings[key] = value;
   if (updateConfigValues(settings, configFile)) {
-    logger.info(`${getScopeText(scope)} setting ${chalk.green(key)} updated to ${formatValue(value)}`);
+    logger.info(
+      `${getScopeText(scope)} setting ${chalk.green(key)} updated to ${formatValue(value)}`
+    );
     return true;
   }
   return false;
@@ -199,7 +205,7 @@ function validateScope(key: string, scope: configScope) {
   return scope;
 }
 
-function getScopeText (scope: configScope) {
+function getScopeText(scope: configScope) {
   switch (scope) {
     case configScope.DEFAULT:
       return "Default";
@@ -235,7 +241,7 @@ function loadConfigFile(file: string): Record<string, configValue> {
       const parsed = tomlParse(toml);
       return settingsSchema.partial().parse(parsed);
     } catch (error) {
-      parseErrorHandler(error,file);
+      parseErrorHandler(error, file);
       process.exit();
     }
   } else if (existsSync(jsonFile)) {

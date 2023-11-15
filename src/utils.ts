@@ -189,7 +189,7 @@ export function getSetupFolder(appendPath = "", inContainer = false): string {
   return join(path, ".config", appendPath);
 }
 
-export function parseErrorHandler (error: any, file: string) {
+export function parseErrorHandler(error: any, file: string) {
   if (error instanceof TomlError) {
     logger.error(`TOML error in file ${file} on line ${error.line}`);
     logger.debug(error.message);
