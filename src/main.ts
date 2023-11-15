@@ -16,17 +16,6 @@ init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
  * Main init function of the application. This like all other functions expects an initialized settings object.
  */
 function initCli() {
-  const data = parser(process.argv);
-
-  // Set log level from flags.
-  if (getFlagValue(data, "quiet")) {
-    jcoreSettingsData.logLevel = logger.levels.error;
-  } else if (getFlagValue(data, "debug")) {
-    jcoreSettingsData.logLevel = logger.levels.debug;
-  } else if (getFlagValue(data, "verbose") || getFlagValue(data, "help")) {
-    jcoreSettingsData.logLevel = logger.levels.verbose;
-  }
-
   // Intro text.
   logger.verbose("JCORE CLI v" + version);
   logger.debug("Mode: ".padEnd(12) + jcoreSettingsData.mode);

@@ -1,6 +1,6 @@
 import { cmdData } from "@/types";
 import { jcoreRuntimeData } from "@/settings";
-import { commands, flags } from "@/constants";
+import { commands, optionDefinition } from "@/constants";
 import { logger } from "@/logger";
 import { getFlagValue } from "@/utils";
 
@@ -15,8 +15,8 @@ export function help(cmd: cmdData) {
     }
 
     logger.info("\nPossible options:");
-    for (const flag of flags) {
-      logger.info(("--" + flag.name + " / -" + flag.flag).padEnd(padding) + " - " + flag.text);
+    for (const option of optionDefinition) {
+      logger.info(("--" + option.name + " / -" + option.alias).padEnd(padding) + " - " + option.description);
     }
   } else {
     logger.info("Use flag --help for more info.");

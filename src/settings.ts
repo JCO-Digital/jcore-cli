@@ -15,6 +15,7 @@ import {
 } from "@/legacy";
 import chalk from "chalk";
 import { formatValue } from "@/commands/config";
+import parser from "@/parser";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
@@ -41,6 +42,8 @@ const globalConfig = join(homedir(), ".config/jcore/config.toml");
 const globalData = join(homedir(), ".config/jcore/data.json");
 
 export async function readSettings() {
+  parser(process.argv);
+
   // Find the project base path.
   const info = parse(projectConfigFilename);
   const jsonFile = projectConfigFilename.replace(info.ext, ".json");
