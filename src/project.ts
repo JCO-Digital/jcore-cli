@@ -5,11 +5,11 @@ import {
   saveChecksums,
   calculateChecksum,
   getSetupFolder,
-  parseErrorHandler,
+  createEnv,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
-import { configValue, settingsSchema, updateOptions } from "@/types";
+import { updateOptions } from "@/types";
 import {
   existsSync,
   lstatSync,
@@ -24,8 +24,6 @@ import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
-import { parse as tomlParse } from "smol-toml";
-import process from "process";
 
 const defaultOptions = {
   force: false,
@@ -305,49 +303,6 @@ export function finalizeProject(install = true): boolean {
     execSync("docker-compose pull", options);
   }
   return true;
-}
-
-function createEnv() {
-  const file = join(jcoreRuntimeData.workDir, "env-values.toml");
-  if (existsSync(file)) {
-    try {
-      const toml = readFileSync(file, "utf8");
-      const values = tomlParse(toml) as Record<string, configValue>;
-
-      let env = "";
-      for (const key in Object.assign(values, jcoreSettingsData)) {
-        env += `${createEnvName(key)}="${createEnvVariable(values[key])}"\n`;
-      }
-
-      writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
-    } catch (error) {
-      parseErrorHandler(error, file);
-      process.exit();
-    }
-  }
-}
-
-function createEnvName(name: string) {
-  // Convert camelCase to UPPERCASE_SNAKE.
-  return name.replace(/([A-Z])/g, "_$1").toUpperCase();
-}
-
-function createEnvVariable(value: configValue): string {
-  if (value instanceof Array) {
-    const output: Array<string> = [];
-    value.forEach((row) => {
-      output.push(row);
-    });
-    return output.join(" ");
-  }
-  switch (typeof value) {
-    case "string":
-      return value;
-    case "number":
-      return value.toString();
-    case "boolean":
-      return value ? "true" : "false";
-  }
 }
 
 interface searchReplace {

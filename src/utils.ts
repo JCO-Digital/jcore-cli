@@ -12,11 +12,12 @@ import {
   readFileSync,
   writeFileSync,
 } from "fs";
-import { jcoreRuntimeData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
-import { cmdData } from "@/types";
-import { TomlError } from "smol-toml";
+import { cmdData, configValue } from "@/types";
+import { parse as tomlParse, TomlError } from "smol-toml";
 import { ZodError } from "zod";
+import process from "process";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -180,7 +181,7 @@ export function nameToFolder(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/, "-");
 }
 
-export function getFlagValue(cmd: cmdData, name: string): false | any {
+export function getFlagValue(cmd: cmdData, name: string): boolean | string | number {
   return cmd.flags.has(name) ? cmd.flags.get(name) : false;
 }
 
@@ -200,5 +201,55 @@ export function parseErrorHandler(error: any, file: string) {
     }
   } else {
     console.log(error);
+  }
+}
+
+export function createEnv() {
+  const file = join(jcoreRuntimeData.workDir, "env-values.toml");
+  if (existsSync(file)) {
+    try {
+      const toml = readFileSync(file, "utf8");
+      const values = tomlParse(toml) as Record<string, configValue>;
+
+      let env = "";
+      for (const key in Object.assign(values, jcoreSettingsData)) {
+        const value = values[key];
+        if (key === "replace") {
+          const defaultRow = `//${jcoreSettingsData.remoteDomain}|//${jcoreSettingsData.localDomain}`;
+          if (Array.isArray(value) && !value.includes(defaultRow)) {
+            value.push(defaultRow);
+          }
+        }
+        env += `${createEnvName(key)}="${createEnvVariable(value)}"\n`;
+      }
+
+      writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
+    } catch (error) {
+      parseErrorHandler(error, file);
+      process.exit();
+    }
+  }
+}
+
+function createEnvName(name: string) {
+  // Convert camelCase to UPPERCASE_SNAKE.
+  return name.replace(/([A-Z])/g, "_$1").toUpperCase();
+}
+
+function createEnvVariable(value: configValue): string {
+  if (value instanceof Array) {
+    const output: Array<string> = [];
+    value.forEach((row) => {
+      output.push(row);
+    });
+    return output.join(" ");
+  }
+  switch (typeof value) {
+    case "string":
+      return value;
+    case "number":
+      return value.toString();
+    case "boolean":
+      return value ? "true" : "false";
   }
 }

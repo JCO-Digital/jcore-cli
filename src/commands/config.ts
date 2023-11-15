@@ -42,6 +42,9 @@ function set(target: string, values: string[], scope: configScope) {
     case "wpe":
       setConfigValue("remoteHost", `${value}@${value}.ssh.wpengine.net`, scope);
       setConfigValue("remotePath", `/sites/${value}`, scope);
+      if (jcoreSettingsData.remoteDomain === "localhost") {
+        setConfigValue("remoteDomain", `${value}.wpengine.com`, scope);
+      }
       return;
     case "php":
       setConfigValue("wpImage", `jcodigi/wordpress:${value}`, scope);

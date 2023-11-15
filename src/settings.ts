@@ -1,6 +1,6 @@
 import * as process from "process";
 import { join, parse } from "path";
-import { parse as tomlParse, stringify as tomlStringify, TomlError } from "smol-toml";
+import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
 import { homedir } from "os";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { config, version } from "../package.json";
@@ -15,7 +15,6 @@ import {
 } from "@/legacy";
 import chalk from "chalk";
 import { formatValue } from "@/commands/config";
-import { ZodError } from "zod";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
