@@ -1,4 +1,4 @@
-import type { cmdData, jcoreProject } from "@/types";
+import type { jcoreProject } from "@/types";
 import update, { selfUpdate } from "@/commands/update";
 import {
   attach,
@@ -12,7 +12,7 @@ import {
   start,
   stop,
 } from "@/commands/run";
-import { getFlagValue, isProject } from "@/utils";
+import { getFlag, isProject } from "@/utils";
 import { helpCmd } from "@/help";
 import { copyChildTheme, createProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
@@ -22,30 +22,30 @@ import { jcoreRuntimeData, jcoreSettingsData, setConfigValue } from "@/settings"
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { configScope } from "@/constants";
+import { jcoreCmdData } from "@/parser";
 
 /**
  * Invokes functions for all the different commands. Sanity checking should be done here,
  * like if the command needs to be in a project to run.
- * @param data
  */
-export function runCmd(data: cmdData): void {
-  switch (data.cmd) {
+export function runCmd(): void {
+  switch (jcoreCmdData.cmd) {
     case "attach":
       if (isProject() && isRunning()) {
-        attach(data);
+        attach();
       }
       break;
     case "checksum":
       if (isProject()) {
-        switch (data.target.shift()) {
+        switch (jcoreCmdData.target.shift()) {
           case "list":
             listChecksums();
             break;
           case "set":
-            setChecksum(data.target);
+            setChecksum(jcoreCmdData.target);
             break;
           default:
-            helpCmd(data, false);
+            helpCmd(false);
             break;
         }
       }
@@ -53,8 +53,8 @@ export function runCmd(data: cmdData): void {
     case "child":
       if (isProject()) {
         // Create Child Theme.
-        if (data.target[0]) {
-          if (copyChildTheme(data.target.join(" "))) {
+        if (jcoreCmdData.target[0]) {
+          if (copyChildTheme(jcoreCmdData.target.join(" "))) {
             // Save settings.
             setConfigValue("theme", jcoreSettingsData.theme, configScope.PROJECT);
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
@@ -62,14 +62,14 @@ export function runCmd(data: cmdData): void {
             logger.error("Theme creation failed!");
           }
         } else {
-          helpCmd(data, false);
+          helpCmd(false);
         }
       }
       break;
     case "clean":
-      if (data.target.includes("all")) {
+      if (jcoreCmdData.target.includes("all")) {
         cleanAll();
-      } else if (data.target.includes("docker")) {
+      } else if (jcoreCmdData.target.includes("docker")) {
         cleanDocker();
       } else if (isProject()) {
         // Clean
@@ -86,18 +86,18 @@ export function runCmd(data: cmdData): void {
     case "clone":
       if (isProject(false)) {
         // Clone project.
-        if (data.target[0]) {
-          cloneProject(data);
+        if (jcoreCmdData.target[0]) {
+          cloneProject();
         } else {
-          helpCmd(data, false);
+          helpCmd(false);
         }
       }
       break;
     case "config":
-      if (data.target.length > 0) {
-        config(data);
+      if (jcoreCmdData.target.length > 0) {
+        config();
       } else {
-        helpCmd(data, false);
+        helpCmd(false);
       }
       break;
     case "doctor":
@@ -106,26 +106,26 @@ export function runCmd(data: cmdData): void {
     case "init":
       if (isProject(false)) {
         // Create new project.
-        if (data.target[0]) {
-          createProject(data);
+        if (jcoreCmdData.target[0]) {
+          createProject();
         } else {
-          helpCmd(data, false);
+          helpCmd(false);
         }
       }
       break;
     case "pull":
       if (isProject() && isRunning()) {
         // Pull data from upstream.
-        pull(data);
+        pull();
       }
       break;
     case "run":
       if (isProject() && isRunning()) {
-        if (data.target.length > 0) {
+        if (jcoreCmdData.target.length > 0) {
           // Run command.
-          runCommand(data.target.join(" "));
+          runCommand(jcoreCmdData.target.join(" "));
         } else {
-          helpCmd(data, false);
+          helpCmd(false);
         }
       }
       break;
@@ -149,8 +149,8 @@ export function runCmd(data: cmdData): void {
       if (isProject()) {
         if (!isRunning(false)) {
           // Start the project.
-          start(data);
-        } else if (getFlagValue(data, "force")) {
+          start();
+        } else if (getFlag("force")) {
           // Stop everything and then start.
           getRunning().forEach((project) => {
             // Stop running projects.
@@ -158,7 +158,7 @@ export function runCmd(data: cmdData): void {
             stop(project.path);
           });
           // Start the project.
-          start(data);
+          start();
         }
       }
       break;
@@ -174,13 +174,13 @@ export function runCmd(data: cmdData): void {
       }
       break;
     case "update":
-      if (data.target.includes("self")) {
+      if (jcoreCmdData.target.includes("self")) {
         // Update self.
-        selfUpdate(data);
+        selfUpdate();
       } else {
         if (isProject()) {
           // Update project.
-          update(data);
+          update();
         }
       }
       break;

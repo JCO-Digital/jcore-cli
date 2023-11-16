@@ -1,4 +1,3 @@
-import { cmdData } from "@/types";
 import { readSettings, jcoreSettingsData, jcoreRuntimeData } from "@/settings";
 import { existsSync } from "fs";
 import { logger } from "@/logger";
@@ -7,22 +6,23 @@ import { join, parse } from "path";
 import process from "process";
 import { childPath, jcorePath } from "@/constants";
 import { finalizeProject } from "@/project";
+import { jcoreCmdData } from "@/parser";
 
-export function cloneProject(data: cmdData) {
-  let source = data.target[0];
-  if (data.target[1]) {
-    jcoreSettingsData.projectName = data.target[1];
+export function cloneProject() {
+  let source = jcoreCmdData.target[0];
+  if (jcoreCmdData.target[1]) {
+    jcoreSettingsData.projectName = jcoreCmdData.target[1];
   }
-  if (data.target[0].search(/^[a-zA-Z0-9_-]+$/) !== -1) {
+  if (jcoreCmdData.target[0].search(/^[a-zA-Z0-9_-]+$/) !== -1) {
     // Target is just name of the project. Needs to be extended.
     source = "git@bitbucket.org:jcodigital/" + source + ".git";
     if (!jcoreSettingsData.projectName) {
       // Set argument as project name if second argument not given.
-      jcoreSettingsData.projectName = data.target[0];
+      jcoreSettingsData.projectName = jcoreCmdData.target[0];
     }
   } else if (!jcoreSettingsData.projectName) {
     // If full git path and not second argument given, read project name from git path.
-    const path = parse(data.target[0]);
+    const path = parse(jcoreCmdData.target[0]);
     jcoreSettingsData.projectName = path.name;
   }
 

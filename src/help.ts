@@ -1,13 +1,13 @@
-import { cmdData } from "@/types";
 import { jcoreRuntimeData } from "@/settings";
 import { commands, optionDefinition } from "@/constants";
 import { logger } from "@/logger";
-import { getFlagValue } from "@/utils";
+import { getFlag } from "@/utils";
+import { jcoreCmdData } from "@/parser";
 
-export function help(cmd: cmdData) {
+export function help() {
   logger.info(`Usage: ${jcoreRuntimeData.exec} <command> [options] <target>`);
 
-  if (getFlagValue(cmd, "help")) {
+  if (getFlag("help")) {
     const padding = 16;
     logger.info("\nPossible commands:");
     for (const cmd of commands) {
@@ -16,17 +16,19 @@ export function help(cmd: cmdData) {
 
     logger.info("\nPossible options:");
     for (const option of optionDefinition) {
-      logger.info(("--" + option.name + " / -" + option.alias).padEnd(padding) + " - " + option.description);
+      logger.info(
+        ("--" + option.name + " / -" + option.alias).padEnd(padding) + " - " + option.description
+      );
     }
   } else {
     logger.info("Use flag --help for more info.");
   }
 }
 
-export function helpCmd(cmd: cmdData, text = true, usage = true) {
+export function helpCmd(text = true, usage = true) {
   const padding = 16;
   for (const command of commands) {
-    if (cmd.cmd === command.cmd) {
+    if (jcoreCmdData.cmd === command.cmd) {
       logger.info("");
       if (text) {
         logger.info(command.text);

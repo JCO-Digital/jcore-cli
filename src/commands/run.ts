@@ -1,14 +1,15 @@
 import { execSync, spawnSync } from "child_process";
 import { join } from "path";
-import { cmdData, jcoreProject } from "@/types";
+import { jcoreProject } from "@/types";
 import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { existsSync } from "fs";
-import { getFlagValue, getSetupFolder } from "@/utils";
+import { getFlag, getSetupFolder } from "@/utils";
+import { jcoreCmdData } from "@/parser";
 
-export function start(data: cmdData) {
-  if (finalizeProject(getFlagValue(data, "install"))) {
+export function start() {
+  if (finalizeProject(getFlag("install"))) {
     // Run only if finalize is successful.
 
     const options = {
@@ -42,7 +43,7 @@ export function stop(path = jcoreRuntimeData.workDir) {
   }
 }
 
-export function pull(data: cmdData) {
+export function pull() {
   const scriptPath = getSetupFolder("scripts", true);
   const pluginScript = join(scriptPath, "importplugins");
   const dbScript = join(scriptPath, "importdb");
@@ -51,16 +52,16 @@ export function pull(data: cmdData) {
 
   // Set initial run flags.
   const runFlags = {
-    plugins: data.target.includes("plugins"),
-    db: data.target.includes("db"),
-    media: data.target.includes("media"),
+    plugins: jcoreCmdData.target.includes("plugins"),
+    db: jcoreCmdData.target.includes("db"),
+    media: jcoreCmdData.target.includes("media"),
   };
 
-  if (data.target.length === 0) {
+  if (jcoreCmdData.target.length === 0) {
     // If no target given, default to plugins and db.
     runFlags.plugins = true;
     runFlags.db = true;
-  } else if (data.target.includes("all")) {
+  } else if (jcoreCmdData.target.includes("all")) {
     // If "all", set all flags.
     runFlags.plugins = true;
     runFlags.db = true;
@@ -199,14 +200,14 @@ export function runCommand(command: string, spawn = false) {
   }
 }
 
-export function attach(data: cmdData) {
+export function attach() {
   const options = {
     cwd: jcoreRuntimeData.workDir,
     stdio: [0, 1, 2],
   };
   logger.info("Attaching to logs");
   try {
-    const command = `docker compose logs -f --since 5m ${data.target}`;
+    const command = `docker compose logs -f --since 5m ${jcoreCmdData.target}`;
     execSync(command, options);
   } catch (e) {
     logger.warn("Failed to attach to logs");

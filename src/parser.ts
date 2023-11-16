@@ -1,12 +1,11 @@
 import { cmdSchema } from "@/types";
-import { commands, flagReturnType, logLevels, optionDefinition } from "@/constants";
+import { commands, configScope, flagReturnType, logLevels, optionDefinition } from "@/constants";
 import { parse } from "path";
 import { jcoreRuntimeData } from "@/settings";
 
 export const jcoreCmdData = cmdSchema.parse({});
 
 export default function parser(args: Array<string>) {
-
   if (args.length > 1) {
     jcoreRuntimeData.nodePath = args.shift() ?? "";
     jcoreRuntimeData.execPath = args.shift() ?? "";
@@ -56,6 +55,12 @@ function matchFlag(flag: string, value: string | undefined): flagReturnType {
 
 function setFlagValue(flag: string, value: boolean | string | number) {
   switch (flag) {
+    case "global":
+      jcoreCmdData.scope = configScope.GLOBAL;
+      return;
+    case "local":
+      jcoreCmdData.scope = configScope.LOCAL;
+      return;
     case "debug":
       jcoreCmdData.logLevel = logLevels.DEBUG;
       return;

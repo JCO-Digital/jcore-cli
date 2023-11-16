@@ -1,4 +1,4 @@
-import { cmdData, configValue } from "@/types";
+import { configValue } from "@/types";
 import {
   getScopeConfigFile,
   jcoreRuntimeData,
@@ -10,12 +10,13 @@ import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
 import { childGit, childPath, configScope, jcoreGit, jcorePath } from "@/constants";
 import { logger } from "@/logger";
-import { getFlagValue, copyFiles, nameToFolder } from "@/utils";
+import { getFlag, copyFiles, nameToFolder, getFlagString } from "@/utils";
 import { join } from "path";
 import process from "process";
+import { jcoreCmdData } from "@/parser";
 
-export function createProject(data: cmdData) {
-  jcoreSettingsData.projectName = data.target[0];
+export function createProject() {
+  jcoreSettingsData.projectName = jcoreCmdData.target[0];
   jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
   if (existsSync(jcoreRuntimeData.workDir)) {
     logger.warn("Project path exists: " + jcoreRuntimeData.workDir);
@@ -35,7 +36,7 @@ export function createProject(data: cmdData) {
     };
 
     // Get the requested branch
-    const branch = getFlagValue(data, "branch");
+    const branch = getFlagString("branch");
 
     if (branch) {
       jcoreSettingsData.branch = branch;
@@ -56,7 +57,7 @@ export function createProject(data: cmdData) {
       execSync("git submodule add -f " + extra + ' "' + childGit + '" ' + childPath, options);
 
       // Copy child theme.
-      if (!getFlagValue(data, "nochild")) {
+      if (!getFlag("nochild")) {
         copyChildTheme(jcoreSettingsData.projectName);
         jcoreSettingsData.theme = jcoreSettingsData.projectName;
         settings.theme = jcoreSettingsData.projectName;

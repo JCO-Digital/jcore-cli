@@ -1,5 +1,4 @@
-import type { cmdData, updateOptions } from "@/types";
-import { fetchVersion, getFileString, getFlagValue } from "@/utils";
+import { fetchVersion, getFileString, getFlag } from "@/utils";
 import { scriptLocation, scriptName } from "@/constants";
 import { writeFile } from "fs/promises";
 import { updateFiles } from "@/project";
@@ -8,14 +7,9 @@ import { logger } from "@/logger";
 import semver from "semver/preload";
 import { join } from "path";
 
-export default function (data: cmdData) {
-  const options = {
-    force: getFlagValue(data, "force"),
-    target: data.target,
-  } as updateOptions;
-
+export default function () {
   logger.info("Updating Project");
-  updateFiles(options)
+  updateFiles()
     .then(() => {
       logger.info("Update Finished");
     })
@@ -24,8 +18,8 @@ export default function (data: cmdData) {
     });
 }
 
-export function selfUpdate(data: cmdData) {
-  const force = getFlagValue(data, "force");
+export function selfUpdate() {
+  const force = getFlag("force");
   fetchVersion()
     .then((version) => versionCheck(version, force))
     .then((version) => {

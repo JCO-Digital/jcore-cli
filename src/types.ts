@@ -1,22 +1,23 @@
 import { z } from "zod";
+import { configScope } from "@/constants";
 
 export type configValue = string | number | boolean | Array<string>;
 
 export const flagsSchema = z.object({});
 export type flagData = z.infer<typeof flagsSchema>;
 
-
 export const cmdSchema = z.object({
   cmd: z.string().default(""),
   target: z.array(z.string()).default([]),
   logLevel: z.number().default(2),
+  scope: z.number().default(configScope.PROJECT),
   flags: z.map(z.string(), z.union([z.boolean(), z.string(), z.number()])).default(new Map()),
 });
 export type jcoreCmd = z.infer<typeof cmdSchema>;
 
 export const updateSchema = z.object({
   force: z.boolean(),
-  target: z.array(z.string())
+  target: z.array(z.string()),
 });
 export type updateOptions = z.infer<typeof updateSchema>;
 
@@ -25,7 +26,7 @@ export const runtimeSchema = z.object({
   execPath: z.string().default(""),
   inProject: z.boolean().default(false),
   nodePath: z.string().default(""),
-  workDir: z.string().default("")
+  workDir: z.string().default(""),
 });
 
 export type jcoreRuntime = z.infer<typeof runtimeSchema>;
@@ -52,20 +53,20 @@ export const settingsSchema = z.object({
   wpDebug: z.boolean().default(true),
   wpDebugDisplay: z.boolean().default(true),
   wpDebugLog: z.boolean().default(false),
-  wpImage: z.string().default("")
+  wpImage: z.string().default(""),
 });
 export type jcoreSettings = z.infer<typeof settingsSchema>;
 
 export const projectSchema = z.object({
   name: z.string(),
   path: z.string(),
-  running: z.boolean()
+  running: z.boolean(),
 });
 export type jcoreProject = z.infer<typeof projectSchema>;
 
 export const dataSchema = z.object({
   version: z.string().default(""),
   latest: z.string().default(""),
-  lastCheck: z.number().default(0)
+  lastCheck: z.number().default(0),
 });
 export type jcoreData = z.infer<typeof dataSchema>;

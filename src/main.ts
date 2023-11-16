@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import parser from "@/parser";
+import { jcoreCmdData } from "@/parser";
 import { readSettings, jcoreSettingsData, jcoreDataData, jcoreRuntimeData } from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
@@ -7,7 +7,7 @@ import { logger } from "@/logger";
 import { version } from "../package.json";
 import semver from "semver/preload";
 import { init } from "@sentry/node";
-import { getFlagValue } from "./utils";
+import { getFlag } from "./utils";
 
 // Initialize Sentry.
 init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
@@ -33,17 +33,17 @@ function initCli() {
     logger.verbose("Project: " + jcoreSettingsData.projectName);
   }
 
-  if (data.cmd) {
-    if (getFlagValue(data, "help")) {
+  if (jcoreCmdData.cmd) {
+    if (getFlag("help")) {
       // Show help text for command.
-      helpCmd(data);
+      helpCmd(jcoreCmdData.cmd);
     } else {
       // Run the command.
-      runCmd(data);
+      runCmd();
     }
   } else {
     // Show generic help text.
-    help(data);
+    help();
   }
 }
 

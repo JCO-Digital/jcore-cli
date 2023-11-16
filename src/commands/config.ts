@@ -1,4 +1,4 @@
-import { cmdData, configValue, settingsSchema } from "@/types";
+import { configValue, settingsSchema } from "@/types";
 import {
   deleteSetting,
   getConfig,
@@ -7,28 +7,24 @@ import {
   setConfigValue,
 } from "@/settings";
 import { logger } from "@/logger";
-import { getFlagValue } from "@/utils";
 import { configScope } from "@/constants";
 import chalk from "chalk";
+import { jcoreCmdData } from "@/parser";
 
-export function config(data: cmdData) {
-  const scope = getFlagValue(data, "global")
-    ? configScope.GLOBAL
-    : getFlagValue(data, "local")
-    ? configScope.LOCAL
-    : configScope.PROJECT;
-  switch (data.target[0].toLowerCase()) {
+export function config() {
+  const scope = jcoreCmdData.scope;
+  switch (jcoreCmdData.target[0].toLowerCase()) {
     case "list":
-      list((data.target[1] ?? "all").toLowerCase());
+      list((jcoreCmdData.target[1] ?? "all").toLowerCase());
       break;
     case "set":
-      if (data.target.length > 2) {
-        set(data.target[1], data.target.slice(2), scope);
+      if (jcoreCmdData.target.length > 2) {
+        set(jcoreCmdData.target[1], jcoreCmdData.target.slice(2), scope);
       }
       break;
     case "unset":
-      if (data.target.length > 1) {
-        unset(data.target[1], scope);
+      if (jcoreCmdData.target.length > 1) {
+        unset(jcoreCmdData.target[1], scope);
       }
       break;
   }

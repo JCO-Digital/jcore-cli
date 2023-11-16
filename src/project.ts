@@ -6,10 +6,10 @@ import {
   calculateChecksum,
   getSetupFolder,
   createEnv,
+  getFlag,
 } from "@/utils";
 import { archiveLocation, updateFolder } from "@/constants";
 import { join, parse } from "path";
-import { updateOptions } from "@/types";
 import {
   existsSync,
   lstatSync,
@@ -24,13 +24,9 @@ import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
+import { jcoreCmdData } from "@/parser";
 
-const defaultOptions = {
-  force: false,
-  target: [],
-} as updateOptions;
-
-export async function updateFiles(options: updateOptions = defaultOptions) {
+export async function updateFiles() {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
 
   if (!jcoreSettingsData.projectName || jcoreRuntimeData.workDir === "/") {
@@ -53,14 +49,14 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
       force: true,
     });
 
-    if (options.target.length === 0) {
+    if (jcoreCmdData.target.length === 0) {
       // Remove old setup folder if updating all files.
       logger.verbose("Remove old setup folder.");
       rmSync(join(jcoreRuntimeData.workDir, ".config"), { recursive: true, force: true });
     }
 
     // Move updated project files to project folder.
-    moveFiles(updatePath, jcoreRuntimeData.workDir, "", checksums, options);
+    moveFiles(updatePath, jcoreRuntimeData.workDir, "", checksums);
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
@@ -76,14 +72,12 @@ export async function updateFiles(options: updateOptions = defaultOptions) {
  * @param destinationDir Destination Folder
  * @param path Relative path
  * @param checksums File checksum map, or null to skip checksums.
- * @param options Some options passed to the command.
  */
 export function moveFiles(
   sourceDir: string,
   destinationDir: string,
   path: string,
-  checksums: Map<string, string>,
-  options: updateOptions
+  checksums: Map<string, string>
 ) {
   if (!existsSync(join(destinationDir, path))) {
     // Create target if not exists.
@@ -103,12 +97,12 @@ export function moveFiles(
         mkdirSync(join(destinationDir, filePath));
       }
       // Merge files in folder.
-      moveFiles(sourceDir, destinationDir, filePath, checksums, options);
+      moveFiles(sourceDir, destinationDir, filePath, checksums);
     } else {
       // Current path is a file.
-      if (options.target.length === 0 || options.target.includes(filePath)) {
+      if (jcoreCmdData.target.length === 0 || jcoreCmdData.target.includes(filePath)) {
         // Only run if no target given, or file is in target list.
-        const fileInfo = getFileInfo(destinationDir, filePath, checksums, options);
+        const fileInfo = getFileInfo(destinationDir, filePath, checksums);
 
         if (fileInfo.overwrite) {
           // File should be overwritten.
@@ -130,12 +124,7 @@ export function moveFiles(
   }
 }
 
-function getFileInfo(
-  path: string,
-  file: string,
-  checksums: Map<string, string>,
-  options: updateOptions
-) {
+function getFileInfo(path: string, file: string, checksums: Map<string, string>) {
   const files: Record<string, object> = {
     "readme.md": {
       force: false,
@@ -199,7 +188,7 @@ function getFileInfo(
   );
 
   // Check if force flag is set and file is allowed to be forced or targeted.
-  if (options.force && (fileInfo.force || options.target.includes(fileInfo.target))) {
+  if (getFlag("force") && (fileInfo.force || jcoreCmdData.target.includes(fileInfo.target))) {
     logger.debug(`Force overwrite ${fileInfo.target}`);
     fileInfo.overwrite = true;
     return fileInfo;

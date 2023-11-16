@@ -14,10 +14,11 @@ import {
 } from "fs";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
-import { cmdData, configValue } from "@/types";
+import { configValue } from "@/types";
 import { parse as tomlParse, TomlError } from "smol-toml";
 import { ZodError } from "zod";
 import process from "process";
+import { jcoreCmdData } from "@/parser";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -181,8 +182,34 @@ export function nameToFolder(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/, "-");
 }
 
-export function getFlagValue(cmd: cmdData, name: string): boolean | string | number {
-  return cmd.flags.has(name) ? cmd.flags.get(name) : false;
+export function getFlag(name: string): boolean {
+  if (jcoreCmdData.flags.has(name)) {
+    const value = jcoreCmdData.flags.get(name);
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+  return false;
+}
+
+export function getFlagString(name: string): string | undefined {
+  if (jcoreCmdData.flags.has(name)) {
+    const value = jcoreCmdData.flags.get(name);
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+export function getFlagNumber(name: string): number | undefined {
+  if (jcoreCmdData.flags.has(name)) {
+    const value = jcoreCmdData.flags.get(name);
+    if (typeof value === "number") {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 export function getSetupFolder(appendPath = "", inContainer = false): string {
