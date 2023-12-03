@@ -2,10 +2,10 @@
  * Legacy functions.
  */
 
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { logger } from "@/logger";
-import { join } from "path";
-import { homedir } from "os";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { jcoreRuntimeData, jcoreSettingsData, saveConfigFile } from "@/settings";
 
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
@@ -27,6 +27,7 @@ export function convertGlobalSettings(globalConfig: string) {
         logLevel: isNaN(logLevel) ? 2 : logLevel,
         install: values.get("install") === "true",
       });
+      unlinkSync(globalConfigLegacy);
     } catch (e) {
       logger.error("Global settings conversion failed.");
     }
@@ -68,7 +69,9 @@ export function convertProjectSettings(projectConfigFilename: string) {
 
       const newValues = {
         projectName: values.get("name"),
+        template: "jcore2",
         theme: values.get("theme"),
+        branch: values.get("branch"),
         remoteHost: values.get("remotehost"),
         remotePath: values.get("remotepath"),
         replace,
@@ -82,6 +85,8 @@ export function convertProjectSettings(projectConfigFilename: string) {
         install: values.get("install") === "true",
       };
       saveConfigFile(localConfig, newValues);
+      // Delete old file.
+      unlinkSync(localConfigLegacy);
     } catch (e) {
       logger.error("Error converting project settings.");
     }
