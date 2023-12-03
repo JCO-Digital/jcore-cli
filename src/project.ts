@@ -183,7 +183,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
       replace: [
         {
           search: /"name": "[^"]+"/,
-          replace: `"name": "${jcoreSettingsData.projectName}",`,
+          replace: `"name": "${jcoreSettingsData.projectName}"`,
         },
       ],
     },

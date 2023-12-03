@@ -33,7 +33,7 @@ export async function queryProject() {
     templates.set(template, templateSchema.parse(data[template]));
   }
 
-  const questions: Array<any> = [];
+  const questions: Array<object> = [];
   if (!projectData.projectName) {
     questions.push({
       type: "input",
