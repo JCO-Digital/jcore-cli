@@ -107,11 +107,15 @@ function readProjectSettings() {
   // Add local settings if in project.
   getConfig(configScope.LOCAL, data);
 
-  const result = settingsSchema.safeParse(data);
-  if (result.success) {
+  if (!data.template) {
+    data.template = "jcore2";
+  }
+
+  try {
+    const result = settingsSchema.parse(data);
     // Safe parse the resulting data into a new settings object.
-    Object.assign(jcoreSettingsData, result.data);
-  } else {
+    Object.assign(jcoreSettingsData, result);
+  } catch (error) {
     logger.error("Invalid data in settings file.");
     process.exit();
   }
