@@ -36,7 +36,7 @@ function initCli() {
   if (jcoreCmdData.cmd) {
     if (getFlag("help")) {
       // Show help text for command.
-      helpCmd(jcoreCmdData.cmd);
+      helpCmd();
     } else {
       // Run the command.
       runCmd();

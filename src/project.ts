@@ -55,8 +55,17 @@ export async function updateFiles() {
       rmSync(join(jcoreRuntimeData.workDir, ".config"), { recursive: true, force: true });
     }
 
-    // Move updated project files to project folder.
-    moveFiles(updatePath, jcoreRuntimeData.workDir, "", checksums);
+    logger.debug("Move updated project files to project folder.");
+    moveFiles(updatePath, jcoreRuntimeData.workDir, checksums, {
+      exclude: ["templates", "package.json"],
+    });
+    logger.debug("Move template files to project folder.");
+    moveFiles(
+      join(updatePath, "templates", jcoreSettingsData.template),
+      jcoreRuntimeData.workDir,
+      checksums
+    );
+    // Save new checksums.
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
@@ -66,41 +75,60 @@ export async function updateFiles() {
   }
 }
 
+interface fileOptions {
+  path?: string;
+  exclude?: Array<string>;
+  include?: Array<string>;
+}
+
 /**
  * Moves source to destination, merging with existing structure, overwriting files with checksum validation.
  * @param sourceDir Source Folder
  * @param destinationDir Destination Folder
- * @param path Relative path
  * @param checksums File checksum map, or null to skip checksums.
+ * @param options File options: path, exclude, include.
  */
 export function moveFiles(
   sourceDir: string,
   destinationDir: string,
-  path: string,
-  checksums: Map<string, string>
+  checksums: Map<string, string>,
+  options: fileOptions = {}
 ) {
-  if (!existsSync(join(destinationDir, path))) {
+  const opt = Object.assign(
+    {
+      path: "",
+      include: [],
+      exclude: [],
+    },
+    options
+  );
+
+  if (!existsSync(join(destinationDir, opt.path))) {
     // Create target if not exists.
     logger.verbose("Creating target folder: " + destinationDir);
-    mkdirSync(join(destinationDir, path), { recursive: true });
+    mkdirSync(join(destinationDir, opt.path), { recursive: true });
   }
-  for (const file of readdirSync(join(sourceDir, path))) {
-    if (file === ".git") {
+  for (const file of readdirSync(join(sourceDir, opt.path))) {
+    const filePath = join(opt.path, file);
+    if (file === ".git" || opt.exclude.includes(filePath)) {
       // Skip .git folder.
+      logger.debug(`Excluding ${filePath}.`);
       continue;
     }
-    const filePath = join(path, file);
     if (lstatSync(join(sourceDir, filePath)).isDirectory()) {
+      logger.debug(`${filePath} is a folder.`);
       // Current path is a folder.
       if (!existsSync(join(destinationDir, filePath))) {
+        logger.debug(`Creating ${filePath}.`);
         // Create destination folder if it doesn't exist.
         mkdirSync(join(destinationDir, filePath));
       }
       // Merge files in folder.
-      moveFiles(sourceDir, destinationDir, filePath, checksums);
+      moveFiles(sourceDir, destinationDir, checksums, { ...opt, path: filePath });
     } else {
       // Current path is a file.
-      if (jcoreCmdData.target.length === 0 || jcoreCmdData.target.includes(filePath)) {
+      if (opt.include.length === 0 || opt.include.includes(filePath)) {
+        logger.debug(`${filePath} is a file.`);
         // Only run if no target given, or file is in target list.
         const fileInfo = getFileInfo(destinationDir, filePath, checksums);
 
@@ -139,8 +167,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
         },
       ],
     },
-    "project.drone.yml": {
-      target: ".drone.yml",
+    ".drone.yml": {
       force: true,
       checksum: true,
       replace: [
@@ -155,7 +182,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
       checksum: true,
       replace: [
         {
-          search: '"name": "jcore",',
+          search: /"name": "[^"]+"/,
           replace: `"name": "${jcoreSettingsData.projectName}",`,
         },
       ],
@@ -163,12 +190,6 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
     "docker-compose.yml": {
       force: true,
       checksum: true,
-      replace: [
-        {
-          search: "- docker.localhost",
-          replace: "- " + jcoreSettingsData.projectName + ".localhost",
-        },
-      ],
     },
     "composer.json": {
       force: false,
@@ -197,7 +218,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
   // If destination doesn't exist, set overwrite.
   const destination = join(path, fileInfo.target);
   if (!existsSync(destination)) {
-    logger.debug(`File ${fileInfo.target} doesn't exist, overwriting.`);
+    logger.debug(`File ${fileInfo.target} doesn't exist, writing.`);
     fileInfo.overwrite = true;
     return fileInfo;
   }
@@ -265,21 +286,24 @@ export function finalizeProject(install = true): boolean {
 
   if (jcoreSettingsData.install || install) {
     // Install npm packages.
-    try {
-      if (existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))) {
-        logger.info("Installing npm packages from lock file.");
-        execSync("npm ci --silent --no-fund", options);
-      } else {
-        logger.info("Installing npm packages.");
-        execSync("npm i --silent --no-fund", options);
+    if (existsSync(join(jcoreRuntimeData.workDir, "package.json"))) {
+      try {
+        if (existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))) {
+          logger.info("Installing npm packages from lock file.");
+          execSync("npm ci --silent --no-fund", options);
+        } else {
+          logger.info("Installing npm packages.");
+          execSync("npm i --silent --no-fund", options);
+        }
+      } catch (e) {
+        logger.warn("Running npm failed.");
+        return false;
       }
-    } catch (e) {
-      logger.warn("Running npm failed.");
-      return false;
     }
 
-    // Install Composer packages.
-    logger.info("Installing composer packages.");
+    if (existsSync(join(jcoreRuntimeData.workDir, "composer.json")))
+      // Install Composer packages.
+      logger.info("Installing composer packages.");
     try {
       execSync("composer install --quiet", options);
     } catch (e) {
@@ -289,7 +313,7 @@ export function finalizeProject(install = true): boolean {
 
     // Update docker images.
     logger.info("Update Docker Images.");
-    execSync("docker-compose pull", options);
+    execSync("docker compose pull", options);
   }
   return true;
 }

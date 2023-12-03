@@ -14,7 +14,7 @@ import {
 } from "@/commands/run";
 import { getFlag, isProject } from "@/utils";
 import { helpCmd } from "@/help";
-import { copyChildTheme, createProject } from "@/commands/create";
+import { copyChildTheme, queryProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
 import { doctor } from "@/commands/doctor";
@@ -106,11 +106,9 @@ export function runCmd(): void {
     case "init":
       if (isProject(false)) {
         // Create new project.
-        if (jcoreCmdData.target[0]) {
-          createProject();
-        } else {
-          helpCmd(false);
-        }
+        queryProject().catch((reason) => {
+          logger.error(reason.toString());
+        });
       }
       break;
     case "pull":

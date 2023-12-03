@@ -2,8 +2,8 @@ import * as process from "process";
 import { join, parse } from "path";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
 import { homedir } from "os";
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
-import { config, version } from "../package.json";
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { version } from "../package.json";
 import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
 import { logger } from "@/logger";
 import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
@@ -15,7 +15,7 @@ import {
 } from "@/legacy";
 import chalk from "chalk";
 import { formatValue } from "@/commands/config";
-import parser from "@/parser";
+import parser, { jcoreCmdData } from "@/parser";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
@@ -44,13 +44,13 @@ const globalData = join(homedir(), ".config/jcore/data.json");
 export async function readSettings() {
   parser(process.argv);
 
+  // Set initial logLevel for settings function.
+  jcoreSettingsData.logLevel = jcoreCmdData.logLevel;
+
   // Find the project base path.
-  const info = parse(projectConfigFilename);
-  const jsonFile = projectConfigFilename.replace(info.ext, ".json");
   while (
     jcoreRuntimeData.workDir.length > 1 &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename)) &&
-    !existsSync(join(jcoreRuntimeData.workDir, jsonFile)) &&
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigLegacyFilename))
   ) {
     // Go up one level and try again.
@@ -68,17 +68,18 @@ export async function readSettings() {
 
   // Convert old format to new.
   convertGlobalSettings(globalConfig);
-  // Read global settings.
-  readProjectSettings();
 
   if (jcoreRuntimeData.inProject) {
     // Convert project settings if in project.
     convertProjectSettings(projectConfigFilename);
+  }
 
-    if (!jcoreSettingsData.branch) {
-      // Set default branch if not set.
-      jcoreSettingsData.branch = config.branch;
-    }
+  // Read global settings.
+  readProjectSettings();
+
+  if (jcoreCmdData.logLevel !== 2) {
+    // If commandline log level is set, overwrite saved level.
+    jcoreSettingsData.logLevel = jcoreCmdData.logLevel;
   }
 
   versionCheck()
@@ -234,9 +235,6 @@ export function updateConfigValues(settings: Record<string, configValue>, file: 
 }
 
 function loadConfigFile(file: string): Record<string, configValue> {
-  const info = parse(file);
-  const jsonFile = file.replace(info.ext, ".json");
-
   if (existsSync(file)) {
     try {
       const toml = readFileSync(file, "utf8");
@@ -246,28 +244,14 @@ function loadConfigFile(file: string): Record<string, configValue> {
       parseErrorHandler(error, file);
       process.exit();
     }
-  } else if (existsSync(jsonFile)) {
-    try {
-      const json = readFileSync(jsonFile, "utf8");
-      const parsed = JSON.parse(json);
-      return settingsSchema.partial().parse(parsed);
-    } catch {
-      logger.error(`JSON parse error in file ${jsonFile}`);
-      process.exit();
-    }
   }
   return {};
 }
 
 export function saveConfigFile(file: string, data: Record<string, configValue | undefined>) {
   try {
-    const info = parse(file);
-    const jsonFile = file.replace(info.ext, ".json");
     const dataString = tomlStringify(data);
     writeFileSync(file, dataString, "utf8");
-    if (existsSync(jsonFile)) {
-      unlinkSync(jsonFile);
-    }
   } catch {
     logger.error(`Error in writing config file: ${file}`);
     process.exit();

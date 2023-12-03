@@ -33,6 +33,7 @@ export type jcoreRuntime = z.infer<typeof runtimeSchema>;
 
 export const settingsSchema = z.object({
   branch: z.string().default(""),
+  template: z.string().default("jcore2"),
   dbExclude: z.array(z.string()).default([]),
   debug: z.boolean().default(false),
   domains: z.array(z.string()).default([]),
@@ -70,3 +71,17 @@ export const dataSchema = z.object({
   lastCheck: z.number().default(0),
 });
 export type jcoreData = z.infer<typeof dataSchema>;
+
+export const submoduleSchema = z.object({
+  path: z.string(),
+  repo: z.string(),
+  useBranch: z.boolean().default(false),
+});
+export type jcoreSubmodule = z.infer<typeof submoduleSchema>;
+export const templateSchema = z.object({
+  branch: z.string(),
+  branches: z.array(z.string()),
+  child: z.boolean().default(false),
+  submodules: z.array(submoduleSchema).default([]),
+});
+export type jcoreTemplate = z.infer<typeof templateSchema>;
