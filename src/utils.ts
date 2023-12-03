@@ -14,7 +14,7 @@ import {
 } from "fs";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
-import { configValue } from "@/types";
+import { configValue, jsonValue } from "@/types";
 import { parse as tomlParse, TomlError } from "smol-toml";
 import { ZodError } from "zod";
 import process from "process";
@@ -101,7 +101,13 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
 
 export function loadChecksums(): Map<string, string> {
   const data = loadJsonFile(join(jcoreRuntimeData.workDir, checksumFile));
-  return new Map(Object.entries(data));
+  const checksums = new Map<string, string>();
+  Object.entries(data).forEach(([key, value]) => {
+    if (typeof value === "string") {
+      checksums.set(key, value);
+    }
+  });
+  return checksums;
 }
 
 export function saveChecksums(checksums: Map<string, string>): boolean {
@@ -115,7 +121,7 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   }
 }
 
-export function loadJsonFile(file: string): Record<string, any> {
+export function loadJsonFile(file: string): Record<string, jsonValue> {
   if (existsSync(file)) {
     try {
       const json = readFileSync(file, "utf8");
@@ -217,7 +223,7 @@ export function getSetupFolder(appendPath = "", inContainer = false): string {
   return join(path, ".config", appendPath);
 }
 
-export function parseErrorHandler(error: any, file: string) {
+export function parseErrorHandler(error: unknown, file: string) {
   if (error instanceof TomlError) {
     logger.error(`TOML error in file ${file} on line ${error.line}`);
     logger.debug(error.message);

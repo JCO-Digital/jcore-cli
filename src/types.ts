@@ -2,6 +2,13 @@ import { z } from "zod";
 import { configScope } from "@/constants";
 
 export type configValue = string | number | boolean | Array<string>;
+export type jsonValue =
+  | Array<string | number | boolean>
+  | object
+  | string
+  | number
+  | boolean
+  | null;
 
 export const flagsSchema = z.object({});
 export type flagData = z.infer<typeof flagsSchema>;
