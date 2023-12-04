@@ -6,10 +6,11 @@ import { jcoreDataData, jcoreRuntimeData } from "@/settings";
 import { logger } from "@/logger";
 import semver from "semver/preload";
 import { join } from "path";
+import { jcoreCmdData } from "@/parser";
 
 export default function () {
   logger.info("Updating Project");
-  updateFiles()
+  updateFiles(jcoreCmdData.target)
     .then(() => {
       logger.info("Update Finished");
     })

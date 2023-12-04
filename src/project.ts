@@ -26,7 +26,7 @@ import { execSync } from "child_process";
 import { checkFolders } from "@/commands/doctor";
 import { jcoreCmdData } from "@/parser";
 
-export async function updateFiles() {
+export async function updateFiles(include: Array<string> = []) {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
 
   if (!jcoreSettingsData.projectName || jcoreRuntimeData.workDir === "/") {
@@ -57,13 +57,15 @@ export async function updateFiles() {
 
     logger.debug("Move updated project files to project folder.");
     moveFiles(updatePath, jcoreRuntimeData.workDir, checksums, {
+      include,
       exclude: ["templates", "package.json"],
     });
     logger.debug("Move template files to project folder.");
     moveFiles(
       join(updatePath, "templates", jcoreSettingsData.template),
       jcoreRuntimeData.workDir,
-      checksums
+      checksums,
+      { include }
     );
     // Save new checksums.
     saveChecksums(checksums);
