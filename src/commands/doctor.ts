@@ -53,6 +53,11 @@ export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): bo
       pass = false;
     }
   }
+
+  if (!checkDocker()) {
+    pass = false;
+  }
+
   return pass;
 }
 
@@ -85,4 +90,22 @@ function processFolder(path: string, logLevel: number): boolean {
     }
   }
   return false;
+}
+
+export function checkDocker() : boolean {
+  const options = {
+    stdio: ["pipe", "pipe", "ignore"] as StdioOptions,
+  };
+
+  try {
+    const output = execSync("docker info", options).toString();
+    logger.verbose("Docker info succeeded.");
+    logger.debug(output);
+  } catch (e) {
+    logger.error("Docker test run failed.");
+    logger.warn("Docker service might not be running.");
+    return false;
+  }
+
+  return true;
 }

@@ -23,7 +23,7 @@ import {
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { logger } from "@/logger";
 import { execSync } from "child_process";
-import { checkFolders } from "@/commands/doctor";
+import { checkDocker, checkFolders } from "@/commands/doctor";
 import { jcoreCmdData } from "@/parser";
 
 export async function updateFiles(include: Array<string> = []) {
@@ -250,7 +250,7 @@ export function finalizeProject(install = true): boolean {
     stdio: [0, 1, 2],
   };
 
-  if (!checkFolders()) {
+  if (!checkFolders() || !checkDocker()) {
     return false;
   }
 
