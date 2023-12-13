@@ -92,7 +92,7 @@ function processFolder(path: string, logLevel: number): boolean {
   return false;
 }
 
-export function checkDocker() : boolean {
+export function checkDocker(): boolean {
   const options = {
     stdio: ["pipe", "pipe", "ignore"] as StdioOptions,
   };
