@@ -49,9 +49,9 @@ export async function updateFiles(include: Array<string> = []) {
       force: true,
     });
 
-    if (jcoreCmdData.target.length === 0) {
+    if (getFlag("force") && jcoreCmdData.target.length === 0) {
       // Remove old setup folder if updating all files.
-      logger.verbose("Remove old setup folder.");
+      logger.info("Remove old setup folder.");
       rmSync(join(jcoreRuntimeData.workDir, ".config"), { recursive: true, force: true });
     }
 
@@ -203,7 +203,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
     {
       target: file, // Destination has different name.
       force: true, // Allow overwrite with force flag.
-      checksum: false, // Is file allowed to be overwritten on missing checksum.
+      checksum: false, // If false allow overwrite on missing checksum.
       replace: [], // String replace in file.
       overwrite: false, // Flag to tell "moveFiles" to overwrite file.
     },
