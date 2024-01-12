@@ -1,3 +1,16 @@
+import { execSync } from "child_process";
+import { existsSync, mkdirSync } from "fs";
+import { join } from "path";
+import { childPath, configScope, templatesLocation } from "@/constants";
+import { logger } from "@/logger";
+import { jcoreCmdData } from "@/parser";
+import { finalizeProject, replaceInFile, updateFiles } from "@/project";
+import {
+  getScopeConfigFile,
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  updateConfigValues,
+} from "@/settings";
 import {
   configValue,
   jcoreSubmodule,
@@ -5,27 +18,14 @@ import {
   templateSchema,
 } from "@/types";
 import {
-  getScopeConfigFile,
-  jcoreRuntimeData,
-  jcoreSettingsData,
-  updateConfigValues,
-} from "@/settings";
-import { existsSync, mkdirSync } from "fs";
-import { execSync } from "child_process";
-import { finalizeProject, replaceInFile, updateFiles } from "@/project";
-import { childPath, configScope, templatesLocation } from "@/constants";
-import { logger } from "@/logger";
-import {
-  getFlag,
   copyFiles,
-  nameToFolder,
-  getFlagString,
   getFileString,
+  getFlag,
+  getFlagString,
+  nameToFolder,
 } from "@/utils";
-import { join } from "path";
-import process from "process";
-import { jcoreCmdData } from "@/parser";
 import inquirer from "inquirer";
+import process from "process";
 import { parse as tomlParse } from "smol-toml";
 
 export async function queryProject() {

@@ -1,12 +1,12 @@
-import { fetchVersion, getFileString, getFlag } from "@/utils";
+import { join } from "path";
 import { scriptLocation, scriptName } from "@/constants";
-import { writeFile } from "fs/promises";
+import { logger } from "@/logger";
+import { jcoreCmdData } from "@/parser";
 import { updateFiles } from "@/project";
 import { jcoreDataData, jcoreRuntimeData } from "@/settings";
-import { logger } from "@/logger";
+import { fetchVersion, getFileString, getFlag } from "@/utils";
+import { writeFile } from "fs/promises";
 import semver from "semver/preload";
-import { join } from "path";
-import { jcoreCmdData } from "@/parser";
 
 export default function () {
   logger.info("Updating Project");

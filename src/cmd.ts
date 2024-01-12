@@ -1,5 +1,8 @@
-import type { jcoreProject } from "@/types";
-import update, { selfUpdate } from "@/commands/update";
+import { listChecksums, setChecksum } from "@/commands/checksum";
+import { cloneProject } from "@/commands/clone";
+import { config } from "@/commands/config";
+import { copyChildTheme, queryProject } from "@/commands/create";
+import { doctor } from "@/commands/doctor";
 import {
   attach,
   cleanAll,
@@ -12,21 +15,18 @@ import {
   start,
   stop,
 } from "@/commands/run";
-import { getFlag, isProject } from "@/utils";
+import update, { selfUpdate } from "@/commands/update";
+import { configScope } from "@/constants";
 import { helpCmd } from "@/help";
-import { copyChildTheme, queryProject } from "@/commands/create";
-import { cloneProject } from "@/commands/clone";
-import { config } from "@/commands/config";
-import { doctor } from "@/commands/doctor";
+import { logger } from "@/logger";
+import { jcoreCmdData } from "@/parser";
 import {
   jcoreRuntimeData,
   jcoreSettingsData,
   setConfigValue,
 } from "@/settings";
-import { logger } from "@/logger";
-import { listChecksums, setChecksum } from "@/commands/checksum";
-import { configScope } from "@/constants";
-import { jcoreCmdData } from "@/parser";
+import type { jcoreProject } from "@/types";
+import { getFlag, isProject } from "@/utils";
 
 /**
  * Invokes functions for all the different commands. Sanity checking should be done here,

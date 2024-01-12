@@ -1,4 +1,4 @@
-import { cmdSchema } from "@/types";
+import { parse } from "path";
 import {
   commands,
   configScope,
@@ -6,8 +6,8 @@ import {
   logLevels,
   optionDefinition,
 } from "@/constants";
-import { parse } from "path";
 import { jcoreRuntimeData } from "@/settings";
+import { cmdSchema } from "@/types";
 
 export const jcoreCmdData = cmdSchema.parse({});
 

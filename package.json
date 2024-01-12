@@ -3,10 +3,10 @@
   "version": "3.1.0",
   "main": "src/main.ts",
   "scripts": {
-    "test": "biome check src",
+    "test": "biome check ./src",
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
-    "format": "biome format --write src",
+    "format": "biome check --apply ./src",
     "preversion": "npm test",
     "version": "",
     "postversion": "git push && git push --tags"

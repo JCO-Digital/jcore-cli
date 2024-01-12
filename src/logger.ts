@@ -1,6 +1,6 @@
+import { logLevels } from "@/constants";
 import { jcoreSettingsData } from "@/settings";
 import chalk from "chalk";
-import { logLevels } from "@/constants";
 
 class Logger {
   public error(message: string) {

@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { configScope } from "@/constants";
+import { z } from "zod";
 
 export type configValue = string | number | boolean | Array<string>;
 export type jsonValue =

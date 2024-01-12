@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-import { jcoreCmdData } from "@/parser";
-import {
-  readSettings,
-  jcoreSettingsData,
-  jcoreDataData,
-  jcoreRuntimeData,
-} from "@/settings";
 import { runCmd } from "@/cmd";
 import { help, helpCmd } from "@/help";
 import { logger } from "@/logger";
-import { version } from "../package.json";
-import semver from "semver/preload";
+import { jcoreCmdData } from "@/parser";
+import {
+  jcoreDataData,
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  readSettings,
+} from "@/settings";
 import { init } from "@sentry/node";
+import semver from "semver/preload";
+import { version } from "../package.json";
 import { getFlag } from "./utils";
 
 // Initialize Sentry.

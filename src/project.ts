@@ -1,30 +1,30 @@
-import {
-  extractArchive,
-  loadChecksums,
-  getFile,
-  saveChecksums,
-  calculateChecksum,
-  getSetupFolder,
-  createEnv,
-  getFlag,
-} from "@/utils";
-import { archiveLocation, updateFolder } from "@/constants";
-import { join, parse } from "path";
+import { execSync } from "child_process";
 import {
   existsSync,
   lstatSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "fs";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
-import { logger } from "@/logger";
-import { execSync } from "child_process";
+import { join, parse } from "path";
 import { checkDocker, checkFolders } from "@/commands/doctor";
+import { archiveLocation, updateFolder } from "@/constants";
+import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
+import {
+  calculateChecksum,
+  createEnv,
+  extractArchive,
+  getFile,
+  getFlag,
+  getSetupFolder,
+  loadChecksums,
+  saveChecksums,
+} from "@/utils";
 
 export async function updateFiles(include: Array<string> = []) {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);

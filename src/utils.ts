@@ -1,24 +1,24 @@
-import { https } from "follow-redirects";
-import AdmZip from "adm-zip";
-import { join } from "path";
 import { createHash } from "crypto";
-import { checksumFile, scriptLocation } from "@/constants";
 import {
   copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
 } from "fs";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
+import { join } from "path";
+import { checksumFile, scriptLocation } from "@/constants";
 import { logger } from "@/logger";
-import { configValue, jsonValue } from "@/types";
-import { parse as tomlParse, TomlError } from "smol-toml";
-import { ZodError } from "zod";
-import process from "process";
 import { jcoreCmdData } from "@/parser";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
+import { configValue, jsonValue } from "@/types";
+import AdmZip from "adm-zip";
+import { https } from "follow-redirects";
+import process from "process";
+import { TomlError, parse as tomlParse } from "smol-toml";
+import { ZodError } from "zod";
 
 export function getFileString(url: string): Promise<string> {
   return new Promise((resolve, reject) => {

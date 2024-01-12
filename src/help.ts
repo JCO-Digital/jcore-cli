@@ -1,8 +1,8 @@
-import { jcoreRuntimeData } from "@/settings";
 import { commands, optionDefinition } from "@/constants";
 import { logger } from "@/logger";
-import { getFlag } from "@/utils";
 import { jcoreCmdData } from "@/parser";
+import { jcoreRuntimeData } from "@/settings";
+import { getFlag } from "@/utils";
 
 export function help() {
   logger.info(`Usage: ${jcoreRuntimeData.exec} <command> [options] <target>`);

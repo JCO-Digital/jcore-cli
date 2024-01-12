@@ -1,26 +1,26 @@
-import * as process from "process";
-import { join, parse } from "path";
-import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
-import { homedir } from "os";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { version } from "../package.json";
-import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
-import { logger } from "@/logger";
-import {
-  configValue,
-  type jcoreData,
-  runtimeSchema,
-  settingsSchema,
-} from "@/types";
+import { homedir } from "os";
+import { join, parse } from "path";
+import { formatValue } from "@/commands/config";
 import { configScope, projectSettings } from "@/constants";
 import {
   convertGlobalSettings,
   convertProjectSettings,
   projectConfigLegacyFilename,
 } from "@/legacy";
-import chalk from "chalk";
-import { formatValue } from "@/commands/config";
+import { logger } from "@/logger";
 import parser, { jcoreCmdData } from "@/parser";
+import {
+  configValue,
+  type jcoreData,
+  runtimeSchema,
+  settingsSchema,
+} from "@/types";
+import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
+import chalk from "chalk";
+import * as process from "process";
+import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
+import { version } from "../package.json";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
@@ -132,10 +132,10 @@ export function getConfig(scope: configScope = configScope.GLOBAL, data = {}) {
 
 function readData() {
   const values = loadJsonFile(globalData);
-  if (values.latest !== undefined) {
+  if (typeof values.latest === "string") {
     jcoreDataData.latest = values.latest;
   }
-  if (values.lastCheck !== undefined) {
+  if (typeof values.lastCheck === "number") {
     jcoreDataData.lastCheck = values.lastCheck;
   }
 }

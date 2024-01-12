@@ -3,9 +3,9 @@
  */
 
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { logger } from "@/logger";
-import { join } from "node:path";
 import { homedir } from "node:os";
+import { join } from "node:path";
+import { logger } from "@/logger";
 import {
   jcoreRuntimeData,
   jcoreSettingsData,

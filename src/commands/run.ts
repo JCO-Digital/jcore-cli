@@ -1,12 +1,12 @@
 import { execSync, spawnSync } from "child_process";
+import { existsSync } from "fs";
 import { join } from "path";
-import { jcoreProject } from "@/types";
+import { logger } from "@/logger";
+import { jcoreCmdData } from "@/parser";
 import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
-import { logger } from "@/logger";
-import { existsSync } from "fs";
+import { jcoreProject } from "@/types";
 import { getFlag, getSetupFolder } from "@/utils";
-import { jcoreCmdData } from "@/parser";
 
 export function start() {
   if (finalizeProject(getFlag("install"))) {

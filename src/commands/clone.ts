@@ -1,12 +1,12 @@
-import { readSettings, jcoreSettingsData, jcoreRuntimeData } from "@/settings";
-import { existsSync } from "fs";
-import { logger } from "@/logger";
 import { execSync } from "child_process";
+import { existsSync } from "fs";
 import { join, parse } from "path";
-import process from "process";
 import { childPath, jcorePath } from "@/constants";
-import { finalizeProject } from "@/project";
+import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
+import { finalizeProject } from "@/project";
+import { jcoreRuntimeData, jcoreSettingsData, readSettings } from "@/settings";
+import process from "process";
 
 export function cloneProject() {
   let source = jcoreCmdData.target[0];

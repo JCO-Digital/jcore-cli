@@ -1,11 +1,11 @@
-import { logger } from "@/logger";
-import { externalCommands, globalFolders, projectFolders } from "@/constants";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
-import { join } from "path";
+import { StdioOptions, execSync } from "child_process";
+import { W_OK } from "constants";
 import { accessSync, existsSync, mkdirSync } from "fs";
 import { homedir, userInfo } from "os";
-import { W_OK } from "constants";
-import { execSync, StdioOptions } from "child_process";
+import { join } from "path";
+import { externalCommands, globalFolders, projectFolders } from "@/constants";
+import { logger } from "@/logger";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 
 export function doctor() {
   logger.verbose("\nChecking system:");

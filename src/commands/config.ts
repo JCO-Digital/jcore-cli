@@ -1,4 +1,6 @@
-import { configValue, settingsSchema } from "@/types";
+import { configScope } from "@/constants";
+import { logger } from "@/logger";
+import { jcoreCmdData } from "@/parser";
 import {
   deleteSetting,
   getConfig,
@@ -6,10 +8,8 @@ import {
   jcoreSettingsData,
   setConfigValue,
 } from "@/settings";
-import { logger } from "@/logger";
-import { configScope } from "@/constants";
+import { configValue, settingsSchema } from "@/types";
 import chalk from "chalk";
-import { jcoreCmdData } from "@/parser";
 
 export function config() {
   const scope = jcoreCmdData.scope;
@@ -217,5 +217,7 @@ function parseBoolean(value: string): boolean {
 }
 
 function isArrayOfStrings(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(item => typeof item === "string");
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
 }
