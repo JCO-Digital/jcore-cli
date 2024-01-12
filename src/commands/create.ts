@@ -1,4 +1,9 @@
-import { configValue, jcoreSubmodule, jcoreTemplate, templateSchema } from "@/types";
+import {
+  configValue,
+  jcoreSubmodule,
+  jcoreTemplate,
+  templateSchema,
+} from "@/types";
 import {
   getScopeConfigFile,
   jcoreRuntimeData,
@@ -10,7 +15,13 @@ import { execSync } from "child_process";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
 import { childPath, configScope, templatesLocation } from "@/constants";
 import { logger } from "@/logger";
-import { getFlag, copyFiles, nameToFolder, getFlagString, getFileString } from "@/utils";
+import {
+  getFlag,
+  copyFiles,
+  nameToFolder,
+  getFlagString,
+  getFileString,
+} from "@/utils";
 import { join } from "path";
 import process from "process";
 import { jcoreCmdData } from "@/parser";
@@ -63,7 +74,7 @@ export async function queryProject() {
 
   const templateData = templates.get(projectData.template);
   if (!templateData) {
-    return Promise.reject(`Template Error`);
+    return Promise.reject("Template Error");
   }
 
   if (!projectData.branch) {
@@ -95,11 +106,11 @@ export async function queryProject() {
 export function createProject(templateData: jcoreTemplate) {
   jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
   if (existsSync(jcoreRuntimeData.workDir)) {
-    logger.error("Project path exists: " + jcoreRuntimeData.workDir);
+    logger.error(`Project path exists: ${jcoreRuntimeData.workDir}`);
     return;
   }
 
-  logger.info("Create Project: " + jcoreSettingsData.projectName);
+  logger.info(`Create Project: ${jcoreSettingsData.projectName}`);
   mkdirSync(jcoreRuntimeData.workDir);
 
   const settings: Record<string, configValue> = {
@@ -125,11 +136,16 @@ export function createProject(templateData: jcoreTemplate) {
       execSync("git init", options);
 
       // Add git submodules.
-      templateData.submodules.forEach((submodule) => {
+      for (const submodule of templateData.submodules) {
         const branch =
-          jcoreSettingsData.branch && submodule.useBranch ? `-b ${jcoreSettingsData.branch}` : "";
-        execSync(`git submodule add -f ${branch} "${submodule.repo}" ${submodule.path}`, options);
-      });
+          jcoreSettingsData.branch && submodule.useBranch
+            ? `-b ${jcoreSettingsData.branch}`
+            : "";
+        execSync(
+          `git submodule add -f ${branch} "${submodule.repo}" ${submodule.path}`,
+          options,
+        );
+      }
 
       // Copy child theme.
       if (templateData.child && !getFlag("nochild")) {
@@ -156,7 +172,11 @@ export function createProject(templateData: jcoreTemplate) {
 
 export function copyChildTheme(name: string): boolean {
   jcoreSettingsData.theme = nameToFolder(name);
-  const themePath = join(jcoreRuntimeData.workDir, "wp-content/themes", jcoreSettingsData.theme);
+  const themePath = join(
+    jcoreRuntimeData.workDir,
+    "wp-content/themes",
+    jcoreSettingsData.theme,
+  );
   if (!existsSync(themePath)) {
     copyFiles(join(jcoreRuntimeData.workDir, childPath), themePath);
     replaceInFile(join(themePath, "style.css"), [

@@ -94,7 +94,7 @@ export function cleanProject(project: jcoreProject) {
     execSync("docker compose rm -f", options);
     logger.info(`Cleaning volumes for project ${project.name}.`);
     const output = execSync(
-      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`
+      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`,
     ).toString();
     for (const volume of output.split(/[\r\n]+/)) {
       if (volume.length) {
@@ -125,9 +125,9 @@ export function cleanDocker(all = false) {
     logger.info("Cleaning Containers");
     execSync("docker container prune -f", options);
     logger.info("Cleaning Images");
-    execSync("docker image prune -f" + (all ? " -a" : ""), options);
+    execSync(`docker image prune -f ${all ? " -a" : ""}`, options);
     logger.info("Cleaning Volumes");
-    execSync("docker volume prune -f" + (all ? " -a" : ""), options);
+    execSync(`docker volume prune -f ${all ? " -a" : ""}`, options);
     logger.info("Cleaning Networks");
     execSync("docker network prune -f", options);
   } catch (e) {
@@ -143,9 +143,9 @@ export function isRunning(messageIfStopped = true): boolean {
       logger.warn("Project is not running!");
     }
   } else {
-    runningProjects.forEach((project) => {
+    for (const project of runningProjects) {
       logger.warn(`Project ${project.name} is running!`);
-    });
+    }
   }
 
   return runningProjects.length > 0;
@@ -193,10 +193,10 @@ export function runCommand(command: string, spawn = false) {
     if (spawn) {
       spawnSync("docker compose", ["exec", "wordpress", command]);
     } else {
-      execSync("docker compose exec wordpress " + command, options);
+      execSync(`docker compose exec wordpress ${command}`, options);
     }
   } catch (e) {
-    logger.warn("Command '" + command + "' failed to run.");
+    logger.warn(`Command '${command}' failed to run.`);
   }
 }
 

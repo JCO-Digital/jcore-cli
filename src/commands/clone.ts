@@ -15,7 +15,7 @@ export function cloneProject() {
   }
   if (jcoreCmdData.target[0].search(/^[a-zA-Z0-9_-]+$/) !== -1) {
     // Target is just name of the project. Needs to be extended.
-    source = "git@bitbucket.org:jcodigital/" + source + ".git";
+    source = `git@bitbucket.org:jcodigital/${source}.git`;
     if (!jcoreSettingsData.projectName) {
       // Set argument as project name if second argument not given.
       jcoreSettingsData.projectName = jcoreCmdData.target[0];
@@ -29,9 +29,9 @@ export function cloneProject() {
   // Set project path.
   jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
   if (existsSync(jcoreRuntimeData.workDir)) {
-    logger.warn("Project path exists: " + jcoreRuntimeData.workDir);
+    logger.warn(`Project path exists: ${jcoreRuntimeData.workDir}`);
   } else {
-    logger.info("Clone Project: " + jcoreSettingsData.projectName);
+    logger.info(`Clone Project: ${jcoreSettingsData.projectName}`);
 
     const options = {
       cwd: process.cwd(),
@@ -39,7 +39,7 @@ export function cloneProject() {
     };
 
     try {
-      execSync("git clone " + source + " " + jcoreRuntimeData.workDir, options);
+      execSync(`git clone ${source} ${jcoreRuntimeData.workDir}`, options);
     } catch (reason) {
       logger.error("Clone Failed");
       return;
@@ -71,13 +71,13 @@ function setupProject() {
       // Switch jcore submodule to branch.
       options.cwd = join(jcoreRuntimeData.workDir, jcorePath);
       if (existsSync(options.cwd)) {
-        execSync("git switch " + jcoreSettingsData.branch, options);
+        execSync(`git switch ${jcoreSettingsData.branch}`, options);
       }
 
       // Switch jcore child submodule to branch.
       options.cwd = join(jcoreRuntimeData.workDir, childPath);
       if (existsSync(options.cwd)) {
-        execSync("git switch " + jcoreSettingsData.branch, options);
+        execSync(`git switch ${jcoreSettingsData.branch}`, options);
       }
     } catch (reason) {
       logger.error("Branch Switch Failed");
@@ -86,5 +86,5 @@ function setupProject() {
   }
 
   logger.info("Clone complete.");
-  logger.info('Enter project folder with "cd ' + jcoreRuntimeData.workDir + '"');
+  logger.info(`Enter project folder with "cd ${jcoreRuntimeData.workDir}"`);
 }

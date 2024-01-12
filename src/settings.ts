@@ -6,7 +6,12 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { version } from "../package.json";
 import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
 import { logger } from "@/logger";
-import { configValue, type jcoreData, runtimeSchema, settingsSchema } from "@/types";
+import {
+  configValue,
+  type jcoreData,
+  runtimeSchema,
+  settingsSchema,
+} from "@/types";
 import { configScope, projectSettings } from "@/constants";
 import {
   convertGlobalSettings,
@@ -151,14 +156,20 @@ async function versionCheck() {
   }
 }
 
-export function setConfigValue(key: string, value: configValue, requestedScope: configScope) {
+export function setConfigValue(
+  key: string,
+  value: configValue,
+  requestedScope: configScope,
+) {
   const scope = validateScope(key, requestedScope);
   const configFile = getScopeConfigFile(scope);
   const settings: Record<string, configValue> = {};
   settings[key] = value;
   if (updateConfigValues(settings, configFile)) {
     logger.info(
-      `${getScopeText(scope)} setting ${chalk.green(key)} updated to ${formatValue(value)}`
+      `${getScopeText(scope)} setting ${chalk.green(
+        key,
+      )} updated to ${formatValue(value)}`,
     );
     return true;
   }
@@ -227,7 +238,10 @@ function getScopeText(scope: configScope) {
   }
 }
 
-export function updateConfigValues(settings: Record<string, configValue>, file: string) {
+export function updateConfigValues(
+  settings: Record<string, configValue>,
+  file: string,
+) {
   try {
     const values = loadConfigFile(file);
     saveConfigFile(file, Object.assign(values, settings));
@@ -252,7 +266,10 @@ function loadConfigFile(file: string): Record<string, configValue> {
   return {};
 }
 
-export function saveConfigFile(file: string, data: Record<string, configValue | undefined>) {
+export function saveConfigFile(
+  file: string,
+  data: Record<string, configValue | undefined>,
+) {
   try {
     const dataString = tomlStringify(data);
     writeFileSync(file, dataString, "utf8");

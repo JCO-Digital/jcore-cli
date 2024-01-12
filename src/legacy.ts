@@ -6,7 +6,11 @@ import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { logger } from "@/logger";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { jcoreRuntimeData, jcoreSettingsData, saveConfigFile } from "@/settings";
+import {
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  saveConfigFile,
+} from "@/settings";
 
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
 export const projectConfigLegacyFilename = "config.sh";
@@ -24,7 +28,7 @@ export function convertGlobalSettings(globalConfig: string) {
       saveConfigFile(globalConfig, {
         mode: values.get("mode"),
         debug: values.get("debug") === "true",
-        logLevel: isNaN(logLevel) ? 2 : logLevel,
+        logLevel: Number.isNaN(logLevel) ? 2 : logLevel,
         install: values.get("install") === "true",
       });
       unlinkSync(globalConfigLegacy);
@@ -36,7 +40,10 @@ export function convertGlobalSettings(globalConfig: string) {
 
 export function convertProjectSettings(projectConfigFilename: string) {
   const localConfig = join(jcoreRuntimeData.workDir, projectConfigFilename);
-  const localConfigLegacy = join(jcoreRuntimeData.workDir, projectConfigLegacyFilename);
+  const localConfigLegacy = join(
+    jcoreRuntimeData.workDir,
+    projectConfigLegacyFilename,
+  );
   if (!existsSync(localConfig) && existsSync(localConfigLegacy)) {
     try {
       const values = new Map() as Map<string, string | string[]>;
@@ -52,7 +59,7 @@ export function convertProjectSettings(projectConfigFilename: string) {
       const domains: string[] = [];
       const replace = [];
       const domainsValue = values.get("domains");
-      if (domainsValue instanceof Array) {
+      if (Array.isArray(domainsValue)) {
         for (const domain of domainsValue) {
           const parts = domain.split(";");
           const local = `${parts[1]}.localhost`;
@@ -93,19 +100,23 @@ export function convertProjectSettings(projectConfigFilename: string) {
   }
 }
 
-function parseSettings(values: Map<string, string | string[]>, data: string): void {
+function parseSettings(
+  values: Map<string, string | string[]>,
+  data: string,
+): void {
   // Remove all comments to make matching more straight forward.
-  for (const match of data.matchAll(/ *#.*$/gm)) {
-    data = data.replace(match[0], "");
+  let clean = data;
+  for (const match of clean.matchAll(/ *#.*$/gm)) {
+    clean = clean.replace(match[0], "");
   }
 
   // Look for all BASH variable assignments.
-  for (const match of data.matchAll(/^([A-Z_]+)= *([^(].*)$/gm)) {
+  for (const match of clean.matchAll(/^([A-Z_]+)= *([^(].*)$/gm)) {
     // Assign value to map.
     values.set(match[1].toLowerCase(), cleanBashVar(values, match[2]));
   }
   // Look for BASH arrays.
-  for (const match of data.matchAll(/^([A-Z_]+)= ?\(\s*([^)]+)\s*\)/gm)) {
+  for (const match of clean.matchAll(/^([A-Z_]+)= ?\(\s*([^)]+)\s*\)/gm)) {
     const value = [];
     for (const row of match[2].split("\n")) {
       const text = cleanBashVar(values, row);
@@ -119,7 +130,10 @@ function parseSettings(values: Map<string, string | string[]>, data: string): vo
   }
 }
 
-function cleanBashVar(values: Map<string, string | string[]>, text: string): string {
+function cleanBashVar(
+  values: Map<string, string | string[]>,
+  text: string,
+): string {
   // Remove wrapping double quotes.
   let value = text.replace(/^["' ]+|["' ]+$/gm, "");
 

@@ -1,5 +1,11 @@
 import { cmdSchema } from "@/types";
-import { commands, configScope, flagReturnType, logLevels, optionDefinition } from "@/constants";
+import {
+  commands,
+  configScope,
+  flagReturnType,
+  logLevels,
+  optionDefinition,
+} from "@/constants";
 import { parse } from "path";
 import { jcoreRuntimeData } from "@/settings";
 
@@ -21,7 +27,10 @@ export default function parser(args: Array<string>) {
         matchFlag(find[1].toLowerCase(), find[3]);
       }
     } else if (part.substring(0, 1) === "-") {
-      if (matchFlag(part.substring(1).toLowerCase(), args[i + 1]) === flagReturnType.HASVALUE) {
+      if (
+        matchFlag(part.substring(1).toLowerCase(), args[i + 1]) ===
+        flagReturnType.HASVALUE
+      ) {
         i++;
       }
     } else if (count === 0) {

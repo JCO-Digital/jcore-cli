@@ -24,7 +24,7 @@ export function selfUpdate() {
   fetchVersion()
     .then((version) => versionCheck(version, force))
     .then((version) => {
-      logger.info("Upgrading to v" + version);
+      logger.info(`Upgrading to v${version}`);
       return getFileString(join(scriptLocation, scriptName));
     })
     .then((body) => writeFile(jcoreRuntimeData.execPath, body))

@@ -16,7 +16,9 @@ export function doctor() {
   }
 }
 
-export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boolean {
+export function checkFolders(
+  logLevel: number = jcoreSettingsData.logLevel,
+): boolean {
   let pass = true;
   if (jcoreRuntimeData.inProject) {
     for (const folder of projectFolders) {
@@ -33,7 +35,9 @@ export function checkFolders(logLevel: number = jcoreSettingsData.logLevel): boo
   return pass;
 }
 
-export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): boolean {
+export function checkCommands(
+  logLevel: number = jcoreSettingsData.logLevel,
+): boolean {
   const options = {
     stdio: ["pipe", "pipe", "ignore"] as StdioOptions,
   };
@@ -41,7 +45,10 @@ export function checkCommands(logLevel: number = jcoreSettingsData.logLevel): bo
   let pass = true;
   for (const command of externalCommands) {
     try {
-      const output = execSync(`${command.name} ${command.version}`, options).toString();
+      const output = execSync(
+        `${command.name} ${command.version}`,
+        options,
+      ).toString();
       const version = output.match(/([0-9]+)\.([0-9]+)\.([0-9]+)/);
       if (version !== null) {
         logger.info(`${command.name} version ${version[0]} found.`, logLevel);
@@ -74,8 +81,13 @@ function processFolder(path: string, logLevel: number): boolean {
     } catch (e) {
       // Folder is not writable.
       const user = userInfo().username;
-      logger.error(`Folder ${path} is not writable. It is probably owned by root.`);
-      logger.info(`Fix this by running "sudo chown ${user} -R ${path}".`, logLevel);
+      logger.error(
+        `Folder ${path} is not writable. It is probably owned by root.`,
+      );
+      logger.info(
+        `Fix this by running "sudo chown ${user} -R ${path}".`,
+        logLevel,
+      );
     }
   } else {
     // Folder doesn't exist, create it.

@@ -11,13 +11,15 @@ export function help() {
     const padding = 16;
     logger.info("\nPossible commands:");
     for (const cmd of commands) {
-      logger.info(cmd.cmd.padEnd(padding) + " - " + cmd.text);
+      logger.info(`${cmd.cmd.padEnd(padding)} - ${cmd.text}`);
     }
 
     logger.info("\nPossible options:");
     for (const option of optionDefinition) {
       logger.info(
-        ("--" + option.name + " / -" + option.alias).padEnd(padding) + " - " + option.description
+        `${`--${option.name} / -${option.alias}`.padEnd(padding)} - ${
+          option.description
+        }`,
       );
     }
   } else {
@@ -39,7 +41,7 @@ export function helpCmd(text = true, usage = true) {
           const part = use.split("-");
           let useText = part[0].trim().padEnd(padding);
           if (part.length > 1) {
-            useText += " - " + part[1].trim();
+            useText += ` - ${part[1].trim()}`;
           }
           logger.info(usageText(command.cmd, useText));
         }
@@ -49,5 +51,5 @@ export function helpCmd(text = true, usage = true) {
 }
 
 export function usageText(cmd: string, text: string) {
-  return jcoreRuntimeData.exec + " " + cmd + " " + text;
+  return `${jcoreRuntimeData.exec} ${cmd} ${text}`;
 }

@@ -53,7 +53,9 @@ function set(target: string, values: string[], scope: configScope) {
       if (Array.isArray(model[key])) {
         if (value === "add" || value === "rm" || value === "remove") {
           const newValues = values.slice(1);
-          const current = (jcoreSettingsData as Record<string, configValue>)[key];
+          const current = (jcoreSettingsData as Record<string, configValue>)[
+            key
+          ];
           if (current instanceof Array<string>) {
             for (let newValue of newValues) {
               newValue = newValue.replace(/ *=> */, "|");
@@ -61,20 +63,32 @@ function set(target: string, values: string[], scope: configScope) {
               if (value === "add") {
                 if (index === -1) {
                   current.push(newValue);
-                  logger.info(`Value ${formatValue(newValue)} added to ${chalk.green(key)}`);
+                  logger.info(
+                    `Value ${formatValue(newValue)} added to ${chalk.green(
+                      key,
+                    )}`,
+                  );
                 } else {
                   logger.warn(
-                    `Value ${formatValue(newValue)} already exists in ${chalk.green(key)}`
+                    `Value ${formatValue(
+                      newValue,
+                    )} already exists in ${chalk.green(key)}`,
                   );
                 }
               } else {
                 if (index === -1) {
                   logger.warn(
-                    `Value ${formatValue(newValue)} doesn't exists in ${chalk.green(key)}`
+                    `Value ${formatValue(
+                      newValue,
+                    )} doesn't exists in ${chalk.green(key)}`,
                   );
                 } else {
                   current.splice(index, 1);
-                  logger.info(`Value ${formatValue(newValue)} removed from ${chalk.green(key)}`);
+                  logger.info(
+                    `Value ${formatValue(newValue)} removed from ${chalk.green(
+                      key,
+                    )}`,
+                  );
                 }
               }
             }
@@ -84,22 +98,21 @@ function set(target: string, values: string[], scope: configScope) {
           setConfigValue(key, values, scope);
         }
         return;
-      } else {
-        switch (typeof model[key]) {
-          case "string":
-            setConfigValue(key, value, scope);
-            return;
-          case "number":
-            if (isNaN(Number(value))) {
-              logger.error(`Error: ${value} is not numeric`);
-            } else {
-              setConfigValue(key, Number(value), scope);
-            }
-            return;
-          case "boolean":
-            setConfigValue(key, parseBoolean(value), scope);
-            return;
-        }
+      }
+      switch (typeof model[key]) {
+        case "string":
+          setConfigValue(key, value, scope);
+          return;
+        case "number":
+          if (Number.isNaN(Number(value))) {
+            logger.error(`Error: ${value} is not numeric`);
+          } else {
+            setConfigValue(key, Number(value), scope);
+          }
+          return;
+        case "boolean":
+          setConfigValue(key, parseBoolean(value), scope);
+          return;
       }
     }
   }
@@ -133,12 +146,18 @@ function list(option = "") {
       listConfig(getConfig(configScope.GLOBAL));
     }
 
-    if (option === "project" || (jcoreRuntimeData.inProject && option === "all")) {
+    if (
+      option === "project" ||
+      (jcoreRuntimeData.inProject && option === "all")
+    ) {
       logger.info(chalk.bold("Project settings:"));
       listConfig(getConfig(configScope.PROJECT));
     }
 
-    if (option === "local" || (jcoreRuntimeData.inProject && option === "all")) {
+    if (
+      option === "local" ||
+      (jcoreRuntimeData.inProject && option === "all")
+    ) {
       logger.info(chalk.bold("Local settings:"));
       listConfig(getConfig(configScope.LOCAL));
     }
@@ -155,7 +174,9 @@ function listConfig(values: Record<string, configValue>) {
     }
     for (const key in values) {
       const value = values[key];
-      logger.info(`${chalk.green(`${key}:`.padEnd(max + 1))} ${formatValue(value)}`);
+      logger.info(
+        `${chalk.green(`${key}:`.padEnd(max + 1))} ${formatValue(value)}`,
+      );
     }
   } else {
     logger.warn("No settings defined.");
@@ -166,17 +187,18 @@ function listConfig(values: Record<string, configValue>) {
 export function formatValue(value: configValue): string {
   if (Array.isArray(value)) {
     return `[\n${value.reduce((a, v) => {
-      return `${a}   ${chalk.italic.blueBright(v.replace("|", chalk.whiteBright(" => ")))}\n`;
+      return `${a}   ${chalk.italic.blueBright(
+        v.replace("|", chalk.whiteBright(" => ")),
+      )}\n`;
     }, "")}]`;
-  } else {
-    switch (typeof value) {
-      case "string":
-        return chalk.cyan(value);
-      case "number":
-        return chalk.yellow(value);
-      case "boolean":
-        return chalk.magenta(value);
-    }
+  }
+  switch (typeof value) {
+    case "string":
+      return chalk.cyan(value);
+    case "number":
+      return chalk.yellow(value);
+    case "boolean":
+      return chalk.magenta(value);
   }
 }
 

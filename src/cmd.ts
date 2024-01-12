@@ -18,7 +18,11 @@ import { copyChildTheme, queryProject } from "@/commands/create";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
 import { doctor } from "@/commands/doctor";
-import { jcoreRuntimeData, jcoreSettingsData, setConfigValue } from "@/settings";
+import {
+  jcoreRuntimeData,
+  jcoreSettingsData,
+  setConfigValue,
+} from "@/settings";
 import { logger } from "@/logger";
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { configScope } from "@/constants";
@@ -56,7 +60,11 @@ export function runCmd(): void {
         if (jcoreCmdData.target[0]) {
           if (copyChildTheme(jcoreCmdData.target.join(" "))) {
             // Save settings.
-            setConfigValue("theme", jcoreSettingsData.theme, configScope.PROJECT);
+            setConfigValue(
+              "theme",
+              jcoreSettingsData.theme,
+              configScope.PROJECT,
+            );
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
             logger.error("Theme creation failed!");
@@ -150,11 +158,11 @@ export function runCmd(): void {
           start();
         } else if (getFlag("force")) {
           // Stop everything and then start.
-          getRunning().forEach((project) => {
+          for (const project of getRunning()) {
             // Stop running projects.
             logger.info(`Stopping ${project.name}.`);
             stop(project.path);
-          });
+          }
           // Start the project.
           start();
         }

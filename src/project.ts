@@ -41,9 +41,18 @@ export async function updateFiles(include: Array<string> = []) {
     const checksums = loadChecksums();
 
     logger.debug("Cleaning up legacy folders.");
-    rmSync(join(jcoreRuntimeData.workDir, "Vagrantfile"), { recursive: false, force: true });
-    rmSync(join(jcoreRuntimeData.workDir, ".vagrant"), { recursive: true, force: true });
-    rmSync(join(jcoreRuntimeData.workDir, "config"), { recursive: true, force: true });
+    rmSync(join(jcoreRuntimeData.workDir, "Vagrantfile"), {
+      recursive: false,
+      force: true,
+    });
+    rmSync(join(jcoreRuntimeData.workDir, ".vagrant"), {
+      recursive: true,
+      force: true,
+    });
+    rmSync(join(jcoreRuntimeData.workDir, "config"), {
+      recursive: true,
+      force: true,
+    });
     rmSync(join(jcoreRuntimeData.workDir, "provisioning"), {
       recursive: true,
       force: true,
@@ -52,7 +61,10 @@ export async function updateFiles(include: Array<string> = []) {
     if (getFlag("force") && jcoreCmdData.target.length === 0) {
       // Remove old setup folder if updating all files.
       logger.info("Remove old setup folder.");
-      rmSync(join(jcoreRuntimeData.workDir, ".config"), { recursive: true, force: true });
+      rmSync(join(jcoreRuntimeData.workDir, ".config"), {
+        recursive: true,
+        force: true,
+      });
     }
 
     logger.debug("Move updated project files to project folder.");
@@ -65,7 +77,7 @@ export async function updateFiles(include: Array<string> = []) {
       join(updatePath, "templates", jcoreSettingsData.template),
       jcoreRuntimeData.workDir,
       checksums,
-      { include }
+      { include },
     );
     // Save new checksums.
     saveChecksums(checksums);
@@ -73,7 +85,7 @@ export async function updateFiles(include: Array<string> = []) {
     logger.verbose("Clean up remaining files.");
     rmSync(updatePath, { recursive: true, force: true });
   } catch (reason) {
-    throw "Unable to extract file " + reason;
+    throw `Unable to extract file ${reason}`;
   }
 }
 
@@ -94,7 +106,7 @@ export function moveFiles(
   sourceDir: string,
   destinationDir: string,
   checksums: Map<string, string>,
-  options: fileOptions = {}
+  options: fileOptions = {},
 ) {
   const opt = Object.assign(
     {
@@ -102,12 +114,12 @@ export function moveFiles(
       include: [],
       exclude: [],
     },
-    options
+    options,
   );
 
   if (!existsSync(join(destinationDir, opt.path))) {
     // Create target if not exists.
-    logger.verbose("Creating target folder: " + destinationDir);
+    logger.verbose(`Creating target folder: ${destinationDir}`);
     mkdirSync(join(destinationDir, opt.path), { recursive: true });
   }
   for (const file of readdirSync(join(sourceDir, opt.path))) {
@@ -126,7 +138,10 @@ export function moveFiles(
         mkdirSync(join(destinationDir, filePath));
       }
       // Merge files in folder.
-      moveFiles(sourceDir, destinationDir, checksums, { ...opt, path: filePath });
+      moveFiles(sourceDir, destinationDir, checksums, {
+        ...opt,
+        path: filePath,
+      });
     } else {
       // Current path is a file.
       if (opt.include.length === 0 || opt.include.includes(filePath)) {
@@ -147,14 +162,18 @@ export function moveFiles(
           }
           checksums.set(fileInfo.target, calculateChecksum(destination));
         } else {
-          logger.warn("Skipping " + fileInfo.target);
+          logger.warn(`Skipping ${fileInfo.target}`);
         }
       }
     }
   }
 }
 
-function getFileInfo(path: string, file: string, checksums: Map<string, string>) {
+function getFileInfo(
+  path: string,
+  file: string,
+  checksums: Map<string, string>,
+) {
   const files: Record<string, object> = {
     "readme.md": {
       force: false,
@@ -162,10 +181,9 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
       replace: [
         {
           search: "# WordPress Container",
-          replace:
-            "# " +
-            jcoreSettingsData.projectName.charAt(0).toUpperCase() +
-            jcoreSettingsData.projectName.slice(1),
+          replace: `# ${jcoreSettingsData.projectName
+            .charAt(0)
+            .toUpperCase()} ${jcoreSettingsData.projectName.slice(1)}`,
         },
       ],
     },
@@ -175,7 +193,7 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
       replace: [
         {
           search: "wp-content/themes/projectname",
-          replace: "wp-content/themes/" + jcoreSettingsData.theme,
+          replace: `wp-content/themes/${jcoreSettingsData.theme}`,
         },
       ],
     },
@@ -207,11 +225,14 @@ function getFileInfo(path: string, file: string, checksums: Map<string, string>)
       replace: [], // String replace in file.
       overwrite: false, // Flag to tell "moveFiles" to overwrite file.
     },
-    files[file] ?? {}
+    files[file] ?? {},
   );
 
   // Check if force flag is set and file is allowed to be forced or targeted.
-  if (getFlag("force") && (fileInfo.force || jcoreCmdData.target.includes(fileInfo.target))) {
+  if (
+    getFlag("force") &&
+    (fileInfo.force || jcoreCmdData.target.includes(fileInfo.target))
+  ) {
     logger.debug(`Force overwrite ${fileInfo.target}`);
     fileInfo.overwrite = true;
     return fileInfo;
@@ -271,10 +292,12 @@ export function finalizeProject(install = true): boolean {
     [
       {
         search: /xdebug.mode=.*$/gm,
-        replace: jcoreSettingsData.debug ? "xdebug.mode=develop,debug" : "xdebug.mode=off",
+        replace: jcoreSettingsData.debug
+          ? "xdebug.mode=develop,debug"
+          : "xdebug.mode=off",
       },
     ],
-    join(jcoreRuntimeData.workDir, ".jcore/php.ini")
+    join(jcoreRuntimeData.workDir, ".jcore/php.ini"),
   );
 
   // Set executable bits on scripts.
@@ -325,11 +348,11 @@ interface searchReplace {
   replace: string;
 }
 
-export function replaceInFile(file: string, replace: Array<searchReplace>, destination = "") {
-  if (!destination) {
-    // Default destination to same file.
-    destination = file;
-  }
+export function replaceInFile(
+  file: string,
+  replace: Array<searchReplace>,
+  destination = file,
+) {
   if (existsSync(file)) {
     let data = readFileSync(file, "utf8");
     for (const row of replace) {

@@ -12,16 +12,17 @@ export enum flagReturnType {
 }
 
 export enum logLevels {
-  ERROR,
-  WARN,
-  INFO,
-  HTTP,
-  VERBOSE,
-  DEBUG,
-  SILLY,
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  HTTP = 3,
+  VERBOSE = 4,
+  DEBUG = 5,
+  SILLY = 6,
 }
 
-export const scriptLocation = "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";
+export const scriptLocation =
+  "https://github.com/JCO-Digital/jcore-cli/releases/latest/download/";
 export const scriptName = "jcore";
 export const archiveLocation =
   "https://github.com/JCO-Digital/wordpress-container/releases/latest/download/release.zip";
@@ -133,7 +134,9 @@ export const commands = [
     cmd: "attach",
     text: "Attach to the logs of all containers",
     description: "",
-    usage: ["<container> - A specific container to attach to, leave empty for all."],
+    usage: [
+      "<container> - A specific container to attach to, leave empty for all.",
+    ],
   },
   {
     cmd: "checksum",

@@ -18,7 +18,9 @@ export const cmdSchema = z.object({
   target: z.array(z.string()).default([]),
   logLevel: z.number().default(2),
   scope: z.number().default(configScope.PROJECT),
-  flags: z.map(z.string(), z.union([z.boolean(), z.string(), z.number()])).default(new Map()),
+  flags: z
+    .map(z.string(), z.union([z.boolean(), z.string(), z.number()]))
+    .default(new Map()),
 });
 export type jcoreCmd = z.infer<typeof cmdSchema>;
 

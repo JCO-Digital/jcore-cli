@@ -14,7 +14,7 @@ export function listChecksums() {
       const match = calculateChecksum(fullPath) === value ? "OK" : "Changed";
       logger.info(`Checksum for ${key}:`.padEnd(35) + match);
     } else {
-      logger.warn(`File ${key}:`.padEnd(35) + "Missing");
+      logger.warn(`${`File ${key}:`.padEnd(35)}Missing`);
     }
   }
 }
