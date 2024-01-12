@@ -56,7 +56,7 @@ function set(target: string, values: string[], scope: configScope) {
           const current = (jcoreSettingsData as Record<string, configValue>)[
             key
           ];
-          if (current instanceof Array<string>) {
+          if (isArrayOfStrings(current)) {
             for (let newValue of newValues) {
               newValue = newValue.replace(/ *=> */, "|");
               const index = current.indexOf(newValue);
@@ -214,4 +214,8 @@ function parseBoolean(value: string): boolean {
     default:
       return false;
   }
+}
+
+function isArrayOfStrings(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === "string");
 }
