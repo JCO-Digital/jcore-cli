@@ -16,17 +16,19 @@ import {
   stop,
 } from "@/commands/run";
 import update, { selfUpdate } from "@/commands/update";
-import { configScope } from "@/constants";
+import { configScope, projectConfigFilename } from "@/constants";
 import { helpCmd } from "@/help";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import {
   jcoreRuntimeData,
   jcoreSettingsData,
+  readProjectSettings,
   setConfigValue,
 } from "@/settings";
 import type { jcoreProject } from "@/types";
 import { getFlag, isProject } from "@/utils";
+import { convertProjectSettings } from "./legacy";
 
 /**
  * Invokes functions for all the different commands. Sanity checking should be done here,
@@ -63,7 +65,7 @@ export function runCmd(): void {
             setConfigValue(
               "theme",
               jcoreSettingsData.theme,
-              configScope.PROJECT,
+              configScope.PROJECT
             );
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
@@ -71,6 +73,22 @@ export function runCmd(): void {
           }
         } else {
           helpCmd(false);
+        }
+      }
+      break;
+    case "convert":
+      if (isProject(false)) {
+        try {
+          logger.info("Converting config file.");
+          convertProjectSettings(projectConfigFilename);
+          readProjectSettings();
+          // Update project.
+          update();
+
+          // Delete old file.
+          //unlinkSync(localConfigLegacy);
+        } catch (e) {
+          logger.error("Conversion failed.");
         }
       }
       break;

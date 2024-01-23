@@ -33,6 +33,10 @@ export const childPath = "wp-content/themes/jcore2-child";
 export const updateFolder = ".update";
 export const checksumFile = ".file.checksums.json";
 
+export const projectConfigFilename = "jcore.toml";
+export const localConfigFilename = ".localConfig.toml";
+export const defaultConfigFilename = "defaults.toml";
+
 export const projectFolders = [".jcore/wordpress", ".jcore/ssl", ".jcore/sql"];
 export const globalFolders = [".config/jcore/ssl", ".config/jcore/ssh"];
 export const externalCommands = [
@@ -54,6 +58,7 @@ export const projectSettings = [
   "remoteHost",
   "remotePath",
   "dbExclude",
+  "dbPrefix",
   "pluginInstall",
   "pluginExclude",
   "pluginGit",
@@ -170,6 +175,12 @@ export const commands = [
     text: "Clones a project from bitbucket, and sets everything up.",
     description: "",
     usage: ["<projectname> - Clones project from bitbucket."],
+  },
+  {
+    cmd: "convert",
+    text: "Converts a legacy project to the new container format.",
+    description: "",
+    usage: [""],
   },
   {
     cmd: "doctor",

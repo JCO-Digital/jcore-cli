@@ -1,13 +1,15 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join, parse } from "path";
 import { formatValue } from "@/commands/config";
-import { configScope, projectSettings } from "@/constants";
 import {
-  convertGlobalSettings,
-  convertProjectSettings,
-  projectConfigLegacyFilename,
-} from "@/legacy";
+  configScope,
+  defaultConfigFilename,
+  localConfigFilename,
+  projectConfigFilename,
+  projectSettings,
+} from "@/constants";
+import { convertGlobalSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
 import parser, { jcoreCmdData } from "@/parser";
 import {
@@ -40,11 +42,9 @@ export const jcoreDataData = {
   lastCheck: 0,
 } as jcoreData;
 
-const projectConfigFilename = "jcore.toml";
-const localConfigFilename = ".localConfig.toml";
-const defaultConfigFilename = "defaults.toml";
-const globalConfig = join(homedir(), ".config/jcore/config.toml");
-const globalData = join(homedir(), ".config/jcore/data.json");
+const globalConfigFolder = join(homedir(), ".config/jcore");
+const globalConfig = join(globalConfigFolder, "config.toml");
+const globalData = join(globalConfigFolder, "data.json");
 
 export async function readSettings() {
   parser(process.argv);
@@ -61,8 +61,10 @@ export async function readSettings() {
     // Go up one level and try again.
     jcoreRuntimeData.workDir = parse(jcoreRuntimeData.workDir).dir;
   }
+
   // Check if we are in a project.
   jcoreRuntimeData.inProject = jcoreRuntimeData.workDir.length > 1;
+
   if (jcoreRuntimeData.inProject) {
     // Get default name from path.
     jcoreSettingsData.projectName = parse(jcoreRuntimeData.workDir).base;
@@ -74,9 +76,17 @@ export async function readSettings() {
   // Convert old format to new.
   convertGlobalSettings(globalConfig);
 
-  if (jcoreRuntimeData.inProject) {
-    // Convert project settings if in project.
-    convertProjectSettings(projectConfigFilename);
+  if (
+    jcoreRuntimeData.inProject &&
+    !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename))
+  ) {
+    // We are in a legacy project.
+    if (jcoreCmdData.cmd !== "convert") {
+      logger.warn(
+        "Legacy project detected, update project with 'jcore convert' to be able to run it."
+      );
+    }
+    jcoreRuntimeData.inProject = false;
   }
 
   // Read global settings.
@@ -96,7 +106,7 @@ export async function readSettings() {
     });
 }
 
-function readProjectSettings() {
+export function readProjectSettings() {
   // Make a copy of the current settings object.
   const data = Object.assign({}, jcoreSettingsData);
 
@@ -131,6 +141,7 @@ export function getConfig(scope: configScope = configScope.GLOBAL, data = {}) {
 }
 
 function readData() {
+  logger.debug("Reading data file.");
   const values = loadJsonFile(globalData);
   if (typeof values.latest === "string") {
     jcoreDataData.latest = values.latest;
@@ -141,6 +152,9 @@ function readData() {
 }
 
 function writeData() {
+  if (!existsSync(globalConfigFolder)) {
+    mkdirSync(globalConfigFolder);
+  }
   writeFileSync(globalData, JSON.stringify(jcoreDataData, null, 2), "utf8");
 }
 
@@ -159,7 +173,7 @@ async function versionCheck() {
 export function setConfigValue(
   key: string,
   value: configValue,
-  requestedScope: configScope,
+  requestedScope: configScope
 ) {
   const scope = validateScope(key, requestedScope);
   const configFile = getScopeConfigFile(scope);
@@ -168,8 +182,8 @@ export function setConfigValue(
   if (updateConfigValues(settings, configFile)) {
     logger.info(
       `${getScopeText(scope)} setting ${chalk.green(
-        key,
-      )} updated to ${formatValue(value)}`,
+        key
+      )} updated to ${formatValue(value)}`
     );
     return true;
   }
@@ -240,7 +254,7 @@ function getScopeText(scope: configScope) {
 
 export function updateConfigValues(
   settings: Record<string, configValue>,
-  file: string,
+  file: string
 ) {
   try {
     const values = loadConfigFile(file);
@@ -268,7 +282,7 @@ function loadConfigFile(file: string): Record<string, configValue> {
 
 export function saveConfigFile(
   file: string,
-  data: Record<string, configValue | undefined>,
+  data: Record<string, configValue | undefined>
 ) {
   try {
     const dataString = tomlStringify(data);

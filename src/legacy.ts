@@ -92,8 +92,6 @@ export function convertProjectSettings(projectConfigFilename: string) {
         install: values.get("install") === "true",
       };
       saveConfigFile(localConfig, newValues);
-      // Delete old file.
-      unlinkSync(localConfigLegacy);
     } catch (e) {
       logger.error("Error converting project settings.");
     }

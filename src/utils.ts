@@ -21,6 +21,7 @@ import { TomlError, parse as tomlParse } from "smol-toml";
 import { ZodError } from "zod";
 
 export function getFileString(url: string): Promise<string> {
+  logger.debug(`Getting file ${url} as string.`);
   return new Promise((resolve, reject) => {
     https
       .get(url)
@@ -70,6 +71,7 @@ export function fetchVersion(): Promise<string> {
   return new Promise((resolve, reject) => {
     getFileString(join(scriptLocation, "package.json"))
       .then((json) => {
+        logger.debug("File contents fetched.");
         try {
           const info = JSON.parse(json);
           if (typeof info.version === "string") {
@@ -80,7 +82,8 @@ export function fetchVersion(): Promise<string> {
           reject("JSON error in version fetch.");
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        logger.error(e.toString());
         reject("Network error in version fetch.");
       });
   });
