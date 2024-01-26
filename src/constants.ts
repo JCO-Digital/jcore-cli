@@ -177,8 +177,8 @@ export const commands = [
     usage: ["<projectname> - Clones project from bitbucket."],
   },
   {
-    cmd: "convert",
-    text: "Converts a legacy project to the new container format.",
+    cmd: "migrate",
+    text: "Migrates a legacy project to the new container format.",
     description: "",
     usage: [""],
   },

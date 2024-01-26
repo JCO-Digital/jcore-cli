@@ -1,7 +1,13 @@
 import { execSync } from "child_process";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, unlinkSync } from "fs";
 import { join } from "path";
-import { childPath, configScope, templatesLocation } from "@/constants";
+import {
+  childPath,
+  configScope,
+  projectConfigFilename,
+  templatesLocation,
+} from "@/constants";
+import { convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import { finalizeProject, replaceInFile, updateFiles } from "@/project";
@@ -9,6 +15,7 @@ import {
   getScopeConfigFile,
   jcoreRuntimeData,
   jcoreSettingsData,
+  readProjectSettings,
   updateConfigValues,
 } from "@/settings";
 import {
@@ -18,6 +25,7 @@ import {
   templateSchema,
 } from "@/types";
 import {
+  compareChecksum,
   copyFiles,
   getFileString,
   getFlag,
@@ -185,4 +193,62 @@ export function copyChildTheme(name: string): boolean {
     return true;
   }
   return false;
+}
+
+export async function migrateProject() {
+  try {
+    const options = {
+      docker: false,
+      package: false,
+    };
+    if (!compareChecksum("docker-compose.yml", true)) {
+      options.docker = true;
+      logger.warn("Checksum mismatch for docker-compose.yml.");
+      const answer = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "docker",
+          message: "Overwrite docker-compose.yml",
+        },
+      ]);
+      if (!answer.docker) {
+        logger.warn("Aborting migaration.");
+        return;
+      }
+    }
+    if (!compareChecksum("package.json", true)) {
+      options.package = true;
+      logger.warn("Checksum mismatch for package.json.");
+    }
+
+    logger.info("Converting config file.");
+    convertProjectSettings(projectConfigFilename);
+    readProjectSettings();
+
+    if (options.docker) {
+      logger.info("Updating docker-compose.yml");
+      updateFiles(["docker-compose.yml"]);
+    }
+    // Update project.
+    updateFiles().then(() => {
+      if (options.package) {
+        // Add smol-toml to project.
+        logger.info("Adding smol-toml to project.");
+        const options = {
+          cwd: jcoreRuntimeData.workDir,
+          stdio: [0, 1, 2],
+        };
+        execSync("npm i -D smol-toml", options);
+      }
+    });
+
+    // Delete old file.
+    const localConfigLegacy = join(
+      jcoreRuntimeData.workDir,
+      projectConfigLegacyFilename,
+    );
+    unlinkSync(localConfigLegacy);
+  } catch (e) {
+    logger.error("Migration failed.");
+  }
 }

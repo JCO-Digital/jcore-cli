@@ -124,6 +124,15 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   }
 }
 
+export function compareChecksum(file: string, strict = true): boolean {
+  const checksums = loadChecksums();
+  if (!strict && checksums.get(file) === undefined) {
+    // Return true for missing checksum in non-strict mode.
+    return true;
+  }
+  return checksums.get(file) === calculateChecksum(file);
+}
+
 export function loadJsonFile(file: string): Record<string, jsonValue> {
   if (existsSync(file)) {
     try {

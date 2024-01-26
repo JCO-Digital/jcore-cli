@@ -13,7 +13,6 @@ import { join, parse } from "path";
 import { checkDocker, checkFolders } from "@/commands/doctor";
 import { archiveLocation, updateFolder } from "@/constants";
 import { logger } from "@/logger";
-import { jcoreCmdData } from "@/parser";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import {
   calculateChecksum,
@@ -58,8 +57,8 @@ export async function updateFiles(include: Array<string> = []) {
       force: true,
     });
 
-    if (getFlag("force") && jcoreCmdData.target.length === 0) {
-      // Remove old setup folder if updating all files.
+    if (getFlag("force") && include.length === 0) {
+      // Remove old setup folder if updating all files with "force" flag.
       logger.info("Remove old setup folder.");
       rmSync(join(jcoreRuntimeData.workDir, ".config"), {
         recursive: true,
@@ -147,7 +146,12 @@ export function moveFiles(
       if (opt.include.length === 0 || opt.include.includes(filePath)) {
         logger.debug(`${filePath} is a file.`);
         // Only run if no target given, or file is in target list.
-        const fileInfo = getFileInfo(destinationDir, filePath, checksums);
+        const fileInfo = getFileInfo(
+          destinationDir,
+          filePath,
+          checksums,
+          options.include,
+        );
 
         if (fileInfo.overwrite) {
           // File should be overwritten.
@@ -173,6 +177,7 @@ function getFileInfo(
   path: string,
   file: string,
   checksums: Map<string, string>,
+  include: Array<string> = [],
 ) {
   const files: Record<string, object> = {
     "readme.md": {
@@ -228,11 +233,15 @@ function getFileInfo(
     files[file] ?? {},
   );
 
+  // Overwrite all targeted files.
+  if (include.includes(fileInfo.target)) {
+    logger.debug(`File ${fileInfo.target} targeted, overwriting.`);
+    fileInfo.overwrite = true;
+    return fileInfo;
+  }
+
   // Check if force flag is set and file is allowed to be forced or targeted.
-  if (
-    getFlag("force") &&
-    (fileInfo.force || jcoreCmdData.target.includes(fileInfo.target))
-  ) {
+  if (getFlag("force") && fileInfo.force) {
     logger.debug(`Force overwrite ${fileInfo.target}`);
     fileInfo.overwrite = true;
     return fileInfo;
@@ -257,6 +266,7 @@ function getFileInfo(
     return fileInfo;
   }
 
+  // Calculate the checksum normally and compare it.
   if (calculateChecksum(destination) === checksum) {
     // Checksum matches.
     logger.debug(`Checksum matches for ${fileInfo.target}.`);

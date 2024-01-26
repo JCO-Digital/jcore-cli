@@ -81,9 +81,9 @@ export async function readSettings() {
     !existsSync(join(jcoreRuntimeData.workDir, projectConfigFilename))
   ) {
     // We are in a legacy project.
-    if (jcoreCmdData.cmd !== "convert") {
+    if (jcoreCmdData.cmd !== "migrate") {
       logger.warn(
-        "Legacy project detected, update project with 'jcore convert' to be able to run it."
+        "Legacy project detected, migrate the project with 'jcore migrate'.",
       );
     }
     jcoreRuntimeData.inProject = false;
@@ -173,7 +173,7 @@ async function versionCheck() {
 export function setConfigValue(
   key: string,
   value: configValue,
-  requestedScope: configScope
+  requestedScope: configScope,
 ) {
   const scope = validateScope(key, requestedScope);
   const configFile = getScopeConfigFile(scope);
@@ -182,8 +182,8 @@ export function setConfigValue(
   if (updateConfigValues(settings, configFile)) {
     logger.info(
       `${getScopeText(scope)} setting ${chalk.green(
-        key
-      )} updated to ${formatValue(value)}`
+        key,
+      )} updated to ${formatValue(value)}`,
     );
     return true;
   }
@@ -254,7 +254,7 @@ function getScopeText(scope: configScope) {
 
 export function updateConfigValues(
   settings: Record<string, configValue>,
-  file: string
+  file: string,
 ) {
   try {
     const values = loadConfigFile(file);
@@ -282,7 +282,7 @@ function loadConfigFile(file: string): Record<string, configValue> {
 
 export function saveConfigFile(
   file: string,
-  data: Record<string, configValue | undefined>
+  data: Record<string, configValue | undefined>,
 ) {
   try {
     const dataString = tomlStringify(data);

@@ -1,7 +1,11 @@
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
-import { copyChildTheme, queryProject } from "@/commands/create";
+import {
+  copyChildTheme,
+  migrateProject,
+  queryProject,
+} from "@/commands/create";
 import { doctor } from "@/commands/doctor";
 import {
   attach,
@@ -16,19 +20,17 @@ import {
   stop,
 } from "@/commands/run";
 import update, { selfUpdate } from "@/commands/update";
-import { configScope, projectConfigFilename } from "@/constants";
+import { configScope } from "@/constants";
 import { helpCmd } from "@/help";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import {
   jcoreRuntimeData,
   jcoreSettingsData,
-  readProjectSettings,
   setConfigValue,
 } from "@/settings";
 import type { jcoreProject } from "@/types";
 import { getFlag, isProject } from "@/utils";
-import { convertProjectSettings } from "./legacy";
 
 /**
  * Invokes functions for all the different commands. Sanity checking should be done here,
@@ -65,7 +67,7 @@ export function runCmd(): void {
             setConfigValue(
               "theme",
               jcoreSettingsData.theme,
-              configScope.PROJECT
+              configScope.PROJECT,
             );
             logger.info(`Theme ${jcoreSettingsData.theme} created.`);
           } else {
@@ -76,20 +78,13 @@ export function runCmd(): void {
         }
       }
       break;
-    case "convert":
+    case "migrate":
       if (isProject(false)) {
-        try {
-          logger.info("Converting config file.");
-          convertProjectSettings(projectConfigFilename);
-          readProjectSettings();
-          // Update project.
-          update();
-
-          // Delete old file.
-          //unlinkSync(localConfigLegacy);
-        } catch (e) {
-          logger.error("Conversion failed.");
+        if (jcoreRuntimeData.workDir.length < 2) {
+          logger.error("Not in a project, can't migrate.");
+          return;
         }
+        migrateProject();
       }
       break;
     case "clean":
