@@ -21,12 +21,12 @@ init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
  * Main init function of the application. This like all other functions expects an initialized settings object.
  */
 function initCli() {
-  // Intro text.
-  logger.verbose(`JCORE CLI v${version}`);
+  // Debug info text.
+  logger.debug("Version: ".padEnd(12) + version);
   logger.debug("Mode: ".padEnd(12) + jcoreSettingsData.mode);
   logger.debug("Debug: ".padEnd(12) + (jcoreSettingsData.debug ? "On" : "Off"));
   logger.debug(
-    "Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off"),
+    "Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off")
   );
   if (
     jcoreDataData.latest &&
@@ -35,7 +35,7 @@ function initCli() {
   ) {
     logger.warn(`New version v${jcoreDataData.latest} available.`);
     logger.verbose(
-      `Update with command "${jcoreRuntimeData.exec} update self"`,
+      `Update with command "${jcoreRuntimeData.exec} update self"`
     );
   }
   if (jcoreRuntimeData.inProject) {
@@ -51,6 +51,7 @@ function initCli() {
       runCmd();
     }
   } else {
+    logger.info(`JCORE CLI v${version}`);
     // Show generic help text.
     help();
   }
