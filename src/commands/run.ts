@@ -1,12 +1,17 @@
 import { execSync, spawnSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, renameSync, unlinkSync } from "fs";
 import { join } from "path";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { jcoreProject } from "@/types";
-import { getFlag, getSetupFolder } from "@/utils";
+import {
+  getFlag,
+  getFlagString,
+  getProjectFolder,
+  getSetupFolder,
+} from "@/utils";
 
 export function start() {
   if (finalizeProject(getFlag("install"))) {
@@ -49,6 +54,23 @@ export function pull() {
   const dbScript = join(scriptPath, "importdb");
   const mediaScript = join(scriptPath, "importmedia");
   const installScript = join(scriptPath, "installplugins");
+
+  const dbFile = getFlagString("dbfile");
+  const jcoreSqlPath = getProjectFolder("sql");
+  let dbPath: undefined | string;
+  if (dbFile !== undefined) {
+    dbPath = join(jcoreSqlPath, dbFile);
+  }
+  if (dbPath !== undefined && existsSync(dbPath)) {
+    logger.info("Moving selected database file to update.sql");
+    const updatePath = join(jcoreSqlPath, "update.sql");
+    if (existsSync(updatePath)) {
+      unlinkSync(updatePath);
+    }
+    renameSync(dbPath, updatePath);
+  } else if (dbPath !== undefined && !existsSync(dbPath)) {
+    logger.error(`Specified database file does not exist: ${dbPath}`);
+  }
 
   // Set initial run flags.
   const runFlags = {

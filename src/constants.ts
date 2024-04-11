@@ -76,6 +76,13 @@ export const optionDefinition = [
     description: "Set the JCORE branch to use, used in the init command.",
   },
   {
+    name: "dbfile",
+    alias: "dbf",
+    argument: String,
+    description:
+      "Use a file for importing the database when pulling changes, must be in the folder .jcore/sql/",
+  },
+  {
     name: "force",
     alias: "f",
     description: "Overwrites existing files.",

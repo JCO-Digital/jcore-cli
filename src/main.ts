@@ -26,7 +26,7 @@ function initCli() {
   logger.debug("Mode: ".padEnd(12) + jcoreSettingsData.mode);
   logger.debug("Debug: ".padEnd(12) + (jcoreSettingsData.debug ? "On" : "Off"));
   logger.debug(
-    "Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off")
+    "Install: ".padEnd(12) + (jcoreSettingsData.install ? "On" : "Off"),
   );
   if (
     jcoreDataData.latest &&
@@ -35,7 +35,7 @@ function initCli() {
   ) {
     logger.warn(`New version v${jcoreDataData.latest} available.`);
     logger.verbose(
-      `Update with command "${jcoreRuntimeData.exec} update self"`
+      `Update with command "${jcoreRuntimeData.exec} update self"`,
     );
   }
   if (jcoreRuntimeData.inProject) {

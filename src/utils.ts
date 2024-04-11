@@ -235,6 +235,10 @@ export function getSetupFolder(appendPath = "", inContainer = false): string {
   return join(path, ".config", appendPath);
 }
 
+export function getProjectFolder(appendPath = ""): string {
+  return join(jcoreRuntimeData.workDir, ".jcore", appendPath);
+}
+
 export function parseErrorHandler(error: unknown, file: string) {
   if (error instanceof TomlError) {
     logger.error(`TOML error in file ${file} on line ${error.line}`);
