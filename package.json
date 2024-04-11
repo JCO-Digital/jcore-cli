@@ -1,6 +1,6 @@
 {
   "name": "jcore-cli",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "main": "src/main.ts",
   "scripts": {
     "test": "biome check ./src",
