@@ -76,7 +76,7 @@ export async function updateFiles(include: Array<string> = []) {
       join(updatePath, "templates", jcoreSettingsData.template),
       jcoreRuntimeData.workDir,
       checksums,
-      { include }
+      { include },
     );
     // Save new checksums.
     saveChecksums(checksums);
@@ -105,7 +105,7 @@ export function moveFiles(
   sourceDir: string,
   destinationDir: string,
   checksums: Map<string, string>,
-  options: fileOptions = {}
+  options: fileOptions = {},
 ) {
   const opt = Object.assign(
     {
@@ -113,7 +113,7 @@ export function moveFiles(
       include: [],
       exclude: [],
     },
-    options
+    options,
   );
 
   if (!existsSync(join(destinationDir, opt.path))) {
@@ -150,7 +150,7 @@ export function moveFiles(
           destinationDir,
           filePath,
           checksums,
-          options.include
+          options.include,
         );
 
         if (fileInfo.overwrite) {
@@ -177,7 +177,7 @@ function getFileInfo(
   path: string,
   file: string,
   checksums: Map<string, string>,
-  include: Array<string> = []
+  include: Array<string> = [],
 ) {
   const files: Record<string, object> = {
     "readme.md": {
@@ -230,7 +230,7 @@ function getFileInfo(
       replace: [], // String replace in file.
       overwrite: false, // Flag to tell "moveFiles" to overwrite file.
     },
-    files[file] ?? {}
+    files[file] ?? {},
   );
 
   // Overwrite all targeted files.
@@ -307,7 +307,7 @@ export function finalizeProject(install = true): boolean {
           : "xdebug.mode=off",
       },
     ],
-    join(jcoreRuntimeData.workDir, ".jcore/php.ini")
+    join(jcoreRuntimeData.workDir, ".jcore/php.ini"),
   );
 
   // Set executable bits on scripts.
@@ -367,7 +367,7 @@ interface searchReplace {
 export function replaceInFile(
   file: string,
   replace: Array<searchReplace>,
-  destination = file
+  destination = file,
 ) {
   if (existsSync(file)) {
     let data = readFileSync(file, "utf8");
