@@ -7,7 +7,7 @@
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
     "watch": "esbuild src/main.ts --bundle --watch  --minify --sourcemap --platform=node --outfile=bin/jcore",
     "format": "biome check --apply ./src",
-    "preversion": "npm test",
+    "preversion": "pnpm test",
     "version": "",
     "postversion": "git push && git push --tags"
   },
