@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join, parse } from "path";
@@ -68,6 +69,9 @@ export async function readSettings() {
   if (jcoreRuntimeData.inProject) {
     // Get default name from path.
     jcoreSettingsData.projectName = parse(jcoreRuntimeData.workDir).base;
+
+    // Get current Git Branch.
+    jcoreRuntimeData.branch = readCurrentGitBranch();
   }
 
   // Read global app data.
@@ -104,6 +108,18 @@ export async function readSettings() {
     .catch((reason) => {
       logger.warn(reason);
     });
+}
+
+function readCurrentGitBranch() {
+  const options = {
+    cwd: jcoreRuntimeData.workDir,
+  };
+  try {
+    return execSync("git branch --show-current", options).toString().trim();
+  } catch (e) {
+    logger.error("Can't read git branch.");
+  }
+  return "";
 }
 
 export function readProjectSettings() {
@@ -271,6 +287,10 @@ function loadConfigFile(file: string): Record<string, configValue> {
     try {
       const toml = readFileSync(file, "utf8");
       const parsed = tomlParse(toml);
+      const branch = `branch-${jcoreRuntimeData.branch}`;
+      if (typeof parsed[branch] === "object") {
+        Object.assign(parsed, parsed[branch]);
+      }
       return settingsSchema.partial().parse(parsed);
     } catch (error) {
       parseErrorHandler(error, file);

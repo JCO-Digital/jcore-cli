@@ -36,6 +36,7 @@ export const runtimeSchema = z.object({
   inProject: z.boolean().default(false),
   nodePath: z.string().default(""),
   workDir: z.string().default(""),
+  branch: z.string().default(""),
 });
 
 export type jcoreRuntime = z.infer<typeof runtimeSchema>;

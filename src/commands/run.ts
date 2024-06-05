@@ -7,6 +7,7 @@ import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { jcoreProject } from "@/types";
 import {
+  createEnv,
   getFlag,
   getFlagString,
   getProjectFolder,
@@ -54,6 +55,8 @@ export function pull() {
   const dbScript = join(scriptPath, "importdb");
   const mediaScript = join(scriptPath, "importmedia");
   const installScript = join(scriptPath, "installplugins");
+
+  createEnv();
 
   const dbFile = getFlagString("dbfile");
   const jcoreSqlPath = getProjectFolder("sql");
