@@ -16,6 +16,7 @@ import { logger } from "@/logger";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import {
   calculateChecksum,
+  compareChecksum,
   createEnv,
   extractArchive,
   getFile,
@@ -23,6 +24,7 @@ import {
   getSetupFolder,
   loadChecksums,
   saveChecksums,
+  updateChecksum,
 } from "@/utils";
 
 export async function updateFiles(include: Array<string> = []) {
@@ -76,13 +78,16 @@ export async function updateFiles(include: Array<string> = []) {
       join(updatePath, "templates", jcoreSettingsData.template),
       jcoreRuntimeData.workDir,
       checksums,
-      { include },
+      { include }
     );
     // Save new checksums.
     saveChecksums(checksums);
 
     logger.verbose("Clean up remaining files.");
     rmSync(updatePath, { recursive: true, force: true });
+
+    // Finalize files again.
+    finalizeProject(false, false);
   } catch (reason) {
     throw `Unable to extract file ${reason}`;
   }
@@ -105,7 +110,7 @@ export function moveFiles(
   sourceDir: string,
   destinationDir: string,
   checksums: Map<string, string>,
-  options: fileOptions = {},
+  options: fileOptions = {}
 ) {
   const opt = Object.assign(
     {
@@ -113,7 +118,7 @@ export function moveFiles(
       include: [],
       exclude: [],
     },
-    options,
+    options
   );
 
   if (!existsSync(join(destinationDir, opt.path))) {
@@ -150,7 +155,7 @@ export function moveFiles(
           destinationDir,
           filePath,
           checksums,
-          options.include,
+          options.include
         );
 
         if (fileInfo.overwrite) {
@@ -177,7 +182,7 @@ function getFileInfo(
   path: string,
   file: string,
   checksums: Map<string, string>,
-  include: Array<string> = [],
+  include: Array<string> = []
 ) {
   const files: Record<string, object> = {
     "readme.md": {
@@ -188,7 +193,7 @@ function getFileInfo(
           search: "# WordPress Container",
           replace: `# ${jcoreSettingsData.projectName
             .charAt(0)
-            .toUpperCase()} ${jcoreSettingsData.projectName.slice(1)}`,
+            .toUpperCase()}${jcoreSettingsData.projectName.slice(1)}`,
         },
       ],
     },
@@ -198,7 +203,7 @@ function getFileInfo(
       replace: [
         {
           search: "wp-content/themes/projectname",
-          replace: `wp-content/themes/${jcoreSettingsData.theme}`,
+          replace: join("wp-content/themes", jcoreSettingsData.theme),
         },
       ],
     },
@@ -230,7 +235,7 @@ function getFileInfo(
       replace: [], // String replace in file.
       overwrite: false, // Flag to tell "moveFiles" to overwrite file.
     },
-    files[file] ?? {},
+    files[file] ?? {}
   );
 
   // Overwrite all targeted files.
@@ -275,7 +280,7 @@ function getFileInfo(
   return fileInfo;
 }
 
-export function finalizeProject(install = true): boolean {
+export function finalizeProject(install = true, pull = true): boolean {
   const options = {
     cwd: jcoreRuntimeData.workDir,
     stdio: [0, 1, 2],
@@ -285,16 +290,23 @@ export function finalizeProject(install = true): boolean {
     return false;
   }
 
+  const checksums = loadChecksums();
+
   // Write the .env file.
   createEnv();
 
   // Set nginx proxy pass.
-  replaceInFile(getSetupFolder("nginx/site.conf"), [
+  const siteConf = getSetupFolder("nginx/site.conf", false, true);
+  const checksum = compareChecksum(siteConf, false);
+  replaceInFile(join(jcoreRuntimeData.workDir, siteConf), [
     {
       search: /proxy_pass(\s*)https[^;]*;/gm,
       replace: `proxy_pass$1https://${jcoreSettingsData.remoteDomain};`,
     },
   ]);
+  if (checksum) {
+    updateChecksum(siteConf);
+  }
 
   // Manage php.ini & debug setting.
   replaceInFile(
@@ -307,7 +319,7 @@ export function finalizeProject(install = true): boolean {
           : "xdebug.mode=off",
       },
     ],
-    join(jcoreRuntimeData.workDir, ".jcore/php.ini"),
+    join(jcoreRuntimeData.workDir, ".jcore/php.ini")
   );
 
   // Set executable bits on scripts.
@@ -353,8 +365,10 @@ export function finalizeProject(install = true): boolean {
     }
 
     // Update docker images.
-    logger.info("Update Docker Images.");
-    execSync("docker compose pull", options);
+    if (pull) {
+      logger.info("Update Docker Images.");
+      execSync("docker compose pull", options);
+    }
   }
   return true;
 }
@@ -367,7 +381,7 @@ interface searchReplace {
 export function replaceInFile(
   file: string,
   replace: Array<searchReplace>,
-  destination = file,
+  destination = file
 ) {
   if (existsSync(file)) {
     let data = readFileSync(file, "utf8");

@@ -130,7 +130,15 @@ export function compareChecksum(file: string, strict = true): boolean {
     // Return true for missing checksum in non-strict mode.
     return true;
   }
-  return checksums.get(file) === calculateChecksum(file);
+  return (
+    checksums.get(file) === calculateChecksum((jcoreRuntimeData.workDir, file))
+  );
+}
+
+export function updateChecksum(file: string) {
+  const checksums = loadChecksums();
+  checksums.set(file, calculateChecksum(file));
+  saveChecksums(checksums);
 }
 
 export function loadJsonFile(file: string): Record<string, jsonValue> {
@@ -230,9 +238,17 @@ export function getFlagNumber(name: string): number | undefined {
   return undefined;
 }
 
-export function getSetupFolder(appendPath = "", inContainer = false): string {
+export function getSetupFolder(
+  appendPath = "",
+  inContainer = false,
+  relative = false
+): string {
+  const relPath = join(".config", appendPath);
+  if (relative) {
+    return relPath;
+  }
   const path = inContainer ? "/project" : jcoreRuntimeData.workDir;
-  return join(path, ".config", appendPath);
+  return join(path, relPath);
 }
 
 export function getProjectFolder(appendPath = ""): string {

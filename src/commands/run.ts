@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "child_process";
-import { existsSync, renameSync, unlinkSync } from "fs";
+import { existsSync, renameSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
@@ -119,7 +119,7 @@ export function cleanProject(project: jcoreProject) {
     execSync("docker compose rm -f", options);
     logger.info(`Cleaning volumes for project ${project.name}.`);
     const output = execSync(
-      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`,
+      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`
     ).toString();
     for (const volume of output.split(/[\r\n]+/)) {
       if (volume.length) {
@@ -127,6 +127,11 @@ export function cleanProject(project: jcoreProject) {
         execSync(`docker volume rm ${volume}`, options);
       }
     }
+    logger.debug("Deleting .jcore workfiles.");
+    rmSync(join(project.path, ".jcore"), {
+      recursive: true,
+      force: true,
+    });
   } catch (e) {
     logger.error("Docker failed");
   }
