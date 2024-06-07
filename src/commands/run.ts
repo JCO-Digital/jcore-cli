@@ -119,7 +119,7 @@ export function cleanProject(project: jcoreProject) {
     execSync("docker compose rm -f", options);
     logger.info(`Cleaning volumes for project ${project.name}.`);
     const output = execSync(
-      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`
+      `docker volume ls -q --filter=label=com.docker.compose.project=${project.name}`,
     ).toString();
     for (const volume of output.split(/[\r\n]+/)) {
       if (volume.length) {

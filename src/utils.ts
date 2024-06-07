@@ -131,7 +131,8 @@ export function compareChecksum(file: string, strict = true): boolean {
     return true;
   }
   return (
-    checksums.get(file) === calculateChecksum((jcoreRuntimeData.workDir, file))
+    checksums.get(file) ===
+    calculateChecksum(join(jcoreRuntimeData.workDir, file))
   );
 }
 
@@ -241,7 +242,7 @@ export function getFlagNumber(name: string): number | undefined {
 export function getSetupFolder(
   appendPath = "",
   inContainer = false,
-  relative = false
+  relative = false,
 ): string {
   const relPath = join(".config", appendPath);
   if (relative) {
