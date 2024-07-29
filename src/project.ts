@@ -290,8 +290,6 @@ export function finalizeProject(install = true, pull = true): boolean {
     return false;
   }
 
-  const checksums = loadChecksums();
-
   // Write the .env file.
   createEnv();
 
@@ -332,42 +330,52 @@ export function finalizeProject(install = true, pull = true): boolean {
   }
 
   if (jcoreSettingsData.install || install) {
-    // Install npm packages.
-    if (existsSync(join(jcoreRuntimeData.workDir, "package.json"))) {
+    if (existsSync(join(jcoreRuntimeData.workDir, "Makefile"))) {
+      // If Makefile exists, run make only.
       try {
-        execSync("pnpm --version || corepack enable", options);
-        if (existsSync(join(jcoreRuntimeData.workDir, "pnpm-lock.yaml"))) {
-          logger.info("Installing pnpm packages.");
-          execSync("pnpm i", options);
-        } else if (
-          existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))
-        ) {
-          logger.info("Installing npm packages from lock file.");
-          execSync("npm ci --silent --no-fund", options);
-        } else {
-          logger.info("Installing pnpm packages.");
-          execSync("pnpm i", options);
-        }
+        execSync("make install", options);
       } catch (e) {
-        logger.warn("Running npm failed.");
+        logger.warn("Running make failed.");
         return false;
       }
-    }
+    } else {
+      // Install npm packages.
+      if (existsSync(join(jcoreRuntimeData.workDir, "package.json"))) {
+        try {
+          execSync("pnpm --version || corepack enable", options);
+          if (existsSync(join(jcoreRuntimeData.workDir, "pnpm-lock.yaml"))) {
+            logger.info("Installing pnpm packages.");
+            execSync("pnpm i", options);
+          } else if (
+            existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))
+          ) {
+            logger.info("Installing npm packages from lock file.");
+            execSync("npm ci --silent --no-fund", options);
+          } else {
+            logger.info("Installing pnpm packages.");
+            execSync("pnpm i", options);
+          }
+        } catch (e) {
+          logger.warn("Running npm failed.");
+          return false;
+        }
+      }
 
-    if (existsSync(join(jcoreRuntimeData.workDir, "composer.json")))
-      // Install Composer packages.
-      logger.info("Installing composer packages.");
-    try {
-      execSync("composer install --quiet", options);
-    } catch (e) {
-      logger.warn("Composer failed, maybe not installed.");
-      return false;
-    }
+      if (existsSync(join(jcoreRuntimeData.workDir, "composer.json")))
+        // Install Composer packages.
+        logger.info("Installing composer packages.");
+      try {
+        execSync("composer install --quiet", options);
+      } catch (e) {
+        logger.warn("Composer failed, maybe not installed.");
+        return false;
+      }
 
-    // Update docker images.
-    if (pull) {
-      logger.info("Update Docker Images.");
-      execSync("docker compose pull", options);
+      // Update docker images.
+      if (pull) {
+        logger.info("Update Docker Images.");
+        execSync("docker compose pull", options);
+      }
     }
   }
   return true;
