@@ -66,6 +66,7 @@ export const settingsSchema = z.object({
   wpDebugDisplay: z.boolean().default(true),
   wpDebugLog: z.boolean().default(false),
   wpImage: z.string().default(""),
+  wpVersion: z.string().default(""),
 });
 export type jcoreSettings = z.infer<typeof settingsSchema>;
 

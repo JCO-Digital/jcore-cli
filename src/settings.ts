@@ -35,6 +35,7 @@ export const jcoreSettingsData = settingsSchema.parse({
   mode: "foreground",
   theme: "jcore2-child",
   wpImage: "jcodigi/wordpress:latest",
+  wpVersion: "latest",
 });
 
 export const jcoreDataData = {

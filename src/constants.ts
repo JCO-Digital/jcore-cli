@@ -63,6 +63,7 @@ export const projectSettings = [
   "pluginExclude",
   "pluginGit",
   "wpImage",
+  "wpVersion",
   "wpDebug",
   "wpDebugLog",
   "wpDebugDisplay",
