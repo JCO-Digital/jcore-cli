@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import { existsSync } from "fs";
 import { join, parse } from "path";
-import { childPath, jcorePath } from "@/constants";
+import { jcorePath } from "@/constants";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import { finalizeProject } from "@/project";
@@ -70,12 +70,6 @@ function setupProject() {
     try {
       // Switch jcore submodule to branch.
       options.cwd = join(jcoreRuntimeData.workDir, jcorePath);
-      if (existsSync(options.cwd)) {
-        execSync(`git switch ${jcoreSettingsData.branch}`, options);
-      }
-
-      // Switch jcore child submodule to branch.
-      options.cwd = join(jcoreRuntimeData.workDir, childPath);
       if (existsSync(options.cwd)) {
         execSync(`git switch ${jcoreSettingsData.branch}`, options);
       }

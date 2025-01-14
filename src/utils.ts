@@ -195,6 +195,14 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
   }
 }
 
+export function getUnzippedFolder(path: string): string {
+  const contents = readdirSync(path);
+  if (contents.length === 1) {
+    return join(path, contents[0]);
+  }
+  return path;
+}
+
 export function isProject(project = true): boolean {
   if (!project && jcoreRuntimeData.inProject) {
     logger.error("\nAlready in project.");

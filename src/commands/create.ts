@@ -1,11 +1,11 @@
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
 import {
-  childPath,
   configScope,
   projectConfigFilename,
   templatesLocation,
+  themeFolder,
 } from "@/constants";
 import { convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
@@ -27,9 +27,12 @@ import {
 import {
   compareChecksum,
   copyFiles,
+  extractArchive,
+  getFile,
   getFileString,
   getFlag,
   getFlagString,
+  getUnzippedFolder,
   nameToFolder,
 } from "@/utils";
 import inquirer from "inquirer";
@@ -108,6 +111,12 @@ export async function queryProject() {
   jcoreSettingsData.template = projectData.template;
   jcoreSettingsData.branch = projectData.branch;
 
+  // Template replacement.
+  templateData.themeUrl = templateData.themeUrl.replace(
+    /\{\{ *branch *\}\}/,
+    projectData.branch,
+  );
+
   createProject(templateData);
 }
 
@@ -139,7 +148,7 @@ export function createProject(templateData: jcoreTemplate) {
 
   // Run project update.
   updateFiles()
-    .then(() => {
+    .then(async () => {
       // Git init.
       execSync("git init", options);
 
@@ -156,8 +165,8 @@ export function createProject(templateData: jcoreTemplate) {
       }
 
       // Copy child theme.
-      if (templateData.child && !getFlag("nochild")) {
-        copyChildTheme(jcoreSettingsData.projectName);
+      if (templateData.themeUrl && !getFlag("notheme")) {
+        await createTheme(jcoreSettingsData.projectName, templateData.themeUrl);
         jcoreSettingsData.theme = jcoreSettingsData.projectName;
         settings.theme = jcoreSettingsData.projectName;
       }
@@ -178,19 +187,43 @@ export function createProject(templateData: jcoreTemplate) {
     });
 }
 
-export function copyChildTheme(name: string): boolean {
-  jcoreSettingsData.theme = nameToFolder(name);
-  const themePath = join(
-    jcoreRuntimeData.workDir,
-    "wp-content/themes",
-    jcoreSettingsData.theme,
-  );
-  if (!existsSync(themePath)) {
-    copyFiles(join(jcoreRuntimeData.workDir, childPath), themePath);
-    replaceInFile(join(themePath, "style.css"), [
-      { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
-    ]);
-    return true;
+export async function createTheme(name: string, url: string) {
+  const tempThemePath = join(jcoreRuntimeData.workDir, themeFolder);
+
+  try {
+    const buffer = await getFile(url);
+    await extractArchive(buffer, tempThemePath);
+    logger.verbose("Unzipped");
+
+    jcoreSettingsData.theme = nameToFolder(name);
+    const themePath = join(
+      jcoreRuntimeData.workDir,
+      "wp-content/themes",
+      jcoreSettingsData.theme,
+    );
+
+    if (!existsSync(themePath)) {
+      copyFiles(getUnzippedFolder(tempThemePath), themePath);
+      // Remove temporary files.
+      rmSync(tempThemePath, {
+        recursive: true,
+        force: true,
+      });
+      replaceInFile(join(themePath, "style.css"), [
+        { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
+      ]);
+
+      replaceInFile(join(jcoreRuntimeData.workDir, "Makefile"), [
+        {
+          search: /^theme :=.*$/gm,
+          replace: `theme := ${join("wp-content/themes", jcoreSettingsData.theme)}`,
+        },
+      ]);
+
+      return true;
+    }
+  } catch (reason) {
+    logger.warn("Theme extraction failed.");
   }
   return false;
 }

@@ -1,11 +1,7 @@
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
-import {
-  copyChildTheme,
-  migrateProject,
-  queryProject,
-} from "@/commands/create";
+import { migrateProject, queryProject } from "@/commands/create";
 import { doctor } from "@/commands/doctor";
 import {
   attach,
@@ -20,15 +16,10 @@ import {
   stop,
 } from "@/commands/run";
 import update, { selfUpdate } from "@/commands/update";
-import { configScope } from "@/constants";
 import { helpCmd } from "@/help";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
-import {
-  jcoreRuntimeData,
-  jcoreSettingsData,
-  setConfigValue,
-} from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import type { jcoreProject } from "@/types";
 import { getFlag, isProject } from "@/utils";
 
@@ -55,26 +46,6 @@ export function runCmd(): void {
           default:
             helpCmd(false);
             break;
-        }
-      }
-      break;
-    case "child":
-      if (isProject()) {
-        // Create Child Theme.
-        if (jcoreCmdData.target[0]) {
-          if (copyChildTheme(jcoreCmdData.target.join(" "))) {
-            // Save settings.
-            setConfigValue(
-              "theme",
-              jcoreSettingsData.theme,
-              configScope.PROJECT,
-            );
-            logger.info(`Theme ${jcoreSettingsData.theme} created.`);
-          } else {
-            logger.error("Theme creation failed!");
-          }
-        } else {
-          helpCmd(false);
         }
       }
       break;

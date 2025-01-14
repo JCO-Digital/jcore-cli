@@ -93,7 +93,7 @@ export type jcoreSubmodule = z.infer<typeof submoduleSchema>;
 export const templateSchema = z.object({
   branch: z.string(),
   branches: z.array(z.string()),
-  child: z.boolean().default(false),
+  themeUrl: z.string().default(""),
   submodules: z.array(submoduleSchema).default([]),
 });
 export type jcoreTemplate = z.infer<typeof templateSchema>;

@@ -29,8 +29,8 @@ export const archiveLocation =
 export const templatesLocation =
   "https://raw.githubusercontent.com/JCO-Digital/wordpress-container/main/templates/templates.toml";
 export const jcorePath = "wp-content/themes/jcore2";
-export const childPath = "wp-content/themes/jcore2-child";
 export const updateFolder = ".update";
+export const themeFolder = ".theme";
 export const checksumFile = ".file.checksums.json";
 
 export const projectConfigFilename = "jcore.toml";
@@ -109,9 +109,9 @@ export const optionDefinition = [
     description: "Write settings locally.",
   },
   {
-    name: "nochild",
+    name: "notheme",
     alias: "n",
-    description: "Doesn't install child theme on init command.",
+    description: "Doesn't install theme on init command.",
   },
   {
     name: "quiet",
@@ -160,13 +160,6 @@ export const commands = [
       "list - Lists all checksums, and weather they match.",
       "set [...filename] - Calculate and set checksums for the given files.",
     ],
-  },
-  {
-    cmd: "child",
-    text: "Makes project child theme by copying the local jcore2-child folder.",
-    description:
-      "It uses a file copy operation, rather than checking out the git repository, so uncommitted files in the folder will be included. The default name will be the same as the project name, but a different name can be specified as the target.",
-    usage: ["<themename> - Creates a copy the jcore child theme."],
   },
   {
     cmd: "clean",
