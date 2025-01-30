@@ -12,7 +12,12 @@ import { configValue, settingsSchema } from "@/types";
 import chalk from "chalk";
 
 export function config() {
-  const scope = jcoreCmdData.scope;
+  const scope =
+    jcoreCmdData.scope === configScope.UNSET
+      ? jcoreRuntimeData.inProject
+        ? configScope.PROJECT
+        : configScope.GLOBAL
+      : jcoreCmdData.scope;
   switch (jcoreCmdData.target[0].toLowerCase()) {
     case "list":
       list((jcoreCmdData.target[1] ?? "all").toLowerCase());

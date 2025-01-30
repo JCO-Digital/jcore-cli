@@ -24,6 +24,7 @@ import chalk from "chalk";
 import * as process from "process";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
 import { version } from "../package.json";
+import { config } from "typescript-eslint";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
@@ -193,6 +194,9 @@ export function setConfigValue(
   requestedScope: configScope,
 ) {
   const scope = validateScope(key, requestedScope);
+  if (scope === configScope.INVALID) {
+    return false;
+  }
   const configFile = getScopeConfigFile(scope);
   const settings: Record<string, configValue> = {};
   settings[key] = value;
@@ -237,21 +241,24 @@ export function getScopeConfigFile(scope: configScope) {
   return "";
 }
 
-function validateScope(key: string, scope: configScope) {
-  if (!jcoreRuntimeData.inProject && scope !== configScope.GLOBAL) {
-    if (scope === configScope.PROJECT) {
+function validateScope(key: string, requestedScope: configScope) {
+  const scope = projectSettings.includes(key)
+    ? configScope.PROJECT
+    : configScope.GLOBAL;
+  if (!jcoreRuntimeData.inProject && scope === configScope.PROJECT) {
+    if (requestedScope === configScope.PROJECT) {
       logger.error("Project setting, but not in Project!");
-    } else {
-      logger.error("Not in Project. Use -g for global setting.");
     }
     return configScope.INVALID;
   }
 
-  if (scope === configScope.PROJECT && !projectSettings.includes(key)) {
-    logger.debug(`Project settings doesn't include ${key}, switching to local`);
-    return configScope.LOCAL;
+  if (requestedScope === configScope.PROJECT && scope === configScope.GLOBAL) {
+    logger.error(
+      `Global setting ${key} can't be set in project, use --global or --local.`,
+    );
+    return configScope.INVALID;
   }
-  return scope;
+  return requestedScope;
 }
 
 function getScopeText(scope: configScope) {

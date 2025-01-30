@@ -1,9 +1,10 @@
 export enum configScope {
   INVALID = 0,
-  DEFAULT = 1,
-  GLOBAL = 2,
-  PROJECT = 3,
-  LOCAL = 4,
+  UNSET = 1,
+  DEFAULT = 2,
+  GLOBAL = 3,
+  PROJECT = 4,
+  LOCAL = 5,
 }
 export enum flagReturnType {
   NOTFOUND = 0,
@@ -42,6 +43,7 @@ export const globalFolders = [".config/jcore/ssl", ".config/jcore/ssh"];
 export const externalCommands = [
   { name: "node", version: "-v", min: 14 },
   { name: "npm", version: "-v", min: 1 },
+  { name: "pnpm", version: "-v", min: 9 },
   { name: "composer", version: "-V", min: 2 },
   { name: "docker", version: "-v", min: 20 },
   { name: "docker-compose", version: "-v", min: 2 },

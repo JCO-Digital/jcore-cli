@@ -15,7 +15,7 @@ export function cloneProject() {
   }
   if (jcoreCmdData.target[0].search(/^[a-zA-Z0-9_-]+$/) !== -1) {
     // Target is just name of the project. Needs to be extended.
-    source = `git@github.com:JCO-Digital/${source}.git`;
+    source = jcoreSettingsData.projectDefault.replace("{name}", source);
     if (!jcoreSettingsData.projectName) {
       // Set argument as project name if second argument not given.
       jcoreSettingsData.projectName = jcoreCmdData.target[0];

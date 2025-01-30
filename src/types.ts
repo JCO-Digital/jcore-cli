@@ -17,7 +17,7 @@ export const cmdSchema = z.object({
   cmd: z.string().default(""),
   target: z.array(z.string()).default([]),
   logLevel: z.number().default(2),
-  scope: z.number().default(configScope.PROJECT),
+  scope: z.number().default(configScope.UNSET),
   flags: z
     .map(z.string(), z.union([z.boolean(), z.string(), z.number()]))
     .default(new Map()),
@@ -56,6 +56,7 @@ export const settingsSchema = z.object({
   pluginGit: z.array(z.string()).default([]),
   pluginInstall: z.string().default("remote"),
   pluginLocal: z.array(z.string()).default([]),
+  projectDefault: z.string().default("git@github.com:JCO-Digital/{name}.git"),
   projectName: z.string().default(""),
   remoteDomain: z.string().default(""),
   remoteHost: z.string().default(""),
