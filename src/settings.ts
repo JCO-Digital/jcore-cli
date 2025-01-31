@@ -24,7 +24,6 @@ import chalk from "chalk";
 import * as process from "process";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
 import { version } from "../package.json";
-import { config } from "typescript-eslint";
 
 // Runtime settings.
 export const jcoreRuntimeData = runtimeSchema.parse({
@@ -245,11 +244,16 @@ function validateScope(key: string, requestedScope: configScope) {
   const scope = projectSettings.includes(key)
     ? configScope.PROJECT
     : configScope.GLOBAL;
-  if (!jcoreRuntimeData.inProject && scope === configScope.PROJECT) {
-    if (requestedScope === configScope.PROJECT) {
+
+  if (!jcoreRuntimeData.inProject) {
+    if (scope === configScope.PROJECT) {
       logger.error("Project setting, but not in Project!");
+      return configScope.INVALID;
     }
-    return configScope.INVALID;
+    if (requestedScope === configScope.LOCAL) {
+      logger.error("Not in project, but local setting requested.");
+      return configScope.INVALID;
+    }
   }
 
   if (requestedScope === configScope.PROJECT && scope === configScope.GLOBAL) {
