@@ -6,15 +6,15 @@ Because of the nature of this utility, it runs mostly synchronously. As such it 
 
 ## Code formatting and linting
 
-jcore-cli uses quite strict linting and formatting checking, if you commit something with invalid formatting, the drone build will fail. You can test everything with `npm test` before you commit, and if formatting needs fixing, run `npm run format`. That fixes everything up.
+jcore-cli uses quite strict linting and formatting checking, if you commit something with invalid formatting, the drone build will fail. You can test everything with `pnpm test` before you commit, and if formatting needs fixing, run `pnpm format`. That fixes everything up.
 
 ## Testing the code locally
 
-You can have esbuild continuously build the executable for you with `npm run watch`. But to properly test it, you need to run `source add-to-path.sh`, this will temporarily prepend your build directory to your PATH variable. Note that this only work for the shell you ran the command from, and goes away if you close the shell. Leave the version as it is during development commits.
+You can have esbuild continuously build the executable for you with `make watch`. But to properly test it, you need to run `source add-to-path.sh`, this will temporarily prepend your build directory to your PATH variable. Note that this only work for the shell you ran the command from, and goes away if you close the shell. Leave the version as it is during development commits.
 
 ## Publishing the code
 
-You can commit and push your commits on main branch to your hearts content, the CI will not publish the executable unless you tag the release. You can create a realease by running `npm version patch|minor|major`, depending on what number you want to bump. The project follows Semantic Versioning, so:
+You can commit and push your commits on main branch to your hearts content, the CI will not publish the executable unless you tag the release. You can create a realease by running `pnpm version patch|minor|major`, depending on what number you want to bump. The project follows Semantic Versioning, so:
 
 - Major should be used for breaking changes.
 - Minor should be used when new features are added.
@@ -155,3 +155,29 @@ The following options can be used with the JCORE CLI:
 - `--install, -i`: Installs dependencies.
 - `--notheme, -n`: Doesn't install theme on init command.
 - `--force, -f`: Overwrites existing files.
+
+## Troubleshooting
+
+If you encounter issues while using the JCORE CLI, here are some troubleshooting steps:
+
+- **Command Not Found:** If you receive a "command not found" error when trying to run `jcore`, ensure that you have added the CLI to a folder in your PATH environment variable.
+
+- **Permissions Issues:** If you encounter permission errors, ensure that you have the necessary permissions to execute the CLI and access the files and directories it needs. You might need to use `chmod` to change file permissions or `chown` to change file ownership.
+
+- **Docker Errors:** Many JCORE CLI commands rely on Docker. Ensure that Docker is installed and running on your system. You can check Docker's status with `docker ps`. If Docker is not running, start it according to your operating system's instructions. Also, make sure you have the necessary permissions to run Docker commands. You might need to add your user to the `docker` group.
+
+- **Project Issues:** If you're encountering problems with a specific project, verify the project's configuration files (e.g., `.env`, `docker-compose.yml`). Ensure that the file paths, database credentials, and other settings are correct. You can use the `config list` command to inspect your project's configuration.
+
+- **Network Issues:** If the CLI is unable to connect to the internet or other network resources, check your network connection and firewall settings. Ensure that the CLI has the necessary permissions to access the network.
+
+- **Debugging with Verbose Mode:** Use the `--verbose` or `--debug` flags to get more detailed output from the CLI. This can help you identify the source of the problem.
+
+- **Check the Logs:** Examine the logs for the CLI and the Docker containers for error messages and other clues. You can use `jcore attach` to view the logs of the containers.
+
+- **Update the CLI:** Make sure you're using the latest version of the JCORE CLI. Use the `jcore update self` command to update the CLI.
+
+- **Consult the Documentation:** Refer to the JCORE CLI documentation for more information about the commands and options.
+
+- **Search for Existing Issues:** Before reporting a new issue, search the JCORE CLI's issue tracker (e.g., on GitHub) to see if someone else has already reported a similar problem.
+
+- **Report Issues:** If you're still unable to resolve the issue, report it to the JCORE CLI developers. Provide as much information as possible, including the CLI version, operating system, command you're running, and any error messages.
