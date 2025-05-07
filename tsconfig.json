@@ -8,7 +8,7 @@
     "sourceMap": true,
     "noImplicitAny": true,
     "module": "commonjs",
-    "allowJs": true,
+    "allowJs": false,
     "typeRoots": ["./node_modules/@types"],
     "types": ["node"],
     "paths": {
