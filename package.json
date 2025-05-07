@@ -2,6 +2,7 @@
   "name": "jcore-cli",
   "version": "3.9.1",
   "main": "src/main.ts",
+  "license": "GPL-2.0-only",
   "scripts": {
     "test": "eslint ./src && prettier ./src --check",
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
