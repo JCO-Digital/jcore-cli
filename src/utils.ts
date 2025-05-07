@@ -20,6 +20,12 @@ import process from "process";
 import { TomlError, parse as tomlParse } from "smol-toml";
 import { ZodError } from "zod";
 
+/**
+ * Fetches a file from a given URL and returns it as a string.
+ *
+ * @param {string} url - The URL of the file to fetch.
+ * @returns {Promise<string>} Promise that resolves to the file content as a string.
+ */
 export function getFileString(url: string): Promise<string> {
   logger.debug(`Getting file ${url} as string.`);
   return new Promise((resolve, reject) => {
@@ -120,6 +126,11 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
   });
 }
 
+/**
+ * Loads checksums from the checksum file.
+ *
+ * @returns {Map<string, string>} The loaded checksums.
+ */
 export function loadChecksums(): Map<string, string> {
   const data = loadJsonFile(join(jcoreRuntimeData.workDir, checksumFile));
   const checksums = new Map<string, string>();
@@ -131,6 +142,12 @@ export function loadChecksums(): Map<string, string> {
   return checksums;
 }
 
+/**
+ * Saves checksums from a Map to a JSON file.
+ *
+ * @param {Map<string, string>} checksums - The map of checksums to save.
+ * @returns {boolean} True if saving was successful, false otherwise.
+ */
 export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
@@ -142,6 +159,13 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
   }
 }
 
+/**
+ * Compares the checksum of a file with the stored checksum.
+ *
+ * @param {string} file - The file to compare the checksum for.
+ * @param {boolean} strict - Whether to perform a strict comparison.
+ * @returns {boolean} True if the checksums match, false otherwise.
+ */
 export function compareChecksum(file: string, strict = true): boolean {
   const checksums = loadChecksums();
   if (!strict && checksums.get(file) === undefined) {
@@ -154,12 +178,23 @@ export function compareChecksum(file: string, strict = true): boolean {
   );
 }
 
+/**
+ * Updates the checksum of a file.
+ *
+ * @param {string} file - The file to update the checksum for.
+ */
 export function updateChecksum(file: string) {
   const checksums = loadChecksums();
   checksums.set(file, calculateChecksum(file));
   saveChecksums(checksums);
 }
 
+/**
+ * Loads a JSON file.
+ *
+ * @param {string} file - The file to load.
+ * @returns {Record<string, jsonValue>} The loaded JSON data.
+ */
 export function loadJsonFile(file: string): Record<string, jsonValue> {
   if (existsSync(file)) {
     try {
@@ -173,6 +208,12 @@ export function loadJsonFile(file: string): Record<string, jsonValue> {
   return {};
 }
 
+/**
+ * Calculates the checksum of a file.
+ *
+ * @param {string} file - The file to calculate the checksum for.
+ * @returns {string} The calculated checksum.
+ */
 export function calculateChecksum(file: string): string {
   try {
     const data = readFileSync(file, "utf8");
@@ -184,8 +225,8 @@ export function calculateChecksum(file: string): string {
 
 /**
  * Copies source to destination, merging with existing structure, overwriting files.
- * @param sourceDir Source Folder
- * @param destinationDir Destination Folder
+ * @param {string} sourceDir - Source Folder
+ * @param {string} destinationDir - Destination Folder
  */
 export function copyFiles(sourceDir: string, destinationDir: string) {
   if (!existsSync(destinationDir)) {
@@ -213,6 +254,12 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
   }
 }
 
+/**
+ * Gets the unzipped folder.
+ *
+ * @param {string} path - The path to the unzipped folder.
+ * @returns {string} The path to the unzipped folder.
+ */
 export function getUnzippedFolder(path: string): string {
   const contents = readdirSync(path);
   if (contents.length === 1) {
@@ -221,7 +268,13 @@ export function getUnzippedFolder(path: string): string {
   return path;
 }
 
-export function isProject(project = true): boolean {
+/**
+ * Checks if the current directory is a project.
+ *
+ * @param {boolean} project - Whether to check if the current directory is a project.
+ * @returns {boolean} True if the current directory is a project, false otherwise.
+ */
+export function isProject(project: boolean = true): boolean {
   if (!project && jcoreRuntimeData.inProject) {
     logger.error("\nAlready in project.");
   }
@@ -231,10 +284,28 @@ export function isProject(project = true): boolean {
   return jcoreRuntimeData.inProject === project;
 }
 
-export function nameToFolder(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/, "-");
+/**
+ * Converts text to a slug.
+ *
+ * @param {string} text - The text to slugify.
+ * @returns {string} The slugified text.
+ */
+export function slugify(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * Gets a flag.
+ *
+ * @param {string} name - The name of the flag to get.
+ * @returns {boolean} The value of the flag.
+ */
 export function getFlag(name: string): boolean {
   if (jcoreCmdData.flags.has(name)) {
     const value = jcoreCmdData.flags.get(name);
@@ -245,6 +316,12 @@ export function getFlag(name: string): boolean {
   return false;
 }
 
+/**
+ * Gets a flag as a string.
+ *
+ * @param {string} name - The name of the flag to get.
+ * @returns {string | undefined} The value of the flag as a string, or undefined if the flag is not a string.
+ */
 export function getFlagString(name: string): string | undefined {
   if (jcoreCmdData.flags.has(name)) {
     const value = jcoreCmdData.flags.get(name);
@@ -255,6 +332,12 @@ export function getFlagString(name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Gets a flag as a number.
+ *
+ * @param {string} name - The name of the flag to get.
+ * @returns {number | undefined} The value of the flag as a number, or undefined if the flag is not a number.
+ */
 export function getFlagNumber(name: string): number | undefined {
   if (jcoreCmdData.flags.has(name)) {
     const value = jcoreCmdData.flags.get(name);
@@ -265,10 +348,18 @@ export function getFlagNumber(name: string): number | undefined {
   return undefined;
 }
 
+/**
+ * Gets the setup folder.
+ *
+ * @param {string} appendPath - The path to append to the setup folder.
+ * @param {boolean} inContainer - Whether the setup folder is in a container.
+ * @param {boolean} relative - Whether the setup folder is relative.
+ * @returns {string} The path to the setup folder.
+ */
 export function getSetupFolder(
-  appendPath = "",
-  inContainer = false,
-  relative = false,
+  appendPath: string = "",
+  inContainer: boolean = false,
+  relative: boolean = false,
 ): string {
   const relPath = join(".config", appendPath);
   if (relative) {
@@ -278,10 +369,22 @@ export function getSetupFolder(
   return join(path, relPath);
 }
 
-export function getProjectFolder(appendPath = ""): string {
+/**
+ * Gets the project folder.
+ *
+ * @param {string} appendPath - The path to append to the project folder.
+ * @returns {string} The path to the project folder.
+ */
+export function getProjectFolder(appendPath: string = ""): string {
   return join(jcoreRuntimeData.workDir, ".jcore", appendPath);
 }
 
+/**
+ * Parses the error handler.
+ *
+ * @param {unknown} error - The error to parse.
+ * @param {string} file - The file the error occurred in.
+ */
 export function parseErrorHandler(error: unknown, file: string) {
   if (error instanceof TomlError) {
     logger.error(`TOML error in file ${file} on line ${error.line}`);
@@ -296,16 +399,9 @@ export function parseErrorHandler(error: unknown, file: string) {
   }
 }
 
-export function slugify(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_]+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
+/**
+ * Creates the .env file.
+ */
 export function createEnv() {
   const file = join(jcoreRuntimeData.workDir, "env-values.toml");
   if (existsSync(file)) {
@@ -333,11 +429,23 @@ export function createEnv() {
   }
 }
 
+/**
+ * Creates the env name.
+ *
+ * @param {string} name - The name of the env.
+ * @returns {string} The created env name.
+ */
 function createEnvName(name: string) {
   // Convert camelCase to UPPERCASE_SNAKE.
   return name.replace(/([A-Z])/g, "_$1").toUpperCase();
 }
 
+/**
+ * Creates the env variable.
+ *
+ * @param {configValue} value - The value of the config.
+ * @returns {string} The created env variable.
+ */
 function createEnvVariable(value: configValue): string {
   if (Array.isArray(value)) {
     const output: Array<string> = [];

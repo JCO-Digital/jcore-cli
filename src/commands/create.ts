@@ -44,7 +44,6 @@ import {
   getFlag,
   getFlagString,
   getUnzippedFolder,
-  nameToFolder,
   slugify,
 } from "@/utils";
 import inquirer from "inquirer";
@@ -289,7 +288,7 @@ export function createProject(templateData: jcoreTemplate): void {
  * @returns {Promise<boolean>} A promise that resolves to true if the theme was created successfully, false otherwise.
  */
 export async function createTheme(name: string, url: string): Promise<boolean> {
-  jcoreSettingsData.theme = nameToFolder(name);
+  jcoreSettingsData.theme = slugify(name);
   const themePath = join(
     jcoreRuntimeData.workDir,
     "wp-content/themes",
