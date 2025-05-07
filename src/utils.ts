@@ -296,6 +296,16 @@ export function parseErrorHandler(error: unknown, file: string) {
   }
 }
 
+export function slugify(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function createEnv() {
   const file = join(jcoreRuntimeData.workDir, "env-values.toml");
   if (existsSync(file)) {

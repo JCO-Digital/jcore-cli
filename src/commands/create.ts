@@ -1,11 +1,20 @@
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, rmSync, unlinkSync } from "fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
 import {
   configScope,
   projectConfigFilename,
+  lohkoTemplatePath,
   templatesLocation,
-  themeFolder,
+  tempUnzipFolder,
+  lohkoBlockPath,
 } from "@/constants";
 import { convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
@@ -34,6 +43,7 @@ import {
   getFlagString,
   getUnzippedFolder,
   nameToFolder,
+  slugify,
 } from "@/utils";
 import inquirer from "inquirer";
 import process from "process";
@@ -129,6 +139,48 @@ export async function queryProject(): Promise<void> {
   );
 
   createProject(templateData);
+}
+
+export async function queryBlock(): Promise<void> {
+  // Populate templatesKeys with sub-folders in lohkoTemplatePath.
+  const templatesKeys: string[] = [];
+  try {
+    const entries = readdirSync(lohkoTemplatePath);
+    for (const entry of entries) {
+      const entryPath = join(lohkoTemplatePath, entry);
+      const stats = lstatSync(entryPath);
+      if (stats.isDirectory()) {
+        templatesKeys.push(entry);
+      }
+    }
+  } catch (error) {
+    logger.error(`Error reading lohko templates directory: ${error}`);
+  }
+
+  const questions: Array<object> = [
+    {
+      type: "input",
+      name: "name",
+      message: "Enter a block name:",
+    },
+    {
+      type: "list",
+      name: "template",
+      message: "Select a block template:",
+      choices: templatesKeys,
+    },
+    {
+      type: "input",
+      name: "description",
+      message: "Enter a block description:",
+    },
+  ];
+  const answers = await inquirer.prompt(questions);
+  if (answers.name && answers.template) {
+    createBlock(answers.name, answers.template, answers.description);
+  } else {
+    logger.error("Invalid data, skipping block creation!");
+  }
 }
 
 /**
@@ -259,6 +311,14 @@ export async function createTheme(name: string, url: string): Promise<boolean> {
   return false;
 }
 
+function createBlock(name: string, template: string, description: string) {
+  const slug = slugify(name);
+  const source = join(lohkoTemplatePath, template);
+  const destination = join(lohkoBlockPath, slug);
+
+  copyFiles(source, destination);
+}
+
 /**
  * Downloads an archive from a URL, extracts it, and saves it to a destination folder.
  *
@@ -271,7 +331,7 @@ export async function createTheme(name: string, url: string): Promise<boolean> {
  * @returns {Promise<boolean>} A promise that resolves to `true` if the file was downloaded and extracted successfully, `false` otherwise.
  */
 async function unzipFile(url: string, destination: string): Promise<boolean> {
-  const tempUnzipPath = join(jcoreRuntimeData.workDir, "tempUnzipFolder");
+  const tempUnzipPath = join(jcoreRuntimeData.workDir, tempUnzipFolder);
   try {
     const buffer = await getFile(url);
     await extractArchive(buffer, tempUnzipPath);

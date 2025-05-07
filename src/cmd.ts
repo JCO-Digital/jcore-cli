@@ -1,7 +1,7 @@
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
-import { migrateProject, queryProject } from "@/commands/create";
+import { migrateProject, queryBlock, queryProject } from "@/commands/create";
 import { doctor } from "@/commands/doctor";
 import {
   attach,
@@ -88,6 +88,22 @@ export function runCmd(): void {
     case "config":
       if (jcoreCmdData.target.length > 0) {
         config();
+      } else {
+        helpCmd(false);
+      }
+      break;
+    case "create":
+      if (jcoreCmdData.target.length > 0) {
+        switch (jcoreCmdData.target[0]) {
+          case "block":
+            queryBlock().catch((reason) => {
+              logger.error(reason.toString());
+            });
+            break;
+          default:
+            helpCmd(false);
+            break;
+        }
       } else {
         helpCmd(false);
       }

@@ -30,8 +30,10 @@ export const archiveLocation =
 export const templatesLocation =
   "https://raw.githubusercontent.com/JCO-Digital/wordpress-container/main/templates/templates.toml";
 export const jcorePath = "wp-content/themes/jcore2";
+export const lohkoTemplatePath = "wp-content/plugins/lohko/templates";
+export const lohkoBlockPath = "wp-content/plugins/lohko/src";
 export const updateFolder = ".update";
-export const themeFolder = ".theme";
+export const tempUnzipFolder = ".tempUnzip";
 export const checksumFile = ".file.checksums.json";
 
 export const projectConfigFilename = "jcore.toml";
@@ -218,6 +220,12 @@ export const commands = [
       "set - Sets config value.",
       "unset - Removes a setting, probably returning it to defaults.",
     ],
+  },
+  {
+    cmd: "create",
+    text: "Create an item of specified type from template.",
+    description: "",
+    usage: ["block - Create a block."],
   },
   {
     cmd: "shell",
