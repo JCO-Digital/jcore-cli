@@ -1,3 +1,14 @@
+# [3.10.0](https://github.com/JCO-Digital/jcore-cli/compare/v3.9.1...v3.10.0) (2025-05-07)
+
+
+### Features
+
+* Add command to create Lohko blocks ([d8e456a](https://github.com/JCO-Digital/jcore-cli/commit/d8e456a7515ba1d37c7ee9c7a1ecd7fa166f4727))
+* Add file extraction utility. ([3ec4fac](https://github.com/JCO-Digital/jcore-cli/commit/3ec4facf289bd8061a3189c65928213ad5d92e82))
+* Configure copied block template ([bb803d3](https://github.com/JCO-Digital/jcore-cli/commit/bb803d34252f372a3c0d609d764cf6e5155b8eef))
+
+
+
 ## [3.9.1](https://github.com/JCO-Digital/jcore-cli/compare/v3.9.0...v3.9.1) (2025-01-31)
 
 
