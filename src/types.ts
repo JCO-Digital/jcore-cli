@@ -91,10 +91,18 @@ export const submoduleSchema = z.object({
   useBranch: z.boolean().default(false),
 });
 export type jcoreSubmodule = z.infer<typeof submoduleSchema>;
+
+export const templateFileSchema = z.object({
+  path: z.string(),
+  url: z.string(),
+});
+export type jcoreTemplateFile = z.infer<typeof templateFileSchema>;
+
 export const templateSchema = z.object({
   branch: z.string(),
   branches: z.array(z.string()),
   themeUrl: z.string().default(""),
   submodules: z.array(submoduleSchema).default([]),
+  files: z.array(templateFileSchema).default([]),
 });
 export type jcoreTemplate = z.infer<typeof templateSchema>;

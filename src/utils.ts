@@ -44,6 +44,12 @@ export function getFileString(url: string): Promise<string> {
   });
 }
 
+/**
+ * Fetches a file from a given URL and returns it as a Buffer.
+ *
+ * @param {string} url - The URL of the file to fetch.
+ * @returns {Promise<Buffer>} Promise that resolves with the file content as a Buffer.
+ */
 export function getFile(url: string): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
     https.get(url).on("response", (response) => {
@@ -67,6 +73,11 @@ export function getFile(url: string): Promise<Buffer> {
   });
 }
 
+/**
+ * Fetches the current version from the package.json file.
+ *
+ * @returns {Promise<string>} Promise that resolves to the version string.
+ */
 export function fetchVersion(): Promise<string> {
   return new Promise((resolve, reject) => {
     getFileString(join(scriptLocation, "package.json"))
@@ -89,6 +100,13 @@ export function fetchVersion(): Promise<string> {
   });
 }
 
+/**
+ * Extracts an archive (zip) from a Buffer to a specified output directory.
+ *
+ * @param {Buffer} buffer - The Buffer containing the zip archive.
+ * @param {string} output - The directory path to extract the archive to.
+ * @returns {Promise<void>} Promise that resolves when extraction is complete, or rejects on error.
+ */
 export function extractArchive(buffer: Buffer, output: string): Promise<void> {
   return new Promise((resolve, reject) => {
     try {

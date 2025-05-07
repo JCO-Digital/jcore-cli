@@ -39,7 +39,18 @@ import inquirer from "inquirer";
 import process from "process";
 import { parse as tomlParse } from "smol-toml";
 
-export async function queryProject() {
+/**
+ * Creates a new project based on user input or provided parameters.
+ *
+ * This function prompts the user for project details if not provided via command line arguments,
+ * validates the selected template, and initiates the project creation process. It handles
+ * template selection, branch selection, and prepares the project configuration before calling
+ * the createProject function.
+ *
+ * @returns {Promise<void>} A promise that resolves when the project query and setup are complete
+ * @throws {Promise<string>} Rejects with an error message if the template is invalid
+ */
+export async function queryProject(): Promise<void> {
   const projectData = {
     projectName: jcoreCmdData.target[0] ?? "",
     template: getFlagString("template") ?? "",
@@ -120,7 +131,17 @@ export async function queryProject() {
   createProject(templateData);
 }
 
-export function createProject(templateData: jcoreTemplate) {
+/**
+ * Creates a new project using the specified template data.
+ *
+ * This function sets up a new project directory, initializes git, adds required submodules,
+ * creates a child theme if applicable, and configures the project settings. It handles the
+ * actual project creation after queryProject() has gathered all necessary information.
+ *
+ * @param {jcoreTemplate} templateData - The template configuration for the project
+ * @returns {void}
+ */
+export function createProject(templateData: jcoreTemplate): void {
   jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
   if (existsSync(jcoreRuntimeData.workDir)) {
     logger.error(`Project path exists: ${jcoreRuntimeData.workDir}`);
@@ -171,6 +192,14 @@ export function createProject(templateData: jcoreTemplate) {
         settings.theme = jcoreSettingsData.projectName;
       }
 
+      // Copy additional files.
+      if (templateData.files) {
+        for (const file of templateData.files) {
+          const destination = join(jcoreRuntimeData.workDir, file.path);
+          await unzipFile(file.url, destination);
+        }
+      }
+
       // Write config
       const configFile = getScopeConfigFile(configScope.PROJECT);
       updateConfigValues(settings, configFile);
@@ -187,28 +216,30 @@ export function createProject(templateData: jcoreTemplate) {
     });
 }
 
-export async function createTheme(name: string, url: string) {
-  const tempThemePath = join(jcoreRuntimeData.workDir, themeFolder);
+/**
+ * Creates a child theme by downloading, extracting, and configuring it.
+ *
+ * This function downloads a theme archive from the given URL, extracts it to a
+ * temporary location, renames it to a folder derived from the project name,
+ * moves it to the themes directory, and updates its style.css and the project's
+ * Makefile to reflect the new theme name and path.
+ *
+ * @param {string} name - The desired name for the new child theme (e.g., project name).
+ * @param {string} url - The URL of the theme archive to download.
+ * @returns {Promise<boolean>} A promise that resolves to true if the theme was created successfully, false otherwise.
+ */
+export async function createTheme(name: string, url: string): Promise<boolean> {
+  jcoreSettingsData.theme = nameToFolder(name);
+  const themePath = join(
+    jcoreRuntimeData.workDir,
+    "wp-content/themes",
+    jcoreSettingsData.theme,
+  );
 
   try {
-    const buffer = await getFile(url);
-    await extractArchive(buffer, tempThemePath);
-    logger.verbose("Unzipped");
+    unzipFile(url, themePath);
 
-    jcoreSettingsData.theme = nameToFolder(name);
-    const themePath = join(
-      jcoreRuntimeData.workDir,
-      "wp-content/themes",
-      jcoreSettingsData.theme,
-    );
-
-    if (!existsSync(themePath)) {
-      copyFiles(getUnzippedFolder(tempThemePath), themePath);
-      // Remove temporary files.
-      rmSync(tempThemePath, {
-        recursive: true,
-        force: true,
-      });
+    if (existsSync(themePath)) {
       replaceInFile(join(themePath, "style.css"), [
         { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
       ]);
@@ -228,7 +259,49 @@ export async function createTheme(name: string, url: string) {
   return false;
 }
 
-export async function migrateProject() {
+/**
+ * Downloads an archive from a URL, extracts it, and saves it to a destination folder.
+ *
+ * This function handles the process of fetching an archive file, typically a zip or tarball,
+ * extracting its contents, and placing them into the specified destination directory.
+ * It logs verbose information on success and a warning on failure.
+ *
+ * @param {string} url - The URL of the archive file to download.
+ * @param {string} destination - The path to the folder where the archive contents should be extracted.
+ * @returns {Promise<boolean>} A promise that resolves to `true` if the file was downloaded and extracted successfully, `false` otherwise.
+ */
+async function unzipFile(url: string, destination: string): Promise<boolean> {
+  const tempUnzipPath = join(jcoreRuntimeData.workDir, "tempUnzipFolder");
+  try {
+    const buffer = await getFile(url);
+    await extractArchive(buffer, tempUnzipPath);
+    logger.verbose(`Unzipped ${url} to ${destination}.`);
+    if (!existsSync(destination)) {
+      copyFiles(getUnzippedFolder(tempUnzipPath), destination);
+    }
+    // Remove temporary files.
+    rmSync(tempUnzipPath, {
+      recursive: true,
+      force: true,
+    });
+    return true;
+  } catch (reason) {
+    logger.warn(`Unzipping ${url} failed with ${reason}.`);
+  }
+  return false;
+}
+
+/**
+ * Migrates an existing project to the latest configuration format and updates necessary files.
+ *
+ * This function handles the conversion of the old project configuration file format,
+ * potentially updates `docker-compose.yml` and `package.json` based on checksum checks
+ * and user confirmation, and installs necessary dependencies.
+ * It also removes the old configuration file after successful migration.
+ *
+ * @returns {Promise<void>} A promise that resolves when the migration is complete or rejects on failure.
+ */
+export async function migrateProject(): Promise<void> {
   try {
     const options = {
       docker: false,
