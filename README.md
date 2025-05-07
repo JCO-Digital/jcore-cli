@@ -106,6 +106,13 @@ Set/list options in the config file.
   - `set <key> <value>`: Sets a config value.
   - `unset <key>`: Removes a setting, likely returning it to the default.
 
+### `create`
+
+Create an item of specified type from template.
+
+- **Usage:** `jcore create <block>`
+  - `block`: Create a block.
+
 ### `shell`
 
 Opens a shell in the WordPress container.
