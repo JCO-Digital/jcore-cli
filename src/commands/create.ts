@@ -4,8 +4,10 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   rmSync,
   unlinkSync,
+  writeFileSync,
 } from "fs";
 import { join } from "path";
 import {
@@ -145,9 +147,15 @@ export async function queryBlock(): Promise<void> {
   // Populate templatesKeys with sub-folders in lohkoTemplatePath.
   const templatesKeys: string[] = [];
   try {
-    const entries = readdirSync(lohkoTemplatePath);
+    const entries = readdirSync(
+      join(jcoreRuntimeData.workDir, lohkoTemplatePath),
+    );
     for (const entry of entries) {
-      const entryPath = join(lohkoTemplatePath, entry);
+      const entryPath = join(
+        jcoreRuntimeData.workDir,
+        lohkoTemplatePath,
+        entry,
+      );
       const stats = lstatSync(entryPath);
       if (stats.isDirectory()) {
         templatesKeys.push(entry);
@@ -313,10 +321,32 @@ export async function createTheme(name: string, url: string): Promise<boolean> {
 
 function createBlock(name: string, template: string, description: string) {
   const slug = slugify(name);
-  const source = join(lohkoTemplatePath, template);
-  const destination = join(lohkoBlockPath, slug);
+  const source = join(jcoreRuntimeData.workDir, lohkoTemplatePath, template);
+  const destination = join(jcoreRuntimeData.workDir, lohkoBlockPath, slug);
 
   copyFiles(source, destination);
+
+  // Change attributes in copied files to match given data.
+  const blockFile = join(destination, "block.json");
+
+  try {
+    const blockFileContent = readFileSync(blockFile, "utf8");
+    const blockData = JSON.parse(blockFileContent);
+    blockData.title = name;
+    blockData.name = `jcore/${slug}`;
+    blockData.description = description;
+    writeFileSync(blockFile, JSON.stringify(blockData, null, 2));
+
+    replaceInFile(join(destination, "render.php"), [
+      {
+        search: /^Timber::render\( ?'[^']*'/gm,
+        replace: `Timber::render( '@lohko/${slug}/view.twig'`,
+      },
+    ]);
+  } catch (error) {
+    logger.error(`Error reading or parsing block.json: ${error}`);
+    return; // Stop block creation if file cannot be read/parsed
+  }
 }
 
 /**
