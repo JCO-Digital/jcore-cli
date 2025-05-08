@@ -1,12 +1,12 @@
 import { createHash } from "crypto";
 import {
-  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   writeFileSync,
+  copyFileSync,
 } from "fs";
 import { join } from "path";
 import { checksumFile, scriptLocation } from "@/constants";
@@ -19,6 +19,7 @@ import { https } from "follow-redirects";
 import process from "process";
 import { TomlError, parse as tomlParse } from "smol-toml";
 import { ZodError } from "zod";
+import Mustache from "mustache";
 
 /**
  * Fetches a file from a given URL and returns it as a string.
@@ -227,8 +228,13 @@ export function calculateChecksum(file: string): string {
  * Copies source to destination, merging with existing structure, overwriting files.
  * @param {string} sourceDir - Source Folder
  * @param {string} destinationDir - Destination Folder
+ * @param {object} context - Template Context
  */
-export function copyFiles(sourceDir: string, destinationDir: string) {
+export function copyFiles(
+  sourceDir: string,
+  destinationDir: string,
+  context: object = {},
+) {
   if (!existsSync(destinationDir)) {
     // Create target if not exists.
     logger.verbose(`Creating target folder: ${destinationDir}`);
@@ -249,9 +255,62 @@ export function copyFiles(sourceDir: string, destinationDir: string) {
       copyFiles(join(sourceDir, file), join(destinationDir, file));
     } else {
       // Current path is a file.
-      copyFileSync(join(sourceDir, file), join(destinationDir, file));
+      applyFromTemplate(
+        context,
+        join(sourceDir, file),
+        join(destinationDir, file),
+      );
     }
   }
+}
+
+/**
+ * Copies a file from a template or a normal file.
+ *
+ * @param {object} context - The context to apply to the template.
+ * @param {string} templateFile - The source of the template.
+ * @param {string} destinationFile - The destination file to write the template to.
+ * @returns {boolean} True if the template was applied, false otherwise.
+ */
+export function applyFromTemplate(
+  context: object,
+  templateFile: string,
+  destinationFile: string = "",
+): boolean {
+  const ending = ".mustache";
+
+  /*
+   * Assign sourceFile without ending, and templateFile with ending.
+   * Regardless of which is originally given.
+   */
+  let sourceFile = templateFile;
+  if (templateFile.endsWith(ending)) {
+    sourceFile = templateFile.slice(0, -9);
+  } else {
+    templateFile += ending;
+  }
+
+  if (!destinationFile) {
+    // Assign destinationFile if not given.
+    destinationFile = sourceFile;
+  } else if (destinationFile.endsWith(ending)) {
+    // Remove ending from destinationFile if it has it.
+    destinationFile = destinationFile.slice(0, -9);
+  }
+
+  try {
+    if (existsSync(templateFile)) {
+      const data = readFileSync(templateFile, "utf8");
+      writeFileSync(destinationFile, Mustache.render(data, context));
+    } else if (existsSync(sourceFile)) {
+      copyFileSync(sourceFile, destinationFile);
+    } else {
+      return false;
+    }
+  } catch (reason) {
+    return false;
+  }
+  return true;
 }
 
 /**

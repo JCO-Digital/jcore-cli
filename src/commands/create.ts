@@ -13,10 +13,10 @@ import { join } from "path";
 import {
   configScope,
   projectConfigFilename,
-  lohkoTemplatePath,
   templatesLocation,
   tempUnzipFolder,
   lohkoBlockPath,
+  lohkoTemplateLocation,
 } from "@/constants";
 import { convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
@@ -145,16 +145,11 @@ export async function queryProject(): Promise<void> {
 export async function queryBlock(): Promise<void> {
   // Populate templatesKeys with sub-folders in lohkoTemplatePath.
   const templatesKeys: string[] = [];
+  const lohkoTemplates = await unzipFile(lohkoTemplateLocation);
   try {
-    const entries = readdirSync(
-      join(jcoreRuntimeData.workDir, lohkoTemplatePath),
-    );
+    const entries = readdirSync(lohkoTemplates);
     for (const entry of entries) {
-      const entryPath = join(
-        jcoreRuntimeData.workDir,
-        lohkoTemplatePath,
-        entry,
-      );
+      const entryPath = join(lohkoTemplates, entry);
       const stats = lstatSync(entryPath);
       if (stats.isDirectory()) {
         templatesKeys.push(entry);
@@ -184,7 +179,11 @@ export async function queryBlock(): Promise<void> {
   ];
   const answers = await inquirer.prompt(questions);
   if (answers.name && answers.template) {
-    createBlock(answers.name, answers.template, answers.description);
+    createBlock(
+      answers.name,
+      join(lohkoTemplates, answers.template),
+      answers.description,
+    );
   } else {
     logger.error("Invalid data, skipping block creation!");
   }
@@ -320,10 +319,13 @@ export async function createTheme(name: string, url: string): Promise<boolean> {
 
 function createBlock(name: string, template: string, description: string) {
   const slug = slugify(name);
-  const source = join(jcoreRuntimeData.workDir, lohkoTemplatePath, template);
   const destination = join(jcoreRuntimeData.workDir, lohkoBlockPath, slug);
 
-  copyFiles(source, destination);
+  copyFiles(template, destination, {
+    name,
+    slug,
+    description,
+  });
 
   // Change attributes in copied files to match given data.
   const blockFile = join(destination, "block.json");
@@ -334,32 +336,7 @@ function createBlock(name: string, template: string, description: string) {
     blockData.title = name;
     blockData.name = `jcore/${slug}`;
     blockData.description = description;
-    writeFileSync(blockFile, JSON.stringify(blockData, null, 2));
-
-    replaceInFile(join(destination, "render.php"), [
-      {
-        search: /^Timber::render\( ?'[^']*'/gm,
-        replace: `Timber::render( '@lohko/${slug}/view.twig'`,
-      },
-    ]);
-    replaceInFile(join(destination, "edit.js"), [
-      {
-        search: /block="jcore\/[^"]+"/gm,
-        replace: `block="jcore/${slug}"`,
-      },
-    ]);
-    replaceInFile(join(destination, "style.css"), [
-      {
-        search: /^.wp-block-[a-z0-9-]+ {$/gm,
-        replace: `.wp-block-${slug} {`,
-      },
-    ]);
-    replaceInFile(join(destination, "editor.css"), [
-      {
-        search: /^.wp-block-[a-z0-9-]+ {$/gm,
-        replace: `.wp-block-${slug} {`,
-      },
-    ]);
+    writeFileSync(blockFile, JSON.stringify(blockData, null, 2), "utf8");
   } catch (error) {
     logger.error(`Error reading or parsing block.json: ${error}`);
     return; // Stop block creation if file cannot be read/parsed
@@ -377,25 +354,36 @@ function createBlock(name: string, template: string, description: string) {
  * @param {string} destination - The path to the folder where the archive contents should be extracted.
  * @returns {Promise<boolean>} A promise that resolves to `true` if the file was downloaded and extracted successfully, `false` otherwise.
  */
-async function unzipFile(url: string, destination: string): Promise<boolean> {
+async function unzipFile(
+  url: string,
+  destination: string = "",
+): Promise<string> {
   const tempUnzipPath = join(jcoreRuntimeData.workDir, tempUnzipFolder);
   try {
     const buffer = await getFile(url);
     await extractArchive(buffer, tempUnzipPath);
     logger.verbose(`Unzipped ${url} to ${destination}.`);
+
+    const unzippedFolder = getUnzippedFolder(tempUnzipPath);
+
+    if (!destination) {
+      // If no destination given, return the temp path.
+      return unzippedFolder;
+    }
+
     if (!existsSync(destination)) {
-      copyFiles(getUnzippedFolder(tempUnzipPath), destination);
+      copyFiles(unzippedFolder, destination);
     }
     // Remove temporary files.
     rmSync(tempUnzipPath, {
       recursive: true,
       force: true,
     });
-    return true;
+    return destination;
   } catch (reason) {
     logger.warn(`Unzipping ${url} failed with ${reason}.`);
   }
-  return false;
+  return "";
 }
 
 /**

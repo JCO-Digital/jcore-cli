@@ -30,7 +30,8 @@ export const archiveLocation =
 export const templatesLocation =
   "https://raw.githubusercontent.com/JCO-Digital/wordpress-container/main/templates/templates.toml";
 export const jcorePath = "wp-content/themes/jcore2";
-export const lohkoTemplatePath = "wp-content/plugins/lohko/templates";
+export const lohkoTemplateLocation =
+  "https://github.com/JCO-Digital/jcore-lohko-templates/archive/refs/heads/main.zip";
 export const lohkoBlockPath = "wp-content/plugins/lohko/src";
 export const updateFolder = ".update";
 export const tempUnzipFolder = ".tempUnzip";
