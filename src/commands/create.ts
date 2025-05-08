@@ -342,6 +342,24 @@ function createBlock(name: string, template: string, description: string) {
         replace: `Timber::render( '@lohko/${slug}/view.twig'`,
       },
     ]);
+    replaceInFile(join(destination, "edit.js"), [
+      {
+        search: /block="jcore\/[^"]+"/gm,
+        replace: `block="jcore/${slug}"`,
+      },
+    ]);
+    replaceInFile(join(destination, "style.css"), [
+      {
+        search: /^.wp-block-[a-z0-9-]+ {$/gm,
+        replace: `.wp-block-${slug} {`,
+      },
+    ]);
+    replaceInFile(join(destination, "editor.css"), [
+      {
+        search: /^.wp-block-[a-z0-9-]+ {$/gm,
+        replace: `.wp-block-${slug} {`,
+      },
+    ]);
   } catch (error) {
     logger.error(`Error reading or parsing block.json: ${error}`);
     return; // Stop block creation if file cannot be read/parsed

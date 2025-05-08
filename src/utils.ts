@@ -166,7 +166,7 @@ export function saveChecksums(checksums: Map<string, string>): boolean {
  * @param {boolean} strict - Whether to perform a strict comparison.
  * @returns {boolean} True if the checksums match, false otherwise.
  */
-export function compareChecksum(file: string, strict = true): boolean {
+export function compareChecksum(file: string, strict: boolean = true): boolean {
   const checksums = loadChecksums();
   if (!strict && checksums.get(file) === undefined) {
     // Return true for missing checksum in non-strict mode.
