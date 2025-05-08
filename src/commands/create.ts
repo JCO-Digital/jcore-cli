@@ -187,6 +187,11 @@ export async function queryBlock(): Promise<void> {
   } else {
     logger.error("Invalid data, skipping block creation!");
   }
+  rmSync(lohkoTemplates, {
+    recursive: true,
+    force: true,
+  });
+  logger.debug("Cleaning up template folder.");
 }
 
 /**
@@ -282,12 +287,15 @@ export function createProject(templateData: jcoreTemplate): void {
  * moves it to the themes directory, and updates its style.css and the project's
  * Makefile to reflect the new theme name and path.
  *
- * @param {string} name - The desired name for the new child theme (e.g., project name).
+ * @param {string} themeName - The desired name for the new child theme (e.g., project name).
  * @param {string} url - The URL of the theme archive to download.
  * @returns {Promise<boolean>} A promise that resolves to true if the theme was created successfully, false otherwise.
  */
-export async function createTheme(name: string, url: string): Promise<boolean> {
-  jcoreSettingsData.theme = slugify(name);
+export async function createTheme(
+  themeName: string,
+  url: string,
+): Promise<boolean> {
+  jcoreSettingsData.theme = slugify(themeName);
   const themePath = join(
     jcoreRuntimeData.workDir,
     "wp-content/themes",
@@ -295,11 +303,11 @@ export async function createTheme(name: string, url: string): Promise<boolean> {
   );
 
   try {
-    unzipFile(url, themePath);
+    unzipFile(url, themePath, { ...jcoreSettingsData, themeName });
 
     if (existsSync(themePath)) {
       replaceInFile(join(themePath, "style.css"), [
-        { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${name}` },
+        { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${themeName}` },
       ]);
 
       replaceInFile(join(jcoreRuntimeData.workDir, "Makefile"), [
@@ -352,11 +360,13 @@ function createBlock(name: string, template: string, description: string) {
  *
  * @param {string} url - The URL of the archive file to download.
  * @param {string} destination - The path to the folder where the archive contents should be extracted.
+ * @param {object} context - Context object to for mustache templates.
  * @returns {Promise<boolean>} A promise that resolves to `true` if the file was downloaded and extracted successfully, `false` otherwise.
  */
 async function unzipFile(
   url: string,
   destination: string = "",
+  context: object = {},
 ): Promise<string> {
   const tempUnzipPath = join(jcoreRuntimeData.workDir, tempUnzipFolder);
   try {
@@ -372,7 +382,7 @@ async function unzipFile(
     }
 
     if (!existsSync(destination)) {
-      copyFiles(unzippedFolder, destination);
+      copyFiles(unzippedFolder, destination, context);
     }
     // Remove temporary files.
     rmSync(tempUnzipPath, {
