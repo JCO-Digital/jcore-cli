@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import {
   existsSync,
   lstatSync,
@@ -9,15 +8,15 @@ import {
   copyFileSync,
 } from "fs";
 import { join } from "path";
-import { checksumFile, scriptLocation } from "@/constants";
+import { scriptLocation } from "@/constants";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
-import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
-import { configValue, jsonValue } from "@/types";
+import { jcoreRuntimeData } from "@/settings";
+import { jsonValue } from "@/types";
 import AdmZip from "adm-zip";
 import { https } from "follow-redirects";
 import process from "process";
-import { TomlError, parse as tomlParse } from "smol-toml";
+import { TomlError } from "smol-toml";
 import { ZodError } from "zod";
 import Mustache from "mustache";
 
@@ -128,69 +127,6 @@ export function extractArchive(buffer: Buffer, output: string): Promise<void> {
 }
 
 /**
- * Loads checksums from the checksum file.
- *
- * @returns {Map<string, string>} The loaded checksums.
- */
-export function loadChecksums(): Map<string, string> {
-  const data = loadJsonFile(join(jcoreRuntimeData.workDir, checksumFile));
-  const checksums = new Map<string, string>();
-  for (const [key, value] of Object.entries(data)) {
-    if (typeof value === "string") {
-      checksums.set(key, value);
-    }
-  }
-  return checksums;
-}
-
-/**
- * Saves checksums from a Map to a JSON file.
- *
- * @param {Map<string, string>} checksums - The map of checksums to save.
- * @returns {boolean} True if saving was successful, false otherwise.
- */
-export function saveChecksums(checksums: Map<string, string>): boolean {
-  try {
-    const object = Object.fromEntries(checksums);
-    const json = JSON.stringify(object, null, 2);
-    writeFileSync(join(jcoreRuntimeData.workDir, checksumFile), json, "utf8");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Compares the checksum of a file with the stored checksum.
- *
- * @param {string} file - The file to compare the checksum for.
- * @param {boolean} strict - Whether to perform a strict comparison.
- * @returns {boolean} True if the checksums match, false otherwise.
- */
-export function compareChecksum(file: string, strict: boolean = true): boolean {
-  const checksums = loadChecksums();
-  if (!strict && checksums.get(file) === undefined) {
-    // Return true for missing checksum in non-strict mode.
-    return true;
-  }
-  return (
-    checksums.get(file) ===
-    calculateChecksum(join(jcoreRuntimeData.workDir, file))
-  );
-}
-
-/**
- * Updates the checksum of a file.
- *
- * @param {string} file - The file to update the checksum for.
- */
-export function updateChecksum(file: string) {
-  const checksums = loadChecksums();
-  checksums.set(file, calculateChecksum(file));
-  saveChecksums(checksums);
-}
-
-/**
  * Loads a JSON file.
  *
  * @param {string} file - The file to load.
@@ -207,21 +143,6 @@ export function loadJsonFile(file: string): Record<string, jsonValue> {
     }
   }
   return {};
-}
-
-/**
- * Calculates the checksum of a file.
- *
- * @param {string} file - The file to calculate the checksum for.
- * @returns {string} The calculated checksum.
- */
-export function calculateChecksum(file: string): string {
-  try {
-    const data = readFileSync(file, "utf8");
-    return createHash("sha256").update(data).digest("hex");
-  } catch (e) {
-    return "";
-  }
 }
 
 /**
@@ -455,70 +376,5 @@ export function parseErrorHandler(error: unknown, file: string) {
     }
   } else {
     console.log(error);
-  }
-}
-
-/**
- * Creates the .env file.
- */
-export function createEnv() {
-  const file = join(jcoreRuntimeData.workDir, "env-values.toml");
-  if (existsSync(file)) {
-    try {
-      const toml = readFileSync(file, "utf8");
-      const values = tomlParse(toml) as Record<string, configValue>;
-
-      let env = "";
-      for (const key in Object.assign(values, jcoreSettingsData)) {
-        const value = values[key];
-        if (key === "replace") {
-          const defaultRow = `//${jcoreSettingsData.remoteDomain}|//${jcoreSettingsData.localDomain}`;
-          if (Array.isArray(value) && !value.includes(defaultRow)) {
-            value.push(defaultRow);
-          }
-        }
-        env += `${createEnvName(key)}="${createEnvVariable(value)}"\n`;
-      }
-
-      writeFileSync(join(jcoreRuntimeData.workDir, ".env"), env);
-    } catch (error) {
-      parseErrorHandler(error, file);
-      process.exit();
-    }
-  }
-}
-
-/**
- * Creates the env name.
- *
- * @param {string} name - The name of the env.
- * @returns {string} The created env name.
- */
-function createEnvName(name: string) {
-  // Convert camelCase to UPPERCASE_SNAKE.
-  return name.replace(/([A-Z])/g, "_$1").toUpperCase();
-}
-
-/**
- * Creates the env variable.
- *
- * @param {configValue} value - The value of the config.
- * @returns {string} The created env variable.
- */
-function createEnvVariable(value: configValue): string {
-  if (Array.isArray(value)) {
-    const output: Array<string> = [];
-    for (const row of value) {
-      output.push(row);
-    }
-    return output.join(" ");
-  }
-  switch (typeof value) {
-    case "string":
-      return value;
-    case "number":
-      return value.toString();
-    case "boolean":
-      return value ? "true" : "false";
   }
 }

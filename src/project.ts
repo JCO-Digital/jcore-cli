@@ -17,15 +17,12 @@ import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import {
   calculateChecksum,
   compareChecksum,
-  createEnv,
-  extractArchive,
-  getFile,
-  getFlag,
-  getSetupFolder,
   loadChecksums,
   saveChecksums,
   updateChecksum,
-} from "@/utils";
+} from "@/checksums";
+import { createEnv } from "./env";
+import { extractArchive, getFile, getFlag, getSetupFolder } from "@/utils";
 
 export async function updateFiles(include: Array<string> = []) {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
@@ -41,23 +38,16 @@ export async function updateFiles(include: Array<string> = []) {
 
     const checksums = loadChecksums();
 
-    logger.debug("Cleaning up legacy folders.");
-    rmSync(join(jcoreRuntimeData.workDir, "Vagrantfile"), {
-      recursive: false,
-      force: true,
-    });
-    rmSync(join(jcoreRuntimeData.workDir, ".vagrant"), {
-      recursive: true,
-      force: true,
-    });
-    rmSync(join(jcoreRuntimeData.workDir, "config"), {
-      recursive: true,
-      force: true,
-    });
-    rmSync(join(jcoreRuntimeData.workDir, "provisioning"), {
-      recursive: true,
-      force: true,
-    });
+    for (const file of ["Vagrantfile", ".vagrant", "config", "provisioning"]) {
+      const filePath = join(jcoreRuntimeData.workDir, file);
+      if (existsSync(filePath)) {
+        logger.info(`Cleaning up legacy files / folders: ${file}`);
+        rmSync(filePath, {
+          recursive: true,
+          force: true,
+        });
+      }
+    }
 
     if (getFlag("force") && include.length === 0) {
       // Remove old setup folder if updating all files with "force" flag.

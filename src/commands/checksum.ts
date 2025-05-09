@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { logger } from "@/logger";
 import { jcoreRuntimeData } from "@/settings";
-import { calculateChecksum, loadChecksums, saveChecksums } from "@/utils";
+import { calculateChecksum, loadChecksums, saveChecksums } from "@/checksums";
 
 /**
  * Lists the saved checksums, and if they match

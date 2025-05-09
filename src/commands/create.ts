@@ -35,8 +35,8 @@ import {
   jcoreTemplate,
   templateSchema,
 } from "@/types";
+import { compareChecksum } from "@/checksums";
 import {
-  compareChecksum,
   copyFiles,
   extractArchive,
   getFile,
@@ -187,11 +187,11 @@ export async function queryBlock(): Promise<void> {
   } else {
     logger.error("Invalid data, skipping block creation!");
   }
+  logger.debug("Cleaning up template folder.");
   rmSync(lohkoTemplates, {
     recursive: true,
     force: true,
   });
-  logger.debug("Cleaning up template folder.");
 }
 
 /**

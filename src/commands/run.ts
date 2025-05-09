@@ -6,8 +6,8 @@ import { jcoreCmdData } from "@/parser";
 import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { jcoreProject } from "@/types";
+import { createEnv } from "@/env";
 import {
-  createEnv,
   getFlag,
   getFlagString,
   getProjectFolder,
