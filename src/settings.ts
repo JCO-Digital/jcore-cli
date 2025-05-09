@@ -19,7 +19,8 @@ import {
   runtimeSchema,
   settingsSchema,
 } from "@/types";
-import { fetchVersion, loadJsonFile, parseErrorHandler } from "@/utils";
+import { loadJsonFile } from "./fileHelpers";
+import { fetchVersion, parseErrorHandler } from "@/utils";
 import chalk from "chalk";
 import * as process from "process";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";

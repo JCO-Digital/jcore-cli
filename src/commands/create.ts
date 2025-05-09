@@ -37,15 +37,13 @@ import {
 } from "@/types";
 import { compareChecksum } from "@/checksums";
 import {
-  copyFiles,
   extractArchive,
   getFile,
   getFileString,
-  getFlag,
-  getFlagString,
   getUnzippedFolder,
-  slugify,
-} from "@/utils";
+  copyFiles,
+} from "@/fileHelpers";
+import { getFlag, getFlagString, slugify } from "@/utils";
 import inquirer from "inquirer";
 import process from "process";
 import { parse as tomlParse } from "smol-toml";

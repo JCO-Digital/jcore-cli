@@ -4,7 +4,8 @@ import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
 import { updateFiles } from "@/project";
 import { jcoreDataData, jcoreRuntimeData } from "@/settings";
-import { fetchVersion, getFileString, getFlag } from "@/utils";
+import { getFileString } from "@/fileHelpers";
+import { fetchVersion, getFlag } from "@/utils";
 import { writeFile } from "fs/promises";
 import semver from "semver/preload";
 

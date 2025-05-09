@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { checksumFile } from "./constants";
 import { jcoreRuntimeData } from "./settings";
-import { loadJsonFile } from "./utils";
+import { loadJsonFile } from "./fileHelpers";
 
 /**
  * Loads checksums from the checksum file.

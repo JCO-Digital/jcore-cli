@@ -22,7 +22,8 @@ import {
   updateChecksum,
 } from "@/checksums";
 import { createEnv } from "./env";
-import { extractArchive, getFile, getFlag, getSetupFolder } from "@/utils";
+import { extractArchive, getFile } from "@/fileHelpers";
+import { getFlag, getSetupFolder } from "@/utils";
 
 export async function updateFiles(include: Array<string> = []) {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
