@@ -1,7 +1,7 @@
 build: install
 	pnpm run build
 
-watch: install
+dev: install
 	pnpm run watch
 
 install:

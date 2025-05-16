@@ -216,6 +216,27 @@ function getFileInfo(
       force: false,
       checksum: true,
     },
+    Makefile: {
+      force: true,
+      checksum: true,
+      replace: [
+        {
+          search: /theme :=.*/,
+          replace: `theme := ${join("wp-content/themes", jcoreSettingsData.theme)}`,
+        },
+      ],
+    },
+
+    ".github/workflows/deploy.yml": {
+      force: true,
+      checksum: true,
+      replace: [
+        {
+          search: /wp-content\/themes\/[^/]+\/:wp-content\/themes\/[^/]+\/,/,
+          replace: `${join("wp-content/themes", jcoreSettingsData.theme)}/:${join("wp-content/themes", jcoreSettingsData.theme)}/`,
+        },
+      ],
+    },
   };
 
   const fileInfo = Object.assign(
