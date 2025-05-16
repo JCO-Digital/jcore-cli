@@ -173,7 +173,7 @@ function writeData() {
   if (!existsSync(globalConfigFolder)) {
     mkdirSync(globalConfigFolder);
   }
-  writeFileSync(globalData, JSON.stringify(jcoreDataData, null, 2), "utf8");
+  writeFileSync(globalData, JSON.stringify(jcoreDataData, null, "\t"), "utf8");
 }
 
 async function versionCheck() {

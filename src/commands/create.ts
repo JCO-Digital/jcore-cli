@@ -342,7 +342,7 @@ function createBlock(name: string, template: string, description: string) {
     blockData.title = name;
     blockData.name = `jcore/${slug}`;
     blockData.description = description;
-    writeFileSync(blockFile, JSON.stringify(blockData, null, 2), "utf8");
+    writeFileSync(blockFile, JSON.stringify(blockData, null, "\t"), "utf8");
   } catch (error) {
     logger.error(`Error reading or parsing block.json: ${error}`);
     return; // Stop block creation if file cannot be read/parsed

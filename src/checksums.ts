@@ -30,7 +30,7 @@ export function loadChecksums(): Map<string, string> {
 export function saveChecksums(checksums: Map<string, string>): boolean {
   try {
     const object = Object.fromEntries(checksums);
-    const json = JSON.stringify(object, null, 2);
+    const json = JSON.stringify(object, null, "\t");
     writeFileSync(join(jcoreRuntimeData.workDir, checksumFile), json, "utf8");
     return true;
   } catch {
