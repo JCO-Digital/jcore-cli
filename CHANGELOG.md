@@ -1,3 +1,13 @@
+## [3.11.2](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.1...v3.11.2) (2025-05-16)
+
+
+### Bug Fixes
+
+* Rename watch target to dev and add makefile replacements ([ccd1432](https://github.com/JCO-Digital/jcore-cli/commit/ccd14325d45cf376178953cccb0972936b0e7b66))
+* Use tabs for JSON indentation ([9f3945e](https://github.com/JCO-Digital/jcore-cli/commit/9f3945e524d386dfccca44ce425354c64d38bb6f))
+
+
+
 ## [3.11.1](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.0...v3.11.1) (2025-05-08)
 
 
