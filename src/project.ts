@@ -374,14 +374,15 @@ export function finalizeProject(install = true, pull = true): boolean {
         }
       }
 
-      if (existsSync(join(jcoreRuntimeData.workDir, "composer.json")))
+      if (existsSync(join(jcoreRuntimeData.workDir, "composer.json"))) {
         // Install Composer packages.
         logger.info("Installing composer packages.");
-      try {
-        execSync("composer install --quiet", options);
-      } catch (e) {
-        logger.warn("Composer failed, maybe not installed.");
-        return false;
+        try {
+          execSync("composer install --quiet", options);
+        } catch (e) {
+          logger.warn("Composer failed, maybe not installed.");
+          return false;
+        }
       }
 
       // Update docker images.
