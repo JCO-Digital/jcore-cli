@@ -203,7 +203,10 @@ export async function queryBlock(): Promise<void> {
  * @returns {void}
  */
 export function createProject(templateData: jcoreTemplate): void {
-  jcoreRuntimeData.workDir = join(process.cwd(), jcoreSettingsData.projectName);
+  jcoreRuntimeData.workDir = join(
+    process.cwd(),
+    slugify(jcoreSettingsData.projectName),
+  );
   if (existsSync(jcoreRuntimeData.workDir)) {
     logger.error(`Project path exists: ${jcoreRuntimeData.workDir}`);
     return;
@@ -248,9 +251,11 @@ export function createProject(templateData: jcoreTemplate): void {
 
       // Copy child theme.
       if (templateData.themeUrl && !getFlag("notheme")) {
-        await createTheme(jcoreSettingsData.projectName, templateData.themeUrl);
-        jcoreSettingsData.theme = jcoreSettingsData.projectName;
-        settings.theme = jcoreSettingsData.projectName;
+        const themeName = await createTheme(
+          jcoreSettingsData.projectName,
+          templateData.themeUrl,
+        );
+        settings.theme = themeName;
       }
 
       // Copy additional files.
@@ -287,12 +292,13 @@ export function createProject(templateData: jcoreTemplate): void {
  *
  * @param {string} themeName - The desired name for the new child theme (e.g., project name).
  * @param {string} url - The URL of the theme archive to download.
- * @returns {Promise<boolean>} A promise that resolves to true if the theme was created successfully, false otherwise.
+ * @returns {Promise<string>} The name of the theme folder of successful.
  */
 export async function createTheme(
   themeName: string,
   url: string,
-): Promise<boolean> {
+): Promise<string> {
+  logger.info(`Creating theme ${themeName}.`);
   jcoreSettingsData.theme = slugify(themeName);
   const themePath = join(
     jcoreRuntimeData.workDir,
@@ -301,26 +307,45 @@ export async function createTheme(
   );
 
   try {
-    unzipFile(url, themePath, { ...jcoreSettingsData, themeName });
-
+    const location = await unzipFile(url, themePath, {
+      ...jcoreSettingsData,
+      themeName,
+    });
+    logger.debug(`Files unzipped to ${location}`);
     if (existsSync(themePath)) {
+      logger.debug(`Replacing theme name in style.css with ${themeName}.`);
       replaceInFile(join(themePath, "style.css"), [
         { search: /^Theme Name:.*$/gm, replace: `Theme Name: ${themeName}` },
       ]);
 
+      logger.debug(
+        `Replacing theme in Makefile with ${jcoreSettingsData.theme}.`,
+      );
       replaceInFile(join(jcoreRuntimeData.workDir, "Makefile"), [
         {
-          search: /^theme :=.*$/gm,
+          search: /^theme := .*$/gm,
           replace: `theme := ${join("wp-content/themes", jcoreSettingsData.theme)}`,
         },
       ]);
 
-      return true;
+      logger.debug(
+        `Replacing theme in pnpm-workspace.yaml with ${jcoreSettingsData.theme}.`,
+      );
+      replaceInFile(join(jcoreRuntimeData.workDir, "pnpm-workspace.yaml"), [
+        {
+          search: /wp-content\/themes\/[^"]+/gm,
+          replace: join("wp-content/themes", jcoreSettingsData.theme),
+        },
+      ]);
+
+      return jcoreSettingsData.theme;
+    } else {
+      logger.error(`Creation of theme in folder ${themePath} failed!`);
     }
   } catch (reason) {
-    logger.warn("Theme extraction failed.");
+    logger.error("Theme extraction failed.");
   }
-  return false;
+  return "";
 }
 
 function createBlock(name: string, template: string, description: string) {

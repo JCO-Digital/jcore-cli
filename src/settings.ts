@@ -34,7 +34,7 @@ export const jcoreRuntimeData = runtimeSchema.parse({
 // Default settings.
 export const jcoreSettingsData = settingsSchema.parse({
   mode: "foreground",
-  theme: "jcore2-child",
+  theme: "jcore-ilme",
   wpImage: "jcodigi/wordpress:latest",
   wpVersion: "latest",
 });
@@ -141,7 +141,7 @@ export function readProjectSettings() {
   getConfig(configScope.LOCAL, data);
 
   if (!data.template) {
-    data.template = "jcore2";
+    data.template = "jcore3";
   }
 
   try {

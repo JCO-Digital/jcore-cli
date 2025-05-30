@@ -43,7 +43,7 @@ export type jcoreRuntime = z.infer<typeof runtimeSchema>;
 
 export const settingsSchema = z.object({
   branch: z.string().default(""),
-  template: z.string().default("jcore2"),
+  template: z.string().default("jcore3"),
   dbExclude: z.array(z.string()).default([]),
   dbPrefix: z.string().default("wp_"),
   debug: z.boolean().default(false),
