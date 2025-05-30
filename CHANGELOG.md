@@ -1,3 +1,7 @@
+## [3.11.3](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.2...v3.11.3) (2025-05-30)
+
+
+
 ## [3.11.2](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.1...v3.11.2) (2025-05-16)
 
 
