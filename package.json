@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^7.5.3",
-    "@sentry/node": "^7.120.3",
     "adm-zip": "^0.5.16",
     "chalk": "^5.4.1",
     "follow-redirects": "1.15.3",
