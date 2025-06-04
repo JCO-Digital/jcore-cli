@@ -1,3 +1,17 @@
+# [3.12.0](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.3...v3.12.0) (2025-06-04)
+
+
+### Bug Fixes
+
+* Run composer install only if composer.json exists ([7e63703](https://github.com/JCO-Digital/jcore-cli/commit/7e637035cb098dbbc746764672216699ed843509)), closes [#6](https://github.com/JCO-Digital/jcore-cli/issues/6)
+
+
+### Features
+
+* Check for lohko and offer to install it if missing. ([0424172](https://github.com/JCO-Digital/jcore-cli/commit/0424172118d35364f60a0564fba2781295903b13)), closes [#8](https://github.com/JCO-Digital/jcore-cli/issues/8)
+
+
+
 ## [3.11.3](https://github.com/JCO-Digital/jcore-cli/compare/v3.11.2...v3.11.3) (2025-05-30)
 
 
