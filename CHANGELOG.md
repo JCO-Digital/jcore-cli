@@ -1,3 +1,13 @@
+# [3.13.0](https://github.com/JCO-Digital/jcore-cli/compare/v3.12.1...v3.13.0) (2025-06-04)
+
+
+### Features
+
+* Add interactive selection of Lohko blocks during install ([9a5c797](https://github.com/JCO-Digital/jcore-cli/commit/9a5c79788203637753dbb5a6bc5702713cebd871))
+* Improve checksum error handling and update project creation logic ([e0cfae3](https://github.com/JCO-Digital/jcore-cli/commit/e0cfae3d5930fbc05d50371872ee78c1cf9eb997))
+
+
+
 ## [3.12.1](https://github.com/JCO-Digital/jcore-cli/compare/v3.12.0...v3.12.1) (2025-06-04)
 
 
