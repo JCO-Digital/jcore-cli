@@ -69,6 +69,8 @@ export function getFile(url: string): Promise<Buffer> {
             resolve(Buffer.concat(data));
           });
       } else {
+        // Properly consume and close the response stream to prevent hanging
+        response.resume();
         reject(response.statusCode);
       }
     });
