@@ -41,7 +41,8 @@ import { getFileString, copyFiles, unzipFile } from "@/fileHelpers";
 import { getFlag, getFlagString, slugify } from "@/utils";
 import process from "process";
 import { parse as tomlParse } from "smol-toml";
-import { input, select, confirm } from "@inquirer/prompts";
+import { input, select, confirm, checkbox } from "@inquirer/prompts";
+import type { Choice } from "@inquirer/prompts";
 
 /**
  * Creates a new project based on user input or provided parameters.
@@ -199,13 +200,55 @@ async function queryLohko(): Promise<void> {
       default: true,
     });
     if (!install) {
-      return Promise.reject("Lohko is not installed, aborting!");
+      return Promise.reject("Lohko will not be installed, aborting!");
     }
 
     const destination = join(jcoreRuntimeData.workDir, lohkoPath);
     await unzipFile(lohkoLocation, destination).catch((reason) => {
       return Promise.reject(reason);
     });
+
+    const blockChoices: Array<Choice> = [];
+    const lohkoFiles = readdirSync(
+      join(jcoreRuntimeData.workDir, lohkoBlockPath),
+    );
+    lohkoFiles.forEach((file) => {
+      const blockFile = join(
+        jcoreRuntimeData.workDir,
+        lohkoBlockPath,
+        file,
+        "block.json",
+      );
+      if (existsSync(blockFile)) {
+        const blockData = JSON.parse(readFileSync(blockFile, "utf8"));
+        if (blockData.title) {
+          blockChoices.push({
+            name: blockData.title,
+            description: blockData.description,
+            value: file,
+            checked: true,
+          });
+        }
+      }
+    });
+    const keepBlocks = await checkbox({
+      message: "Select Lohko blocks to install:",
+      choices: blockChoices,
+    });
+    console.debug(keepBlocks);
+    lohkoFiles.forEach((file) => {
+      if (!keepBlocks.includes(file)) {
+        const blockPath = join(jcoreRuntimeData.workDir, lohkoBlockPath, file);
+        if (existsSync(blockPath)) {
+          rmSync(blockPath, {
+            recursive: true,
+            force: true,
+          });
+          logger.debug(`Removed Lohko block: ${file}`);
+        }
+      }
+    });
+
     logger.info(`Lohko installed to ${destination}`);
   }
 }
