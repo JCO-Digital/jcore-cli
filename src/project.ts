@@ -356,11 +356,9 @@ export function finalizeProject(install = true, pull = true): boolean {
       if (existsSync(join(jcoreRuntimeData.workDir, "package.json"))) {
         try {
           execSync("pnpm --version || corepack enable", options);
-          if (existsSync(join(jcoreRuntimeData.workDir, "pnpm-lock.yaml"))) {
-            logger.info("Installing pnpm packages.");
-            execSync("pnpm i", options);
-          } else if (
-            existsSync(join(jcoreRuntimeData.workDir, "package-lock.json"))
+          if (
+            existsSync(join(jcoreRuntimeData.workDir, "package-lock.json")) &&
+            !existsSync(join(jcoreRuntimeData.workDir, "pnpm-lock.yaml"))
           ) {
             logger.info("Installing npm packages from lock file.");
             execSync("npm ci --silent --no-fund", options);
@@ -369,7 +367,7 @@ export function finalizeProject(install = true, pull = true): boolean {
             execSync("pnpm i", options);
           }
         } catch (e) {
-          logger.warn("Running npm failed.");
+          logger.warn("Running pnpm failed.");
           return false;
         }
       }

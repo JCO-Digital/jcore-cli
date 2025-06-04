@@ -1,9 +1,10 @@
 import { createHash } from "crypto";
-import { readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { checksumFile } from "./constants";
 import { jcoreRuntimeData } from "./settings";
 import { loadJsonFile } from "./fileHelpers";
+import { logger } from "./logger";
 
 /**
  * Loads checksums from the checksum file.
@@ -76,9 +77,16 @@ export function updateChecksum(file: string) {
  */
 export function calculateChecksum(file: string): string {
   try {
-    const data = readFileSync(file, "utf8");
-    return createHash("sha256").update(data).digest("hex");
-  } catch (e) {
-    return "";
+    if (existsSync(file)) {
+      const data = readFileSync(file, "utf8");
+      return createHash("sha256").update(data).digest("hex");
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error(
+        `Error calculating checksum for file ${file}: ${error.message}`,
+      );
+    }
   }
+  return "";
 }

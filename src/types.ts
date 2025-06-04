@@ -102,6 +102,8 @@ export const templateSchema = z.object({
   branch: z.string(),
   branches: z.array(z.string()),
   themeUrl: z.string().default(""),
+  child: z.boolean().default(false),
+  lohko: z.boolean().default(false),
   submodules: z.array(submoduleSchema).default([]),
   files: z.array(templateFileSchema).default([]),
 });

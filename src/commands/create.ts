@@ -43,6 +43,7 @@ import process from "process";
 import { parse as tomlParse } from "smol-toml";
 import { input, select, confirm, checkbox } from "@inquirer/prompts";
 import type { Choice } from "@inquirer/prompts";
+import Mustache from "mustache";
 
 /**
  * Creates a new project based on user input or provided parameters.
@@ -117,10 +118,7 @@ export async function queryProject(): Promise<void> {
   jcoreSettingsData.branch = projectData.branch;
 
   // Template replacement.
-  templateData.themeUrl = templateData.themeUrl.replace(
-    /\{\{ *branch *\}\}/,
-    projectData.branch,
-  );
+  templateData.themeUrl = Mustache.render(templateData.themeUrl, projectData);
 
   createProject(templateData);
 }
@@ -193,14 +191,16 @@ export async function queryBlock(): Promise<void> {
   });
 }
 
-async function queryLohko(): Promise<void> {
+async function queryLohko(force = false): Promise<void> {
   if (!existsSync(lohkoPath)) {
-    const install = await confirm({
-      message: "Lohko is not installed, do you want to install it?",
-      default: true,
-    });
-    if (!install) {
-      return Promise.reject("Lohko will not be installed, aborting!");
+    if (!force) {
+      const install = await confirm({
+        message: "Lohko is not installed, do you want to install it?",
+        default: true,
+      });
+      if (!install) {
+        return Promise.reject("Lohko will not be installed, aborting!");
+      }
     }
 
     const destination = join(jcoreRuntimeData.workDir, lohkoPath);
@@ -235,7 +235,6 @@ async function queryLohko(): Promise<void> {
       message: "Select Lohko blocks to install:",
       choices: blockChoices,
     });
-    console.debug(keepBlocks);
     lohkoFiles.forEach((file) => {
       if (!keepBlocks.includes(file)) {
         const blockPath = join(jcoreRuntimeData.workDir, lohkoBlockPath, file);
@@ -326,6 +325,8 @@ export function createProject(templateData: jcoreTemplate): void {
           await unzipFile(file.url, destination);
         }
       }
+
+      await queryLohko(templateData.lohko);
 
       // Write config
       const configFile = getScopeConfigFile(configScope.PROJECT);
@@ -459,14 +460,10 @@ export async function migrateProject(): Promise<void> {
     if (!compareChecksum("docker-compose.yml", true)) {
       options.docker = true;
       logger.warn("Checksum mismatch for docker-compose.yml.");
-      const answer = await inquirer.prompt([
-        {
-          type: "confirm",
-          name: "docker",
-          message: "Overwrite docker-compose.yml",
-        },
-      ]);
-      if (!answer.docker) {
+      const docker = await confirm({
+        message: "Overwrite docker-compose.yml",
+      });
+      if (!docker) {
         logger.warn("Aborting migaration.");
         return;
       }
