@@ -14,9 +14,10 @@ import {
   configScope,
   projectConfigFilename,
   templatesLocation,
-  tempUnzipFolder,
   lohkoBlockPath,
   lohkoTemplateLocation,
+  lohkoPath,
+  lohkoLocation,
 } from "@/constants";
 import { convertProjectSettings, projectConfigLegacyFilename } from "@/legacy";
 import { logger } from "@/logger";
@@ -36,17 +37,11 @@ import {
   templateSchema,
 } from "@/types";
 import { compareChecksum } from "@/checksums";
-import {
-  extractArchive,
-  getFile,
-  getFileString,
-  getUnzippedFolder,
-  copyFiles,
-} from "@/fileHelpers";
+import { getFileString, copyFiles, unzipFile } from "@/fileHelpers";
 import { getFlag, getFlagString, slugify } from "@/utils";
-import inquirer from "inquirer";
 import process from "process";
 import { parse as tomlParse } from "smol-toml";
+import { input, select, confirm } from "@inquirer/prompts";
 
 /**
  * Creates a new project based on user input or provided parameters.
@@ -75,28 +70,21 @@ export async function queryProject(): Promise<void> {
     templates.set(template, templateSchema.parse(data[template]));
   }
 
-  const questions: Array<object> = [];
   if (!projectData.projectName) {
-    questions.push({
-      type: "input",
-      name: "projectName",
-      message: "Select a project name",
-    });
-  }
-  if (!projectData.template) {
-    questions.push({
-      type: "list",
-      name: "template",
-      message: "Select a project template",
-      choices: templatesKeys,
+    projectData.projectName = await input({
+      message: "Select a project name:",
     });
   }
 
-  if (questions.length) {
-    const answers = await inquirer.prompt(questions);
-    Object.assign(projectData, answers);
-    // Empty the questions.
-    questions.length = 0;
+  if (!projectData.projectName) {
+    return Promise.reject("No project name given.");
+  }
+
+  if (!projectData.template) {
+    projectData.template = await select({
+      message: "Select a project template",
+      choices: templatesKeys,
+    });
   }
 
   if (!templates.has(projectData.template)) {
@@ -110,9 +98,7 @@ export async function queryProject(): Promise<void> {
 
   if (!projectData.branch) {
     if (templateData.branches.length > 1) {
-      questions.push({
-        type: "list",
-        name: "branch",
+      projectData.branch = await select({
         message: "Select a branch",
         default: templateData.branch,
         choices: templateData.branches,
@@ -121,10 +107,8 @@ export async function queryProject(): Promise<void> {
       projectData.branch = templateData.branch;
     }
   }
-
-  if (questions.length) {
-    const answers = await inquirer.prompt(questions);
-    Object.assign(projectData, answers);
+  if (!projectData.branch) {
+    return Promise.reject("No branch selected.");
   }
 
   jcoreSettingsData.projectName = projectData.projectName;
@@ -141,6 +125,24 @@ export async function queryProject(): Promise<void> {
 }
 
 export async function queryBlock(): Promise<void> {
+  // Check if Lohko exists.
+  await queryLohko();
+
+  const blockData = {
+    name: jcoreCmdData.target[1] ?? "",
+    template: getFlagString("template") ?? "",
+    description: "",
+  };
+
+  if (!blockData.name) {
+    blockData.name = await input({
+      message: "Enter a block name:",
+    });
+  }
+  if (!blockData.name) {
+    return Promise.reject("No block name given.");
+  }
+
   // Populate templatesKeys with sub-folders in lohkoTemplatePath.
   const templatesKeys: string[] = [];
   const lohkoTemplates = await unzipFile(lohkoTemplateLocation);
@@ -157,39 +159,55 @@ export async function queryBlock(): Promise<void> {
     logger.error(`Error reading lohko templates directory: ${error}`);
   }
 
-  const questions: Array<object> = [
-    {
-      type: "input",
-      name: "name",
-      message: "Enter a block name:",
-    },
-    {
-      type: "list",
-      name: "template",
+  if (!blockData.template) {
+    if (templatesKeys.length === 0) {
+      return Promise.reject("No block templates found.");
+    }
+    blockData.template = await select({
       message: "Select a block template:",
       choices: templatesKeys,
-    },
-    {
-      type: "input",
-      name: "description",
-      message: "Enter a block description:",
-    },
-  ];
-  const answers = await inquirer.prompt(questions);
-  if (answers.name && answers.template) {
-    createBlock(
-      answers.name,
-      join(lohkoTemplates, answers.template),
-      answers.description,
-    );
-  } else {
-    logger.error("Invalid data, skipping block creation!");
+    });
   }
+  if (!templatesKeys.includes(blockData.template)) {
+    return Promise.reject(`Unknown Template: ${blockData.template}`);
+  }
+
+  // If no description is given, ask for it. But description is optional.
+  if (!blockData.description) {
+    blockData.description = await input({
+      message: "Enter a block description:",
+    });
+  }
+
+  createBlock(
+    blockData.name,
+    join(lohkoTemplates, blockData.template),
+    blockData.description,
+  );
+
   logger.debug("Cleaning up template folder.");
   rmSync(lohkoTemplates, {
     recursive: true,
     force: true,
   });
+}
+
+async function queryLohko(): Promise<void> {
+  if (!existsSync(lohkoPath)) {
+    const install = await confirm({
+      message: "Lohko is not installed, do you want to install it?",
+      default: true,
+    });
+    if (!install) {
+      return Promise.reject("Lohko is not installed, aborting!");
+    }
+
+    const destination = join(jcoreRuntimeData.workDir, lohkoPath);
+    await unzipFile(lohkoLocation, destination).catch((reason) => {
+      return Promise.reject(reason);
+    });
+    logger.info(`Lohko installed to ${destination}`);
+  }
 }
 
 /**
@@ -352,6 +370,11 @@ function createBlock(name: string, template: string, description: string) {
   const slug = slugify(name);
   const destination = join(jcoreRuntimeData.workDir, lohkoBlockPath, slug);
 
+  if (existsSync(destination)) {
+    logger.error(`Block path exists: ${destination}`);
+    return;
+  }
+
   copyFiles(template, destination, {
     name,
     slug,
@@ -372,51 +395,6 @@ function createBlock(name: string, template: string, description: string) {
     logger.error(`Error reading or parsing block.json: ${error}`);
     return; // Stop block creation if file cannot be read/parsed
   }
-}
-
-/**
- * Downloads an archive from a URL, extracts it, and saves it to a destination folder.
- *
- * This function handles the process of fetching an archive file, typically a zip or tarball,
- * extracting its contents, and placing them into the specified destination directory.
- * It logs verbose information on success and a warning on failure.
- *
- * @param {string} url - The URL of the archive file to download.
- * @param {string} destination - The path to the folder where the archive contents should be extracted.
- * @param {object} context - Context object to for mustache templates.
- * @returns {Promise<boolean>} A promise that resolves to `true` if the file was downloaded and extracted successfully, `false` otherwise.
- */
-async function unzipFile(
-  url: string,
-  destination: string = "",
-  context: object = {},
-): Promise<string> {
-  const tempUnzipPath = join(jcoreRuntimeData.workDir, tempUnzipFolder);
-  try {
-    const buffer = await getFile(url);
-    await extractArchive(buffer, tempUnzipPath);
-    logger.verbose(`Unzipped ${url} to ${destination}.`);
-
-    const unzippedFolder = getUnzippedFolder(tempUnzipPath);
-
-    if (!destination) {
-      // If no destination given, return the temp path.
-      return unzippedFolder;
-    }
-
-    if (!existsSync(destination)) {
-      copyFiles(unzippedFolder, destination, context);
-    }
-    // Remove temporary files.
-    rmSync(tempUnzipPath, {
-      recursive: true,
-      force: true,
-    });
-    return destination;
-  } catch (reason) {
-    logger.warn(`Unzipping ${url} failed with ${reason}.`);
-  }
-  return "";
 }
 
 /**

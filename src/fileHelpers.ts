@@ -7,11 +7,14 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "fs";
 import Mustache from "mustache";
 import { join } from "path";
+import { tempUnzipFolder } from "./constants";
 import { logger } from "./logger";
+import { jcoreRuntimeData } from "./settings";
 
 /**
  * Fetches a file from a given URL and returns it as a string.
@@ -213,4 +216,49 @@ export function applyFromTemplate(
     return false;
   }
   return true;
+}
+
+/**
+ * Downloads an archive from a URL, extracts it, and saves it to a destination folder.
+ *
+ * This function handles the process of fetching an archive file, typically a zip or tarball,
+ * extracting its contents, and placing them into the specified destination directory.
+ * It logs verbose information on success and a warning on failure.
+ *
+ * @param {string} url - The URL of the archive file to download.
+ * @param {string} destination - The path to the folder where the archive contents should be extracted.
+ * @param {object} context - Context object to for mustache templates.
+ * @returns {Promise<string>} The path to the unzipped folder.
+ */
+export async function unzipFile(
+  url: string,
+  destination: string = "",
+  context: object = {},
+): Promise<string> {
+  const tempUnzipPath = join(jcoreRuntimeData.workDir, tempUnzipFolder);
+
+  return getFile(url)
+    .then((buffer) => extractArchive(buffer, tempUnzipPath))
+    .then(() => {
+      logger.verbose(`Unzipped ${url} to ${destination}.`);
+      const unzippedFolder = getUnzippedFolder(tempUnzipPath);
+
+      if (!destination) {
+        // If no destination given, return the temp path.
+        return unzippedFolder;
+      }
+
+      if (!existsSync(destination)) {
+        copyFiles(unzippedFolder, destination, context);
+      }
+      // Remove temporary files.
+      rmSync(tempUnzipPath, {
+        recursive: true,
+        force: true,
+      });
+      return destination;
+    })
+    .catch((reason) => {
+      return Promise.reject(`Unzipping ${url} failed: ${reason}`);
+    });
 }

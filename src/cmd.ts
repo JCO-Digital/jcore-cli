@@ -96,8 +96,12 @@ export function runCmd(): void {
       if (jcoreCmdData.target.length > 0) {
         switch (jcoreCmdData.target[0]) {
           case "block":
-            queryBlock().catch((reason) => {
-              logger.error(reason.toString());
+            queryBlock().catch((error) => {
+              if (error instanceof Error) {
+                logger.error(error.message);
+              } else if (typeof error === "string") {
+                logger.error(error);
+              }
             });
             break;
           default:
