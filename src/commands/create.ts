@@ -405,7 +405,9 @@ export async function createTheme(
       logger.error(`Creation of theme in folder ${themePath} failed!`);
     }
   } catch (reason) {
-    logger.error("Theme extraction failed.");
+    if (reason instanceof Error) {
+      logger.error("Theme extraction failed: ${reason.message}");
+    }
   }
   return "";
 }
@@ -500,7 +502,9 @@ export async function migrateProject(): Promise<void> {
       projectConfigLegacyFilename,
     );
     unlinkSync(localConfigLegacy);
-  } catch (e) {
-    logger.error("Migration failed.");
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error(`Migration failed: ${error.message}`);
+    }
   }
 }

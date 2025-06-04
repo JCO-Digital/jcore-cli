@@ -9,13 +9,9 @@ import {
   jcoreSettingsData,
   readSettings,
 } from "@/settings";
-import { init } from "@sentry/node";
 import semver from "semver/preload";
 import { version } from "../package.json";
 import { getFlag } from "./utils";
-
-// Initialize Sentry.
-init({ dsn: "https://f3ab047d1d2f462eb3bb5aca4e684737@glitchtip.jco.fi/14" });
 
 /**
  * Main init function of the application. This like all other functions expects an initialized settings object.

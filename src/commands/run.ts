@@ -8,6 +8,7 @@ import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { jcoreProject } from "@/types";
 import { createEnv } from "@/env";
 import {
+  errorHandler,
   getFlag,
   getFlagString,
   getProjectFolder,
@@ -28,8 +29,8 @@ export function start() {
       } else {
         execSync("docker compose up -d", options);
       }
-    } catch (e) {
-      logger.error("Docker failed");
+    } catch (error) {
+      errorHandler(error, "Docker failed");
     }
   }
 }
@@ -44,8 +45,8 @@ export function stop(path = jcoreRuntimeData.workDir) {
 
   try {
     execSync("docker compose stop", options);
-  } catch (e) {
-    logger.error("Docker failed");
+  } catch (error) {
+    errorHandler(error, "Docker failed");
   }
 }
 
@@ -132,8 +133,8 @@ export function cleanProject(project: jcoreProject) {
       recursive: true,
       force: true,
     });
-  } catch (e) {
-    logger.error("Docker failed");
+  } catch (error) {
+    errorHandler(error, "Docker failed");
   }
 }
 
@@ -160,8 +161,8 @@ export function cleanDocker(all = false) {
     execSync(`docker volume prune -f ${all ? " -a" : ""}`, options);
     logger.info("Cleaning Networks");
     execSync("docker network prune -f", options);
-  } catch (e) {
-    logger.error("Docker failed");
+  } catch (error) {
+    errorHandler(error, "Docker failed");
   }
 }
 
@@ -204,8 +205,7 @@ function getProjects(): jcoreProject[] {
       }
     }
   } catch (error) {
-    // Foo
-    logger.warn("Error in parsing docker compose setup");
+    errorHandler(error, "Docker failed");
   }
 
   return projects;
@@ -225,8 +225,8 @@ export function runCommand(command: string, spawn = false) {
     } else {
       execSync(`docker compose exec wordpress ${command}`, options);
     }
-  } catch (e) {
-    logger.warn(`Command '${command}' failed to run.`);
+  } catch (error) {
+    errorHandler(error, `Command '${command}' failed to run.`);
   }
 }
 
@@ -239,7 +239,7 @@ export function attach() {
   try {
     const command = `docker compose logs -f --since 5m ${jcoreCmdData.target}`;
     execSync(command, options);
-  } catch (e) {
-    logger.warn("Failed to attach to logs");
+  } catch (error) {
+    errorHandler(error, "Failed to attach to logs");
   }
 }

@@ -24,6 +24,7 @@ import {
 import { createEnv } from "./env";
 import { extractArchive, getFile } from "@/fileHelpers";
 import { getFlag, getSetupFolder } from "@/utils";
+import { errorHandler } from "@/utils";
 
 export async function updateFiles(include: Array<string> = []) {
   const updatePath = join(jcoreRuntimeData.workDir, updateFolder);
@@ -337,8 +338,8 @@ export function finalizeProject(install = true, pull = true): boolean {
     logger.verbose("Setting executable bits on scripts.");
     execSync("chmod +x .config/scripts/*", options);
     execSync("chmod +x .config/*.sh", options);
-  } catch (e) {
-    logger.warn("chmod failed.");
+  } catch (error) {
+    errorHandler(error, "chmod failed");
   }
 
   if (jcoreSettingsData.install || install) {
@@ -347,8 +348,8 @@ export function finalizeProject(install = true, pull = true): boolean {
       try {
         logger.info("Makefile found, running 'make install'.");
         execSync("make install", options);
-      } catch (e) {
-        logger.warn("Running make failed.");
+      } catch (error) {
+        errorHandler(error, "Running make failed");
         return false;
       }
     } else {
@@ -366,8 +367,8 @@ export function finalizeProject(install = true, pull = true): boolean {
             logger.info("Installing pnpm packages.");
             execSync("pnpm i", options);
           }
-        } catch (e) {
-          logger.warn("Running pnpm failed.");
+        } catch (error) {
+          errorHandler(error, "Running pnpm failed.");
           return false;
         }
       }
@@ -377,8 +378,8 @@ export function finalizeProject(install = true, pull = true): boolean {
         logger.info("Installing composer packages.");
         try {
           execSync("composer install --quiet", options);
-        } catch (e) {
-          logger.warn("Composer failed, maybe not installed.");
+        } catch (error) {
+          errorHandler(error, "Composer failed, maybe not installed.");
           return false;
         }
       }

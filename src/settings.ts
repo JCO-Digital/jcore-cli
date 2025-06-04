@@ -20,7 +20,7 @@ import {
   settingsSchema,
 } from "@/types";
 import { loadJsonFile } from "./fileHelpers";
-import { fetchVersion, parseErrorHandler } from "@/utils";
+import { errorHandler, fetchVersion, parseErrorHandler } from "@/utils";
 import chalk from "chalk";
 import * as process from "process";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
@@ -118,8 +118,8 @@ function readCurrentGitBranch() {
   };
   try {
     return execSync("git branch --show-current", options).toString().trim();
-  } catch (e) {
-    logger.error("Can't read git branch.");
+  } catch (error) {
+    errorHandler(error, "Git error");
   }
   return "";
 }
@@ -149,7 +149,7 @@ export function readProjectSettings() {
     // Safe parse the resulting data into a new settings object.
     Object.assign(jcoreSettingsData, result);
   } catch (error) {
-    logger.error("Invalid data in settings file.");
+    errorHandler(error, "Invalid data in settings file");
     process.exit();
   }
 }
@@ -220,8 +220,8 @@ export function deleteSetting(key: string, requestedScope: configScope) {
     delete values[key];
     saveConfigFile(configFile, values);
     logger.info(`${getScopeText(scope)} setting ${chalk.green(key)} removed`);
-  } catch (e) {
-    logger.error(`Deleting ${key} failed.`);
+  } catch (error) {
+    errorHandler(error, `Deleting ${key} failed`);
     return false;
   }
   return true;
@@ -288,8 +288,8 @@ export function updateConfigValues(
   try {
     const values = loadConfigFile(file);
     saveConfigFile(file, Object.assign(values, settings));
-  } catch (e) {
-    logger.error("Updating of settings failed.");
+  } catch (error) {
+    errorHandler(error, "Updating of settings failed.");
     return false;
   }
   return true;

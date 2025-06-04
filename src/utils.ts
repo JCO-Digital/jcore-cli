@@ -23,7 +23,10 @@ export function fetchVersion(): Promise<string> {
             resolve(info.version);
           }
           reject("Version in version fetch is of wrong format.");
-        } catch (e) {
+        } catch (error) {
+          if (error instanceof Error) {
+            logger.error(error.message);
+          }
           reject("JSON error in version fetch.");
         }
       })
@@ -160,7 +163,27 @@ export function parseErrorHandler(error: unknown, file: string) {
     for (const issue of error.issues) {
       logger.error(`Property [${issue.path.join(".")}]: ${issue.message}`);
     }
+  } else if (error instanceof Error) {
+    logger.error(`Error in file ${file}: ${error.message}`);
   } else {
-    console.log(error);
+    console.error(error);
+  }
+}
+
+/**
+ * Handles errors by logging them with an optional prefix.
+ *
+ * @param {unknown} error - The error to handle.
+ * @param {string} [prefix=""] - An optional prefix to prepend to the error message.
+ */
+export function errorHandler(error: unknown, prefix: string = "") {
+  if (error instanceof Error) {
+    let errorMessage = error.message;
+    if (prefix) {
+      errorMessage = `${prefix}: ${errorMessage}`;
+    }
+    logger.error(errorMessage);
+  } else {
+    console.error(error);
   }
 }

@@ -5,12 +5,12 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { logger } from "@/logger";
 import {
   jcoreRuntimeData,
   jcoreSettingsData,
   saveConfigFile,
 } from "@/settings";
+import { errorHandler } from "@/utils";
 
 const globalConfigLegacy = join(homedir(), ".config/jcore/config");
 export const projectConfigLegacyFilename = "config.sh";
@@ -32,8 +32,8 @@ export function convertGlobalSettings(globalConfig: string) {
         install: values.get("install") === "true",
       });
       unlinkSync(globalConfigLegacy);
-    } catch (e) {
-      logger.error("Global settings conversion failed.");
+    } catch (error) {
+      errorHandler(error, "Global settings conversion failed");
     }
   }
 }
@@ -92,8 +92,8 @@ export function convertProjectSettings(projectConfigFilename: string) {
         install: values.get("install") === "true",
       };
       saveConfigFile(localConfig, newValues);
-    } catch (e) {
-      logger.error("Error converting project settings.");
+    } catch (error) {
+      errorHandler(error, "Error converting project settings");
     }
   }
 }

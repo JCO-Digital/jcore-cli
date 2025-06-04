@@ -15,6 +15,7 @@ import { join } from "path";
 import { tempUnzipFolder } from "./constants";
 import { logger } from "./logger";
 import { jcoreRuntimeData } from "./settings";
+import { errorHandler } from "./utils";
 
 /**
  * Fetches a file from a given URL and returns it as a string.
@@ -215,6 +216,7 @@ export function applyFromTemplate(
       return false;
     }
   } catch (reason) {
+    errorHandler(reason);
     return false;
   }
   return true;

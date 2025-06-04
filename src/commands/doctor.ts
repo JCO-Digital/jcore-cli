@@ -6,6 +6,7 @@ import { join } from "path";
 import { externalCommands, globalFolders, projectFolders } from "@/constants";
 import { logger } from "@/logger";
 import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
+import { errorHandler } from "@/utils";
 
 export function doctor() {
   logger.verbose("\nChecking system:");
@@ -55,8 +56,8 @@ export function checkCommands(
       } else {
         logger.error(`${command.name} version error.`);
       }
-    } catch (e) {
-      logger.error(`Command ${command.name} not found!`);
+    } catch (error) {
+      errorHandler(error, `Command ${command.name} not found!`);
       pass = false;
     }
   }
@@ -78,10 +79,11 @@ function processFolder(path: string, logLevel: number): boolean {
       logger.info(`Folder ${path} OK.`);
       // Everything is fine.
       return true;
-    } catch (e) {
+    } catch (error) {
       // Folder is not writable.
       const user = userInfo().username;
-      logger.error(
+      errorHandler(
+        error,
         `Folder ${path} is not writable. It is probably owned by root.`,
       );
       logger.info(
@@ -96,9 +98,9 @@ function processFolder(path: string, logLevel: number): boolean {
       mkdirSync(path, { recursive: true });
       // We can return true, because the folder should be created.
       return true;
-    } catch (e) {
+    } catch (error) {
       // Folder creation failed.
-      logger.error(`Failed to create folder ${path}`);
+      errorHandler(error, `Failed to create folder ${path}`);
     }
   }
   return false;
@@ -113,8 +115,9 @@ export function checkDocker(): boolean {
     const output = execSync("docker info", options).toString();
     logger.verbose("Docker info succeeded.");
     logger.debug(output);
-  } catch (e) {
+  } catch (error) {
     logger.error("Docker test run failed.");
+    errorHandler(error);
     logger.warn("Docker service might not be running.");
     return false;
   }

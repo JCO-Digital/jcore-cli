@@ -41,7 +41,9 @@ export function cloneProject() {
     try {
       execSync(`git clone ${source} ${jcoreRuntimeData.workDir}`, options);
     } catch (reason) {
-      logger.error("Clone Failed");
+      if (reason instanceof Error) {
+        logger.error("Clone Failed: ${reason.message}");
+      }
       return;
     }
 
@@ -62,7 +64,9 @@ function setupProject() {
   try {
     execSync("git submodule update --init", options);
   } catch (reason) {
-    logger.error("Submodules Failed");
+    if (reason instanceof Error) {
+      logger.error("Submodules Failed: ${reason.message}");
+    }
     return;
   }
 
@@ -74,7 +78,9 @@ function setupProject() {
         execSync(`git switch ${jcoreSettingsData.branch}`, options);
       }
     } catch (reason) {
-      logger.error("Branch Switch Failed");
+      if (reason instanceof Error) {
+        logger.error("Branch Switch Failed: ${reason.message}");
+      }
       return;
     }
   }
