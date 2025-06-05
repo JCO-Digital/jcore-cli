@@ -191,9 +191,9 @@ export async function queryBlock(): Promise<void> {
   });
 }
 
-async function queryLohko(force = false): Promise<void> {
+async function queryLohko(defaultInstall = false): Promise<void> {
   if (!existsSync(lohkoPath)) {
-    if (!force) {
+    if (!defaultInstall) {
       const install = await confirm({
         message: "Lohko is not installed, do you want to install it?",
         default: true,
@@ -226,7 +226,7 @@ async function queryLohko(force = false): Promise<void> {
             name: blockData.title,
             description: blockData.description,
             value: file,
-            checked: true,
+            checked: defaultInstall,
           });
         }
       }
