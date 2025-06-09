@@ -7,6 +7,7 @@ import { jcoreCmdData } from "@/parser";
 import { finalizeProject } from "@/project";
 import { jcoreRuntimeData, jcoreSettingsData, readSettings } from "@/settings";
 import process from "process";
+import { errorHandler } from "@/utils";
 
 export function cloneProject() {
   let source = jcoreCmdData.target[0];
@@ -40,10 +41,8 @@ export function cloneProject() {
 
     try {
       execSync(`git clone ${source} ${jcoreRuntimeData.workDir}`, options);
-    } catch (reason) {
-      if (reason instanceof Error) {
-        logger.error("Clone Failed: ${reason.message}");
-      }
+    } catch (error) {
+      errorHandler(error, "Clone Failed");
       return;
     }
 
@@ -63,10 +62,8 @@ function setupProject() {
   // Initialize submodules.
   try {
     execSync("git submodule update --init", options);
-  } catch (reason) {
-    if (reason instanceof Error) {
-      logger.error("Submodules Failed: ${reason.message}");
-    }
+  } catch (error) {
+    errorHandler(error, "Submodules Failed");
     return;
   }
 
@@ -77,10 +74,8 @@ function setupProject() {
       if (existsSync(options.cwd)) {
         execSync(`git switch ${jcoreSettingsData.branch}`, options);
       }
-    } catch (reason) {
-      if (reason instanceof Error) {
-        logger.error("Branch Switch Failed: ${reason.message}");
-      }
+    } catch (error) {
+      errorHandler(error, "Branch Switch Failed");
       return;
     }
   }
