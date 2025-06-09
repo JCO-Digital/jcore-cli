@@ -1,6 +1,6 @@
 {
   "name": "jcore-cli",
-  "version": "3.13.0",
+  "version": "3.13.1",
   "main": "src/main.ts",
   "license": "GPL-2.0-only",
   "scripts": {

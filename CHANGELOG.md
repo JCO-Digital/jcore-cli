@@ -1,3 +1,12 @@
+## [3.13.1](https://github.com/JCO-Digital/jcore-cli/compare/v3.13.0...v3.13.1) (2025-06-09)
+
+
+### Bug Fixes
+
+* Set lohko default block select from template lohko flag. ([25b3ce4](https://github.com/JCO-Digital/jcore-cli/commit/25b3ce4f28d2f39b078b910fac46c31fb6c8c96f))
+
+
+
 # [3.13.0](https://github.com/JCO-Digital/jcore-cli/compare/v3.12.1...v3.13.0) (2025-06-04)
 
 
