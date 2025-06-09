@@ -234,7 +234,7 @@ function getFileInfo(
       replace: [
         {
           search: /wp-content\/themes\/[^/]+\/:wp-content\/themes\/[^/]+\/,/,
-          replace: `${join("wp-content/themes", jcoreSettingsData.theme)}/:${join("wp-content/themes", jcoreSettingsData.theme)}/`,
+          replace: `${join("wp-content/themes", jcoreSettingsData.theme)}/:${join("wp-content/themes", jcoreSettingsData.theme)}/,`,
         },
       ],
     },
