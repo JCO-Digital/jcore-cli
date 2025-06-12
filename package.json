@@ -1,6 +1,6 @@
 {
   "name": "@jcodigital/jcore-cli",
-  "version": "3.13.1",
+  "version": "3.13.2",
   "main": "src/main.ts",
   "bin": {
     "jcore": "bin/jcore"
