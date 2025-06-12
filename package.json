@@ -19,6 +19,14 @@
   "engines": {
     "node": ">=14.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jco-digital/jcore-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jco-digital/jcore-cli/issues"
+  },
+  "homepage": "https://github.com/jco-digital/jcore-cli#readme",
   "dependencies": {
     "@inquirer/prompts": "^7.5.3",
     "adm-zip": "^0.5.16",
