@@ -31,6 +31,7 @@ import {
   updateConfigValues,
 } from "@/settings";
 import {
+  Choice,
   configValue,
   jcoreSubmodule,
   jcoreTemplate,
@@ -41,8 +42,7 @@ import { getFileString, copyFiles, unzipFile } from "@/fileHelpers";
 import { getFlag, getFlagString, slugify } from "@/utils";
 import process from "process";
 import { parse as tomlParse } from "smol-toml";
-import { input, select, confirm, checkbox } from "@inquirer/prompts";
-import type { Choice } from "@inquirer/prompts";
+import { input, select, confirm, checkbox, password } from "@inquirer/prompts";
 import Mustache from "mustache";
 
 /**
@@ -208,7 +208,7 @@ async function queryLohko(defaultInstall = false): Promise<void> {
       return Promise.reject(reason);
     });
 
-    const blockChoices: Array<Choice> = [];
+    const blockChoices: Array<Choice<string>> = [];
     const lohkoFiles = readdirSync(
       join(jcoreRuntimeData.workDir, lohkoBlockPath),
     );
@@ -250,6 +250,79 @@ async function queryLohko(defaultInstall = false): Promise<void> {
 
     logger.info(`Lohko installed to ${destination}`);
   }
+}
+
+export async function queryUser(): Promise<void> {
+  const userData = {
+    name: jcoreCmdData.target[1] ?? "",
+    email: jcoreCmdData.target[2] ?? "",
+    password: jcoreCmdData.target[3] ?? "",
+    role: "",
+  };
+
+  if (!userData.name) {
+    userData.name = await input({
+      message: "Enter username:",
+      validate: (value) => value.match(/^[a-z0-9]+$/) !== null,
+    });
+  }
+  if (!userData.email) {
+    userData.email = await input({
+      message: "Enter email:",
+      default: userData.name + "@example.com",
+      validate: (value) =>
+        value.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) !==
+        null,
+    });
+  }
+  if (!userData.password) {
+    userData.password = await password({
+      message: "Enter password:",
+      mask: true,
+    });
+  }
+  const roleChoices: Array<Choice<string>> = [
+    {
+      name: "Administrator",
+      description:
+        "The highest level of permission. Admins have the power to access almost everything.",
+      value: "administrator",
+    },
+    {
+      name: "Editor",
+      description:
+        "Has access to all posts, pages, comments, categories, and tags, and can upload media.",
+      value: "editor",
+    },
+    {
+      name: "Author",
+      description:
+        "Can write, upload media, edit, and publish their own posts.",
+      value: "author",
+    },
+    {
+      name: "Contributor",
+      description:
+        "Has no publishing or uploading capability but can write and edit their own posts until they are published.",
+      value: "contributor",
+    },
+    {
+      name: "Viewer",
+      description:
+        "Viewers can read and comment on posts and pages on private sites.",
+      value: "viewer",
+    },
+    {
+      name: "Subscriber",
+      description: "People who subscribe to your site’s updates.",
+      value: "subscriber",
+    },
+  ];
+  userData.role = await select({
+    message: "Select user role",
+    choices: roleChoices,
+  });
+  console.debug(userData);
 }
 
 /**

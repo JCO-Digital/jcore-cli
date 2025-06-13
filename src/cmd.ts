@@ -1,7 +1,12 @@
 import { listChecksums, setChecksum } from "@/commands/checksum";
 import { cloneProject } from "@/commands/clone";
 import { config } from "@/commands/config";
-import { migrateProject, queryBlock, queryProject } from "@/commands/create";
+import {
+  migrateProject,
+  queryBlock,
+  queryProject,
+  queryUser,
+} from "@/commands/create";
 import { doctor } from "@/commands/doctor";
 import {
   attach,
@@ -103,6 +108,9 @@ export function runCmd(): void {
                 logger.error(error);
               }
             });
+            break;
+          case "user":
+            queryUser();
             break;
           default:
             helpCmd(false);

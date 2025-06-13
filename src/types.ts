@@ -9,6 +9,15 @@ export type jsonValue =
   | number
   | boolean
   | null;
+export type Choice<Value> = {
+  value: Value;
+  name?: string;
+  description?: string;
+  short?: string;
+  disabled?: boolean | string;
+  checked?: boolean;
+  type?: never;
+};
 
 export const flagsSchema = z.object({});
 export type flagData = z.infer<typeof flagsSchema>;

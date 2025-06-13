@@ -186,6 +186,22 @@ export const commands = [
     usage: ["<projectname> - Clones project from bitbucket."],
   },
   {
+    cmd: "config",
+    text: "Set options in config file. Currently mode/debug.",
+    description: "",
+    usage: [
+      "list - List all settings.",
+      "set - Sets config value.",
+      "unset - Removes a setting, probably returning it to defaults.",
+    ],
+  },
+  {
+    cmd: "create",
+    text: "Create an item of specified type from template.",
+    description: "",
+    usage: ["block - Create a block.", "user - Create a user."],
+  },
+  {
     cmd: "migrate",
     text: "Migrates a legacy project to the new container format.",
     description: "",
@@ -214,22 +230,6 @@ export const commands = [
     text: "Runs a command in container.",
     description: "",
     usage: ["<command>"],
-  },
-  {
-    cmd: "config",
-    text: "Set options in config file. Currently mode/debug.",
-    description: "",
-    usage: [
-      "list - List all settings.",
-      "set - Sets config value.",
-      "unset - Removes a setting, probably returning it to defaults.",
-    ],
-  },
-  {
-    cmd: "create",
-    text: "Create an item of specified type from template.",
-    description: "",
-    usage: ["block - Create a block."],
   },
   {
     cmd: "shell",
