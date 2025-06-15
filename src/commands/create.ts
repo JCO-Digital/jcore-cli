@@ -44,6 +44,7 @@ import process from "process";
 import { parse as tomlParse } from "smol-toml";
 import { input, select, confirm, checkbox, password } from "@inquirer/prompts";
 import Mustache from "mustache";
+import { runCommand } from "./run";
 
 /**
  * Creates a new project based on user input or provided parameters.
@@ -275,12 +276,6 @@ export async function queryUser(): Promise<void> {
         null,
     });
   }
-  if (!userData.password) {
-    userData.password = await password({
-      message: "Enter password:",
-      mask: true,
-    });
-  }
   const roleChoices: Array<Choice<string>> = [
     {
       name: "Administrator",
@@ -322,7 +317,25 @@ export async function queryUser(): Promise<void> {
     message: "Select user role",
     choices: roleChoices,
   });
-  console.debug(userData);
+
+  if (!userData.password) {
+    userData.password = await password({
+      message: "Enter password (Leave empty to generate password):",
+      mask: true,
+    });
+  }
+
+  let command = `wp user create ${userData.name} ${userData.email} --role=${userData.role}`;
+  if (userData.password) {
+    command += ` --user_pass="${userData.password}"`;
+  }
+
+  runCommand(command).catch((error) => {
+    if (error instanceof Error) {
+      logger.silly(error.message);
+    }
+    logger.error("User creation failed!");
+  });
 }
 
 /**

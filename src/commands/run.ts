@@ -211,7 +211,7 @@ function getProjects(): jcoreProject[] {
   return projects;
 }
 
-export function runCommand(command: string, spawn = false) {
+export function runCommand(command: string, spawn = false): Promise<void> {
   logger.verbose("Executing command on docker");
 
   const options = {
@@ -226,8 +226,12 @@ export function runCommand(command: string, spawn = false) {
       execSync(`docker compose exec wordpress ${command}`, options);
     }
   } catch (error) {
-    errorHandler(error, `Command '${command}' failed to run.`);
+    if (error instanceof Error) {
+      logger.debug(error.message);
+    }
+    return Promise.reject(`Command '${command}' failed to run.`);
   }
+  return Promise.resolve();
 }
 
 export function attach() {
