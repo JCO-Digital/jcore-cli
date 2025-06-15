@@ -1,8 +1,8 @@
 import { join } from "path";
-import { scriptLocation } from "@/constants";
+import { logLevels, scriptLocation } from "@/constants";
 import { logger } from "@/logger";
 import { jcoreCmdData } from "@/parser";
-import { jcoreRuntimeData } from "@/settings";
+import { jcoreRuntimeData, jcoreSettingsData } from "@/settings";
 import { TomlError } from "smol-toml";
 import { ZodError } from "zod";
 import { getFileString } from "./fileHelpers";
@@ -178,9 +178,15 @@ export function parseErrorHandler(error: unknown, file: string) {
  */
 export function errorHandler(error: unknown, prefix: string = "") {
   if (error instanceof Error) {
-    let errorMessage = error.message;
+    let errorMessage = "";
     if (prefix) {
-      errorMessage = `${prefix}: ${errorMessage}`;
+      errorMessage = prefix;
+    }
+    if (jcoreSettingsData.logLevel >= logLevels.DEBUG) {
+      if (errorMessage) {
+        errorMessage += ": ";
+      }
+      errorMessage += error.message;
     }
     logger.error(errorMessage);
   } else {
