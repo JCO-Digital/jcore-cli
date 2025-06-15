@@ -1,3 +1,18 @@
+# [3.14.0](https://github.com/jco-digital/jcore-cli/compare/v3.13.2...v3.14.0) (2025-06-15)
+
+
+### Bug Fixes
+
+* Add debug logging to the error handler ([484c96e](https://github.com/jco-digital/jcore-cli/commit/484c96edd6d5d8dbba1be60b80a2b461a6cf3e56))
+* Use /usr/bin/bash in shell command ([c836de7](https://github.com/jco-digital/jcore-cli/commit/c836de72593f40fe75894e72e960b0c0d9484f39))
+
+
+### Features
+
+* Create user with wp-cli after project creation ([4228899](https://github.com/jco-digital/jcore-cli/commit/42288995e336309bfe1de1516a21be7f90e847d0))
+
+
+
 ## [3.13.2](https://github.com/jco-digital/jcore-cli/compare/v3.13.1...v3.13.2) (2025-06-12)
 
 
