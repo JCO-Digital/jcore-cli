@@ -98,7 +98,7 @@ export function runCmd(): void {
       }
       break;
     case "create":
-      if (jcoreCmdData.target.length > 0) {
+      if (isProject() && jcoreCmdData.target.length > 0) {
         switch (jcoreCmdData.target[0]) {
           case "block":
             queryBlock().catch((error) => {
@@ -110,7 +110,9 @@ export function runCmd(): void {
             });
             break;
           case "user":
-            queryUser();
+            if (isRunning()) {
+              queryUser();
+            }
             break;
           default:
             helpCmd(false);
