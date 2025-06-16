@@ -36,3 +36,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "bin/jcore,package.json"
+
+      - name: Publish to NPM
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
