@@ -8,6 +8,7 @@ import { getFileString } from "@/fileHelpers";
 import { fetchVersion, getFlag } from "@/utils";
 import { writeFile } from "fs/promises";
 import semver from "semver/preload";
+import { isPnpm, updatePnpm } from "./run";
 
 export default function () {
   logger.info("Updating Project");
@@ -22,19 +23,24 @@ export default function () {
 
 export function selfUpdate() {
   const force = getFlag("force");
-  fetchVersion()
-    .then((version) => versionCheck(version, force))
-    .then((version) => {
-      logger.info(`Upgrading to v${version}`);
-      return getFileString(join(scriptLocation, scriptName));
-    })
-    .then((body) => writeFile(jcoreRuntimeData.execPath, body))
-    .then(() => {
-      logger.info("JCORE CLI Updated.");
-    })
-    .catch((reason) => {
-      logger.error(reason);
-    });
+
+  if (isPnpm()) {
+    updatePnpm();
+  } else {
+    fetchVersion()
+      .then((version) => versionCheck(version, force))
+      .then((version) => {
+        logger.info(`Upgrading to v${version}`);
+        return getFileString(join(scriptLocation, scriptName));
+      })
+      .then((body) => writeFile(jcoreRuntimeData.execPath, body))
+      .then(() => {
+        logger.info("JCORE CLI Updated.");
+      })
+      .catch((reason) => {
+        logger.error(reason);
+      });
+  }
 }
 
 function versionCheck(newVersion: string, force = false): Promise<string> {

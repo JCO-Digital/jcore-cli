@@ -8,7 +8,7 @@ import { ZodError } from "zod";
 import { getFileString } from "./fileHelpers";
 
 /**
- * Fetches the current version from the package.json file.
+ * Fetches the current version from the upstream package.json file.
  *
  * @returns {Promise<string>} Promise that resolves to the version string.
  */

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { execSync, spawnSync } from "child_process";
 import { existsSync, renameSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
@@ -189,19 +190,23 @@ export function getRunning(): jcoreProject[] {
 function getProjects(): jcoreProject[] {
   const projects: jcoreProject[] = [];
   try {
-    const json = execSync("docker compose ls -a --format json").toString();
-    for (const project of JSON.parse(json)) {
-      const name: string = project.Name ?? "";
-      const running: boolean = project.Status.includes("running");
-      const configPaths: string = project.ConfigFiles ?? "";
-      const path = configPaths.split(",")[0].replace("/docker-compose.yml", "");
+    const dockerProjects = runJson("docker compose ls -a --format json");
+    if (Array.isArray(dockerProjects)) {
+      for (const project of dockerProjects) {
+        const name: string = project.Name ?? "";
+        const running: boolean = project.Status.includes("running");
+        const configPaths: string = project.ConfigFiles ?? "";
+        const path = configPaths
+          .split(",")[0]
+          .replace("/docker-compose.yml", "");
 
-      if (existsSync(join(path, ".jcore"))) {
-        projects.push({
-          name,
-          path,
-          running,
-        });
+        if (existsSync(join(path, ".jcore"))) {
+          projects.push({
+            name,
+            path,
+            running,
+          });
+        }
       }
     }
   } catch (error) {
@@ -246,4 +251,48 @@ export function attach() {
   } catch (error) {
     errorHandler(error, "Failed to attach to logs");
   }
+}
+
+function runJson(command: string): object {
+  try {
+    const output = execSync(command);
+    const json = output.toString();
+    const data = JSON.parse(json);
+    return data;
+  } catch (error) {
+    errorHandler(error);
+  }
+  return [];
+}
+
+const pnpmListSchema = z.array(
+  z.object({
+    dependencies: z.record(
+      z.object({
+        from: z.string(),
+        version: z.string(),
+      }),
+    ),
+  }),
+);
+
+export function isPnpm(): boolean {
+  const data = runJson("pnpm list -g --json");
+
+  try {
+    const list = pnpmListSchema.parse(data);
+    return list[0].dependencies["@jcodigital/jcore-cli"] !== undefined;
+  } catch (error) {
+    errorHandler(error);
+  }
+  return false;
+}
+
+export function updatePnpm() {
+  const options = {
+    cwd: jcoreRuntimeData.workDir,
+    stdio: [0, 1, 2],
+  };
+
+  execSync("pnpm update -g @jcodigital/jcore-cli", options);
 }
