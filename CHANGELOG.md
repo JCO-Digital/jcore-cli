@@ -1,3 +1,12 @@
+# [3.15.0](https://github.com/jco-digital/jcore-cli/compare/v3.14.3...v3.15.0) (2025-06-24)
+
+
+### Features
+
+* Add pnpm support for updates ([36b8464](https://github.com/jco-digital/jcore-cli/commit/36b846492e19107e0c6158a2fae4dfe23dbf9ccb))
+
+
+
 ## [3.14.3](https://github.com/jco-digital/jcore-cli/compare/v3.14.2...v3.14.3) (2025-06-24)
 
 
