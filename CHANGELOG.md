@@ -1,3 +1,12 @@
+## [3.14.3](https://github.com/jco-digital/jcore-cli/compare/v3.14.2...v3.14.3) (2025-06-24)
+
+
+### Bug Fixes
+
+* Add pnpm-workspace.yaml file generation ([29177b7](https://github.com/jco-digital/jcore-cli/commit/29177b783be196c58156c6539f17934ed74ae37d))
+
+
+
 ## [3.14.2](https://github.com/jco-digital/jcore-cli/compare/v3.14.1...v3.14.2) (2025-06-16)
 
 
