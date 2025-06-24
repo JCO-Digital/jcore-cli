@@ -238,6 +238,17 @@ function getFileInfo(
         },
       ],
     },
+
+    "pnpm-workspace.yaml": {
+      force: true,
+      checksum: true,
+      replace: [
+        {
+          search: /"wp-content\/themes\/[^"]+"/,
+          replace: `"${join("wp-content/themes", jcoreSettingsData.theme)}"`,
+        },
+      ],
+    },
   };
 
   const fileInfo = Object.assign(
