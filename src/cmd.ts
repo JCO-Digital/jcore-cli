@@ -152,7 +152,7 @@ export function runCmd(): void {
     case "shell":
       if (isProject() && isRunning()) {
         // Open a shell.
-        runCommand("/usr/bin/bash");
+        runCommand("/bin/bash");
       }
       break;
     case "status":
