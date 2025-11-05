@@ -1,3 +1,12 @@
+# [3.16.0](https://github.com/jco-digital/jcore-cli/compare/v3.15.1...v3.16.0) (2025-11-05)
+
+
+### Features
+
+* Block composer installs in order to not break mainWP / WP-cli ([34af90d](https://github.com/jco-digital/jcore-cli/commit/34af90d6fd257c0d983c9f10c088f866e452b149))
+
+
+
 ## [3.15.1](https://github.com/jco-digital/jcore-cli/compare/v3.15.0...v3.15.1) (2025-10-13)
 
 
