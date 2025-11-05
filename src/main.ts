@@ -12,6 +12,7 @@ import {
 import semver from "semver/preload";
 import { version } from "../package.json";
 import { getFlag } from "./utils";
+import { exit } from "node:process";
 
 /**
  * Main init function of the application. This like all other functions expects an initialized settings object.
@@ -36,6 +37,19 @@ function initCli() {
   }
   if (jcoreRuntimeData.inProject) {
     logger.verbose(`Project: ${jcoreSettingsData.projectName}`);
+  }
+
+  if (
+    jcoreSettingsData.pluginInstall === "composer" &&
+    !getFlag("letmebreakthings")
+  ) {
+    logger.error(
+      "Composer plugin mode is deprecated, and will break mainWP / WP-cli workflow.",
+    );
+    logger.warn(
+      'Please change the mode to "remote", and clean up the composer.json file, and remove plugin push from deploy file.',
+    );
+    exit(1);
   }
 
   if (jcoreCmdData.cmd) {

@@ -148,6 +148,10 @@ export const optionDefinition = [
     argument: Number,
     description: "Set numeric log level.",
   },
+  {
+    name: "letmebreakthings",
+    description: "Override the composer plugin block.",
+  },
 ];
 
 export const commands = [
