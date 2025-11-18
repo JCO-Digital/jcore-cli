@@ -481,7 +481,7 @@ export async function createTheme(
       );
       replaceInFile(join(jcoreRuntimeData.workDir, "pnpm-workspace.yaml"), [
         {
-          search: /wp-content\/themes\/[^"]+/gm,
+          search: /wp-content\/themes\/[^"']+/gm,
           replace: join("wp-content/themes", jcoreSettingsData.theme),
         },
       ]);

@@ -244,8 +244,8 @@ function getFileInfo(
       checksum: true,
       replace: [
         {
-          search: /"wp-content\/themes\/[^"']+"/,
-          replace: `"${join("wp-content/themes", jcoreSettingsData.theme)}"`,
+          search: /wp-content\/themes\/[^"']+/,
+          replace: join("wp-content/themes", jcoreSettingsData.theme),
         },
       ],
     },
