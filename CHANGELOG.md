@@ -1,3 +1,12 @@
+## [3.16.1](https://github.com/jco-digital/jcore-cli/compare/v3.16.0...v3.16.1) (2025-11-18)
+
+
+### Bug Fixes
+
+* Update regex to match both single and double quotes in search ([e6e7bf4](https://github.com/jco-digital/jcore-cli/commit/e6e7bf4bc26c16247fb99659d5646ee98f163ace)), closes [#13](https://github.com/jco-digital/jcore-cli/issues/13)
+
+
+
 # [3.16.0](https://github.com/jco-digital/jcore-cli/compare/v3.15.1...v3.16.0) (2025-11-05)
 
 
