@@ -204,7 +204,7 @@ function getFileInfo(
       checksum: true,
       replace: [
         {
-          search: /"name": "[^"]+"/,
+          search: /"name": "[^"']+"/,
           replace: `"name": "${jcoreSettingsData.projectName}"`,
         },
       ],
@@ -244,7 +244,7 @@ function getFileInfo(
       checksum: true,
       replace: [
         {
-          search: /"wp-content\/themes\/[^"]+"/,
+          search: /"wp-content\/themes\/[^"']+"/,
           replace: `"${join("wp-content/themes", jcoreSettingsData.theme)}"`,
         },
       ],
