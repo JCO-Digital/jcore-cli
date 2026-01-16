@@ -3,10 +3,16 @@
   "version": "3.16.3",
   "main": "src/main.ts",
   "description": "A command-line interface for jcore",
+  "keywords": [
+    "jcore",
+    "cli",
+    "command-line",
+    "wordpress"
+  ],
+  "license": "GPL-2.0-only",
   "bin": {
     "jcore": "./bin/jcore"
   },
-  "license": "GPL-2.0-only",
   "scripts": {
     "test": "eslint ./src && prettier ./src --check",
     "build": "esbuild src/main.ts --bundle --minify --platform=node --outfile=bin/jcore",
