@@ -2,6 +2,7 @@
   "name": "@jcodigital/jcore-cli",
   "version": "3.16.1",
   "main": "src/main.ts",
+  "description": "A command-line interface for jcore",
   "bin": {
     "jcore": "./bin/jcore"
   },

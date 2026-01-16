@@ -5,18 +5,21 @@ on:
     tags:
       - "v*"
 
+permissions:
+  id-token: write # Required for OIDC
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - uses: pnpm/action-setup@v3
         name: Install pnpm
@@ -29,15 +32,10 @@ jobs:
       - name: Testing the code
         run: pnpm test
 
-      - name: Build
-        run: pnpm run build
+      - name: Publish
+        run: npm publish
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "bin/jcore,package.json"
-
-      - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
