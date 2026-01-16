@@ -1,3 +1,7 @@
+## [3.16.2](https://github.com/jco-digital/jcore-cli/compare/v3.16.1...v3.16.2) (2026-01-16)
+
+
+
 ## [3.16.1](https://github.com/jco-digital/jcore-cli/compare/v3.16.0...v3.16.1) (2025-11-18)
 
 
