@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/JCO-Digital/jcore/internal/container"
+	"github.com/JCO-Digital/jcore/container"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

@@ -66,12 +66,12 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 
 		if dockerChanged {
 			fmt.Println("Updating docker-compose.yml")
-			if err := project.UpdateProject(projectDir, []string{"docker-compose.yml"}); err != nil {
+			if err := project.UpdateProject(projectDir, []string{"docker-compose.yml"}, []string{"docker-compose.yml"}); err != nil {
 				fmt.Printf("Error updating docker-compose.yml: %v\n", err)
 			}
 		}
 
-		if err := project.UpdateProject(projectDir, nil); err != nil {
+		if err := project.UpdateProject(projectDir, nil, nil); err != nil {
 			fmt.Printf("Error updating project: %v\n", err)
 			return
 		}

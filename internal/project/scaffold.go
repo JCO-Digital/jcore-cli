@@ -5,9 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 
-	"github.com/JCO-Digital/jcore/internal/container"
+	"github.com/JCO-Digital/jcore/container"
 	"github.com/spf13/viper"
 )
 
@@ -108,8 +110,12 @@ func copyOrRenderFile(srcFS fs.FS, srcPath, destPath string, data TemplateData) 
 	return os.WriteFile(destPath, content, 0644)
 }
 
-// UpdateProject updates the project files from the embedded assets
-func UpdateProject(projectDir string, include []string) error {
+// UpdateProject updates the project files from the embedded assets.
+// If only is non-empty, exclusively those files are considered (and always
+// overwritten, regardless of checksum). Otherwise every file is considered
+// using the normal checksum-based rules, except files listed in force, which
+// are always overwritten regardless of checksum status.
+func UpdateProject(projectDir string, only []string, force []string) error {
 	checksums, err := LoadChecksums(projectDir)
 	if err != nil {
 		return fmt.Errorf("failed to load checksums: %w", err)
@@ -125,14 +131,14 @@ func UpdateProject(projectDir string, include []string) error {
 	data := CurrentTemplateData()
 
 	// 1. Update Base Assets
-	err = updateFromFS(container.BaseAssets, "base", projectDir, checksums, include, data)
+	err = updateFromFS(container.BaseAssets, "base", projectDir, checksums, only, force, data)
 	if err != nil {
 		return fmt.Errorf("failed to update base assets: %w", err)
 	}
 
 	// 2. Update Template Assets
 	templatePath := filepath.Join("templates", template)
-	err = updateFromFS(container.TemplateAssets, templatePath, projectDir, checksums, include, data)
+	err = updateFromFS(container.TemplateAssets, templatePath, projectDir, checksums, only, force, data)
 	if err != nil {
 		// Template might not exist in embedded assets, just warn if it's not "jcore3"
 		if template != "jcore3" {
@@ -148,7 +154,65 @@ func UpdateProject(projectDir string, include []string) error {
 	return nil
 }
 
-func updateFromFS(srcFS fs.FS, srcRoot, destRoot string, checksums map[string]string, include []string, data TemplateData) error {
+// DetectModifiedFiles returns the relative paths of scaffolded files that
+// have a stored checksum but no longer match it - i.e. files that "jcore
+// update" would normally skip because they appear to have been modified.
+func DetectModifiedFiles(projectDir string) ([]string, error) {
+	checksums, err := LoadChecksums(projectDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load checksums: %w", err)
+	}
+
+	template := viper.GetString("template")
+	if template == "" {
+		template = "jcore3"
+	}
+
+	modified := make(map[string]bool)
+	collect := func(srcFS fs.FS, srcRoot string) {
+		_ = fs.WalkDir(srcFS, srcRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(srcRoot, path)
+			destRelPath := strings.TrimSuffix(relPath, TemplateExt)
+			if destRelPath == "jcore.toml" || destRelPath == ".localConfig.toml" {
+				return nil
+			}
+
+			storedChecksum, exists := checksums[destRelPath]
+			if !exists {
+				return nil
+			}
+
+			currentChecksum, err := CalculateChecksum(filepath.Join(projectDir, destRelPath))
+			if err != nil {
+				// Missing or unreadable: not a "modified" case.
+				return nil
+			}
+
+			if currentChecksum != storedChecksum {
+				modified[destRelPath] = true
+			}
+
+			return nil
+		})
+	}
+
+	collect(container.BaseAssets, "base")
+	collect(container.TemplateAssets, filepath.Join("templates", template))
+
+	result := make([]string, 0, len(modified))
+	for f := range modified {
+		result = append(result, f)
+	}
+	sort.Strings(result)
+
+	return result, nil
+}
+
+func updateFromFS(srcFS fs.FS, srcRoot, destRoot string, checksums map[string]string, only []string, force []string, data TemplateData) error {
 	return fs.WalkDir(srcFS, srcRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -172,23 +236,16 @@ func updateFromFS(srcFS fs.FS, srcRoot, destRoot string, checksums map[string]st
 			return os.MkdirAll(destPath, 0755)
 		}
 
-		// If specific files are targeted, only consider those - and always
-		// overwrite a targeted file, regardless of checksum status.
-		targeted := false
-		if len(include) > 0 {
-			for _, inc := range include {
-				if inc == destRelPath {
-					targeted = true
-					break
-				}
-			}
-			if !targeted {
-				return nil
-			}
+		// If "only" is set, exclusively consider those files.
+		if len(only) > 0 && !slices.Contains(only, destRelPath) {
+			return nil
 		}
 
-		shouldUpdate := targeted
-		if !targeted {
+		// Forced files are always overwritten, regardless of checksum status.
+		forced := slices.Contains(force, destRelPath)
+
+		shouldUpdate := forced
+		if !forced {
 			if _, err := os.Stat(destPath); os.IsNotExist(err) {
 				// File doesn't exist, always create it
 				shouldUpdate = true
@@ -198,7 +255,7 @@ func updateFromFS(srcFS fs.FS, srcRoot, destRoot string, checksums map[string]st
 				if !exists {
 					// No stored checksum, safer to skip unless forced (but we'll stick to original logic for now)
 					// Or maybe it's a new file in the base assets that wasn't there before
-					fmt.Printf("  [SKIP] %s (no checksum found, manual modification possible)\n", destRelPath)
+					fmt.Printf("  [ SKIP ] %s (no checksum found, manual modification possible)\n", destRelPath)
 					return nil
 				}
 
@@ -211,14 +268,18 @@ func updateFromFS(srcFS fs.FS, srcRoot, destRoot string, checksums map[string]st
 					// File hasn't been modified by user, safe to update
 					shouldUpdate = true
 				} else {
-					fmt.Printf("  [SKIP] %s (modified by user)\n", destRelPath)
+					fmt.Printf("  [ SKIP ] %s (modified by user)\n", destRelPath)
 					return nil
 				}
 			}
 		}
 
 		if shouldUpdate {
-			fmt.Printf("  [ OK ] Updating %s\n", destRelPath)
+			status := "  OK  "
+			if forced {
+				status = "FORCED"
+			}
+			fmt.Printf("  [%s] Updating %s\n", status, destRelPath)
 			if err := copyOrRenderFile(srcFS, path, destPath, data); err != nil {
 				return err
 			}

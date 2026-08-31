@@ -17,11 +17,11 @@ jobs:
     if: github.ref == 'refs/heads/main' # Example of conditional deploy
     uses: jco-digital/deploy-wp-action/.github/workflows/server-deploy.yml@v4
     with:
-      server_url: siteuser@server
-      base_path: files
+      server_url: {{.RemoteHost}}
+      base_path: {{.RemotePath}}
       paths: >-
-        wp-content/themes/{{.Theme}}/:wp-content/themes/{{.Theme}}/,
-        wp-content/themes/jcore2/:wp-content/themes/jcore2/,
-        vendor/:vendor/
+        wp-content/themes/{{.Theme}}/,
+        wp-content/themes/jcore2/,
+        vendor/
       slack_channel: C07C91377D4
     secrets: inherit

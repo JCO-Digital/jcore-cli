@@ -16,6 +16,8 @@ type TemplateData struct {
 	ProjectName  string
 	Theme        string
 	RemoteDomain string
+	RemoteHost   string
+	RemotePath   string
 	XdebugMode   string
 }
 
@@ -30,6 +32,8 @@ func CurrentTemplateData() TemplateData {
 		ProjectName:  viper.GetString("projectName"),
 		Theme:        viper.GetString("theme"),
 		RemoteDomain: viper.GetString("remoteDomain"),
+		RemoteHost:   viper.GetString("remoteHost"),
+		RemotePath:   viper.GetString("remotePath"),
 		XdebugMode:   xdebugMode,
 	}
 }

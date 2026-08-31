@@ -18,10 +18,10 @@
 	},
 	"require": {
 		"jcore/ydin": "^3",
-		"jcore/dynamic-archive": "^0",
-		"jcore/security": "^0",
-		"jcore/ruudukko": "^0",
-		"jcore/oikeus": "^1"
+		"jcore/oikeus": "^1",
+		"jcodigital/jcore-dynamic-archive": "*",
+		"jcodigital/jcore-turva": "*",
+		"jcodigital/jcore-ruudukko": "*"
 	},
 	"require-dev": {
 		"roave/security-advisories": "dev-latest",
