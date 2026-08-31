@@ -1,0 +1,15 @@
+**/.git
+**/.svn
+**/.hg
+**/node_modules
+*.php
+.vscode/**
+.idea/**
+.DS_Store
+.env
+image.twig
+**/dist/**
+**/vendor/**
+**/templates/**
+**/parts/**
+**/patterns/**

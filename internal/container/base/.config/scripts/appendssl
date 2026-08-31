@@ -1,0 +1,12 @@
+#!/bin/bash
+
+sudo -n true
+
+if [ $? -ne 0 ]; then
+  echo "Passwordless sudo is not enabled. Please enable it and try again."
+  exit 0
+fi
+
+# Add our $CERT_DIR/jcoCA.pem file to the trusted CA bundle
+sudo cp $CERT_DIR/jcoCA.pem /usr/local/share/ca-certificates/jcoCA.crt
+sudo update-ca-certificates

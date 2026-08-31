@@ -1,0 +1,12 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Denote all files that are truly binary and should not be modified.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+
+# Always convert script files to unix line endings.
+*.sh     text eol=lf
+/.config/scripts/* text eol=lf

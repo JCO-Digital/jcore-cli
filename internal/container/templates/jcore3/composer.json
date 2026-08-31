@@ -1,0 +1,33 @@
+{
+	"minimum-stability": "stable",
+	"repositories": {
+		"wpackagist": {
+			"type": "composer",
+			"url": "https://wpackagist.org"
+		}
+	},
+	"config": {
+		"platform": {
+			"php": "8.4"
+		},
+		"allow-plugins": {
+			"composer/installers": true,
+			"php-http/discovery": true,
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"require": {
+		"jcore/ydin": "^3",
+		"jcore/dynamic-archive": "^0",
+		"jcore/security": "^0",
+		"jcore/ruudukko": "^0",
+		"jcore/oikeus": "^1"
+	},
+	"require-dev": {
+		"roave/security-advisories": "dev-latest",
+		"squizlabs/php_codesniffer": "^3",
+		"dealerdirect/phpcodesniffer-composer-installer": "^1",
+		"wp-coding-standards/wpcs": "^3",
+		"wpackagist-plugin/loco-translate": "*"
+	}
+}

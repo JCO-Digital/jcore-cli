@@ -1,0 +1,30 @@
+name: Deploy site
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    uses: jco-digital/deploy-wp-action/.github/workflows/build-project.yml@v3
+    with:
+      php_version: 8.2
+      slack_channel: C53TA4C5V
+    secrets: inherit
+  deploy-main:
+    needs: [build]
+    if: github.ref == 'refs/heads/main' # Example of conditional deploy
+    uses: jco-digital/deploy-wp-action/.github/workflows/server-deploy.yml@v3
+    with:
+      server_url: siteuser@vs.bojaco.com # Change user and server
+      base_path: files
+      paths: >-
+        wp-content/themes/{{.Theme}}/:wp-content/themes/{{.Theme}}/,
+        wp-content/plugins/lohko/:wp-content/plugins/lohko/,
+        wp-content/plugins/ruudukko/:wp-content/plugins/ruudukko/,
+        wp-content/plugins/dynamic-archive/:wp-content/plugins/dynamic-archive/,
+        wp-content/mu-plugins/module-loader.php:wp-content/mu-plugins/module-loader.php,
+        vendor/:vendor/
+      slack_channel: C53TA4C5V
+    secrets: inherit

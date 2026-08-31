@@ -1,0 +1,14 @@
+template = "jcore3"
+theme = "jcore-ilme"
+wpImage = "jcodigi/wordpress:latest"
+wpVersion = "latest"
+pluginLocal = ["loco-translate"]
+pluginExclude = ["mainwp-child", "dynamic-archive", "ruudukko", "jcore-maalima"]
+pluginGit = ["lohko"]
+dbExclude = []
+dbPrefix = "wp_"
+remoteDomain = "localhost"
+localDomain = "localhost"
+wpDebug = true
+wpDebugLog = false
+wpDebugDisplay = true

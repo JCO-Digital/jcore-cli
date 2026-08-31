@@ -1,0 +1,26 @@
+#!/bin/bash
+
+source $PROJECT_PATH/.env
+
+BEFORE_SCRIPT=$PROJECT_PATH/custom-scripts/db-before
+AFTER_SCRIPT=$PROJECT_PATH/custom-scripts/db-after
+SQLPATH="$PROJECT_PATH/.jcore/sql"
+
+# Run custom script if it exists.
+if [ -f "$BEFORE_SCRIPT" ]; then
+    source $BEFORE_SCRIPT
+fi
+
+# Prepare import file.
+source $PROJECT_PATH/.config/scripts/parts/db-prepare.bash
+
+# Fetch data from external sources.
+source $PROJECT_PATH/.config/scripts/parts/db-fetch.bash
+
+# Import data into database.
+source $PROJECT_PATH/.config/scripts/parts/db-import.bash
+
+# Run custom script if it exists.
+if [ -f "$AFTER_SCRIPT" ]; then
+    source $AFTER_SCRIPT
+fi
