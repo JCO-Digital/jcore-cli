@@ -355,6 +355,30 @@ func TestResolveFallsBackToEmbeddedBaseDefaults(t *testing.T) {
 	}
 }
 
+// TestResolveFallsBackToSchemaDefault checks a setting with no embedded
+// base defaults.toml entry (unlike wpImage) still resolves to its real
+// SettingDef.Default, not a blank value — the specific gap
+// TestDefaultsArePopulated (schema_test.go) guards from the other side.
+func TestResolveFallsBackToSchemaDefault(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	res, err := Resolve("pluginInstall", "", "")
+	if err != nil {
+		t.Fatalf("Resolve error = %v", err)
+	}
+	if !res.IsDefault || res.Value != "remote" {
+		t.Fatalf(`Resolve(pluginInstall) = %+v, want IsDefault true, Value "remote"`, res)
+	}
+
+	res, err = Resolve("projectDefault", "", "")
+	if err != nil {
+		t.Fatalf("Resolve error = %v", err)
+	}
+	if !res.IsDefault || res.Value != "git@github.com:JCO-Digital/{name}.git" {
+		t.Fatalf(`Resolve(projectDefault) = %+v, want IsDefault true, Value "git@github.com:JCO-Digital/{name}.git"`, res)
+	}
+}
+
 func TestResolveFallsBackToProjectDefaultsFile(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("HOME", t.TempDir())

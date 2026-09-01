@@ -90,7 +90,7 @@ var Settings = []SettingDef{
 	// left out of Options so the TUI's select list only ever offers the
 	// two supported values, while still showing "composer" as an editable
 	// (if unlisted) current value for a project that still has it set.
-	{Key: "pluginInstall", Type: TypeString, Category: "Plugins", Description: "How plugins are installed: remote (default) or local. \"composer\" is deprecated.", Options: []string{"remote", "local"}},
+	{Key: "pluginInstall", Type: TypeString, Default: "remote", Category: "Plugins", Description: "How plugins are installed: remote (default) or local. \"composer\" is deprecated.", Options: []string{"remote", "local"}},
 	{Key: "pluginExclude", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins excluded from install/sync."},
 	{Key: "pluginGit", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins installed from their own git repository."},
 	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalOnly, Description: "Plugins symlinked from a local checkout."},
@@ -105,7 +105,7 @@ var Settings = []SettingDef{
 	{Key: "mode", Type: TypeString, Default: "foreground", Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Run containers in the foreground or background.", Options: []string{"foreground", "background"}},
 	{Key: "install", Type: TypeBool, Default: true, Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Install node/composer dependencies automatically."},
 	{Key: "verbose", Type: TypeBool, Default: false, Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Print more output."},
-	{Key: "projectDefault", Type: TypeString, Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Git URL template used by `jcore clone`."},
+	{Key: "projectDefault", Type: TypeString, Default: "git@github.com:JCO-Digital/{name}.git", Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Git URL template used by `jcore clone`."},
 }
 
 var (

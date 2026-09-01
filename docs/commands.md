@@ -70,6 +70,13 @@ Starts the WordPress environment for the current project.
   and Composer (from `composer.json`) packages, then `docker compose pull`
   to refresh images — unless the `install` setting is `false`. Use
   `--install`/`-i` to force this even when `install` is disabled.
+- Also parses `docker-compose.yml` itself and creates any project-relative
+  bind-mount folder it declares (e.g. `./wp-content`, `./vendor`, or any
+  custom one a service adds) that doesn't already exist, before starting
+  containers — otherwise Docker creates a missing mount point itself as
+  root the moment a container starts, leaving it unwritable by build
+  scripts running as a normal user. Named volumes, absolute/`~`-relative
+  paths, and anything already present (a folder or a file) are left alone.
 
 ## `stop`
 Stops every currently running JCore project on the machine (not just the

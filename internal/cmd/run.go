@@ -72,6 +72,14 @@ It generates the .env file and runs docker compose up.`,
 			return
 		}
 
+		// Create every folder docker-compose.yml bind-mounts that doesn't
+		// exist yet, before docker itself does — as root, leaving it
+		// unwritable by build scripts running as a normal user.
+		if err := project.EnsureComposeMountedFolders(projectDir); err != nil {
+			fmt.Printf("Error creating compose-mounted folders: %v\n", err)
+			return
+		}
+
 		detached, _ := cmd.Flags().GetBool("detached")
 		if viper.GetString("mode") == "background" {
 			detached = true

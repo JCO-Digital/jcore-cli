@@ -43,6 +43,27 @@ func TestScopeClassification(t *testing.T) {
 	}
 }
 
+// TestDefaultsArePopulated guards against a setting silently having no
+// SettingDef.Default when it has a real, known effective default — which
+// would otherwise show as blank in `config list`/`config edit` instead of
+// that value (harmless today, but a latent trap if any code ever compared
+// the empty string literally).
+func TestDefaultsArePopulated(t *testing.T) {
+	cases := map[string]any{
+		"pluginInstall":  "remote",
+		"projectDefault": "git@github.com:JCO-Digital/{name}.git",
+	}
+	for key, want := range cases {
+		def, ok := Lookup(key)
+		if !ok {
+			t.Fatalf("expected %s to be a known setting", key)
+		}
+		if def.Default != want {
+			t.Errorf("%s Default = %#v, want %#v", key, def.Default, want)
+		}
+	}
+}
+
 func TestCategoriesAndInCategory(t *testing.T) {
 	categories := Categories()
 	if len(categories) == 0 {
