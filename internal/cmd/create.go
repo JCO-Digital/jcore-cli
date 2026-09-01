@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/internal/docker"
@@ -102,14 +99,20 @@ var createBlockCmd = &cobra.Command{
 			return
 		}
 
+		if !project.LohkoInstalled(projectDir) && !promptInstallLohko(projectDir) {
+			return
+		}
 		lohkoSrcDir := filepath.Join(projectDir, "wp-content", "plugins", "lohko", "src")
-		if _, err := os.Stat(lohkoSrcDir); os.IsNotExist(err) {
-			fmt.Println("Error: Lohko plugin source directory not found. Is Lohko installed?")
+
+		templates, err := project.LohkoBlockTemplateNames()
+		if err != nil || len(templates) == 0 {
+			fmt.Println("Error: no Lohko block templates available.")
 			return
 		}
 
 		var answers = struct {
 			Name        string
+			Template    string
 			Description string
 		}{}
 
@@ -120,6 +123,14 @@ var createBlockCmd = &cobra.Command{
 					Message: "Enter block name:",
 				},
 				Validate: survey.Required,
+			},
+			{
+				Name: "template",
+				Prompt: &survey.Select{
+					Message: "Select a block template:",
+					Options: templates,
+					Default: templates[0],
+				},
 			},
 			{
 				Name: "description",
@@ -135,7 +146,7 @@ var createBlockCmd = &cobra.Command{
 			return
 		}
 
-		slug := slugify(answers.Name)
+		slug := project.Slugify(answers.Name)
 		destDir := filepath.Join(lohkoSrcDir, slug)
 
 		if _, err := os.Stat(destDir); err == nil {
@@ -143,40 +154,74 @@ var createBlockCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Creating block %s (%s)...\n", answers.Name, slug)
-
-		// For now, we'll create a minimal block.json and a placeholder directory.
-		// In a full implementation, we would copy from a template.
-		if err := os.MkdirAll(destDir, 0755); err != nil {
-			fmt.Printf("Error creating block directory: %v\n", err)
+		fmt.Printf("Creating block %s (%s) from the %s template...\n", answers.Name, slug, answers.Template)
+		if err := project.CreateBlock(destDir, answers.Template, answers.Name, slug, answers.Description); err != nil {
+			fmt.Printf("Error creating block: %v\n", err)
 			return
 		}
-
-		blockData := map[string]interface{}{
-			"apiVersion":  2,
-			"name":        "jcore/" + slug,
-			"title":       answers.Name,
-			"category":    "formatting",
-			"description": answers.Description,
-			"supports": map[string]interface{}{
-				"html": false,
-			},
-			"textdomain": "lohko",
-		}
-
-		blockJsonPath := filepath.Join(destDir, "block.json")
-		file, _ := json.MarshalIndent(blockData, "", "    ")
-		_ = os.WriteFile(blockJsonPath, file, 0644)
 
 		fmt.Println("Block created successfully at:", destDir)
 	},
 }
 
-func slugify(s string) string {
-	s = strings.ToLower(s)
-	s = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(s, "-")
-	s = strings.Trim(s, "-")
-	return s
+// promptInstallLohko asks whether to install the Lohko plugin (not present
+// in projectDir), and if confirmed, downloads it and offers to prune its
+// bundled example blocks. Returns whether it's now safe to proceed with
+// creating a block.
+func promptInstallLohko(projectDir string) bool {
+	install := false
+	confirmPrompt := &survey.Confirm{
+		Message: "Lohko is not installed, do you want to install it?",
+		Default: true,
+	}
+	if err := survey.AskOne(confirmPrompt, &install); err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	if !install {
+		fmt.Println("Lohko will not be installed, aborting.")
+		return false
+	}
+
+	fmt.Println("Installing Lohko...")
+	if err := project.InstallLohko(projectDir); err != nil {
+		fmt.Printf("Error installing Lohko: %v\n", err)
+		return false
+	}
+
+	bundled, err := project.LohkoBundledBlocks(projectDir)
+	if err != nil || len(bundled) == 0 {
+		fmt.Println("Lohko installed successfully.")
+		return true
+	}
+
+	options := make([]string, len(bundled))
+	for i, b := range bundled {
+		options[i] = b.Title
+	}
+
+	var keep []string
+	keepPrompt := &survey.MultiSelect{
+		Message: "Select Lohko example blocks to keep (unselected ones are removed):",
+		Options: options,
+	}
+	if err := survey.AskOne(keepPrompt, &keep); err != nil {
+		fmt.Println(err.Error())
+		return true // Lohko itself is already installed; just skip pruning.
+	}
+
+	keepSet := make(map[string]bool, len(keep))
+	for _, k := range keep {
+		keepSet[k] = true
+	}
+	for _, b := range bundled {
+		if !keepSet[b.Title] {
+			_ = project.RemoveLohkoBlock(projectDir, b.Folder)
+		}
+	}
+
+	fmt.Println("Lohko installed successfully.")
+	return true
 }
 
 func init() {

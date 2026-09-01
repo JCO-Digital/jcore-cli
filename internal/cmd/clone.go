@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/JCO-Digital/jcore/internal/constants"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -68,14 +69,43 @@ If only a name is provided, it uses the projectDefault setting to construct the 
 		// 1. Initialize submodules
 		submoduleCmd := exec.Command("git", "submodule", "update", "--init", "--recursive")
 		submoduleCmd.Dir = targetDir
-		_ = submoduleCmd.Run()
+		if err := submoduleCmd.Run(); err != nil {
+			fmt.Printf("Warning: submodule init failed: %v\n", err)
+		}
 
-		// 2. Generate .env
-		// We need to reload viper to pick up the newly cloned project's config
-		// But for now we can just use the project.GenerateEnvFile logic
-		// if we ensure it reads from the right place.
+		// 2. Reload settings from the freshly cloned project's own config
+		// files (jcore.toml, defaults.toml, ...): the config loaded at
+		// startup only reflects wherever the command was run from, which
+		// had no project yet.
+		LoadConfigForProject(targetDir)
+
+		// 3. Switch the jcore2 theme submodule to the configured branch,
+		// if any.
+		if branch := viper.GetString("branch"); branch != "" {
+			themeDir := filepath.Join(targetDir, constants.JcoreThemeSubmodulePath)
+			if _, err := os.Stat(themeDir); err == nil {
+				switchCmd := exec.Command("git", "switch", branch)
+				switchCmd.Dir = themeDir
+				switchCmd.Stdout = os.Stdout
+				switchCmd.Stderr = os.Stderr
+				if err := switchCmd.Run(); err != nil {
+					fmt.Printf("Warning: failed to switch jcore2 theme to branch %s: %v\n", branch, err)
+				}
+			}
+		}
+
+		// 4. Generate .env and finalize the project (nginx/php.ini
+		// rendering), then install dependencies — always, regardless of
+		// the `install` setting, matching the legacy CLI's
+		// finalizeProject() call after a fresh clone.
 		if err := project.GenerateEnvFile(targetDir); err != nil {
 			fmt.Printf("Warning: Failed to generate initial .env: %v\n", err)
+		}
+		if err := project.FinalizeProject(targetDir); err != nil {
+			fmt.Printf("Warning: Failed to finalize project: %v\n", err)
+		}
+		if err := project.InstallDependencies(targetDir, true); err != nil {
+			fmt.Printf("Warning: Failed to install dependencies: %v\n", err)
 		}
 
 		fmt.Printf("\nProject %s cloned and prepared successfully.\n", name)

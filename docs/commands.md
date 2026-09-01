@@ -2,14 +2,21 @@
 
 This document describes the available commands in JCore CLI.
 
-## `init`
-Creates a new JCore project. It will prompt for:
-- Project Name
-- Template (e.g., `jcore3`)
-- Branch
-- Domain settings
-
-It sets up the project directory, initializes a Git repository, and creates the necessary configuration files.
+## `init [name]`
+Creates a new JCore project in a new `[name]` directory (or the current
+directory's name if omitted), scaffolding it from an embedded template.
+- `--template`/`-t` (default `jcore3`): which embedded template to scaffold.
+- `--branch`/`-b`: git branch of the theme/plugins to track. Defaults to
+  the template's own default branch (from the embedded template catalog),
+  e.g. `hurricane` for `jcore3`.
+- Unless `--notheme`/`-n` is passed, it also downloads and creates a child
+  theme at `wp-content/themes/<slugified-project-name>` from the template's
+  theme repository (for `jcore3`, `jcore-ilme` at the chosen branch),
+  rewriting the theme's own `style.css` "Theme Name:" header and the
+  project's `Makefile`/`pnpm-workspace.yaml` theme path references to
+  match. Requires network access.
+- Initializes a git repository and writes `jcore.toml` with `projectName`
+  (and `branch`/`theme`, if set).
 
 ## `start`
 Starts the WordPress environment for the current project.
@@ -46,7 +53,12 @@ Pulls data from the remote environment to the local environment.
 ## `clone <repository> [name]`
 Clones an existing JCore project from a Git repository.
 - If only a name is given, it uses the `projectDefault` setting to construct the Git URL.
-- Automatically initializes submodules and runs project setup.
+- Initializes submodules, then switches the `wp-content/themes/jcore2` theme
+  submodule (if present) to the cloned project's own `branch` setting.
+- Reloads settings from the freshly cloned project's own config files, then
+  generates `.env`, finalizes the project (`site.conf`/`php.ini`
+  rendering), and installs dependencies (always, regardless of the
+  `install` setting — see `start`).
 
 ## `update`
 Updates the current project files from the template.
@@ -104,7 +116,10 @@ the rule below.
   `@<branch>` annotated on any value that specifically comes from that
   file's own branch table rather than its top level.
 - `jcore config set <key> <value>`: Sets a configuration value, coerced to
-  the setting's real type (bool/int/list), not stored as a raw string.
+  the setting's real type (bool/int/list), not stored as a raw string. A
+  bool setting accepts `true`/`yes`/`on`/`y`/`t`/`1` (case-insensitive) as
+  true and anything else as false — it never errors on an unrecognized
+  value.
     - Special pseudo-setters:
         - `wpe <name>`: Sets up WP Engine remote settings.
         - `php <version>`: Sets the WordPress PHP image version.
@@ -129,8 +144,9 @@ the rule below.
   existing override anywhere picks a scope by category: Global for
   CLI-behavior settings, Project for everything else (Global if not inside
   a project). `/` to filter, `q` to quit.
-- `--global`, `--project` (default), and `--local` flags specify the scope
-  for `set`/`unset`; project/local require being inside a project.
+- `--global`, `--project`, and `--local` flags specify the scope for
+  `set`/`unset`. With none given, it defaults to Project when run inside a
+  project, or Global otherwise.
 
 `pluginInstall = "composer"` is deprecated (it breaks the mainWP/wp-cli
 workflow) and jcore refuses to run any command other than `config`/
@@ -152,7 +168,12 @@ Checks the system for potential issues.
 Migrates a legacy JCore project to the current format.
 
 ## `create`
-- `jcore create block`: Prompts to create a new Gutenberg block using Lohko templates.
+- `jcore create block`: If Lohko isn't installed yet, offers to install it
+  (downloaded fresh from GitHub into `wp-content/plugins/lohko`) and lets
+  you pick which of its bundled example blocks to keep — any left
+  unselected are deleted. Then prompts for a name, a Lohko block template
+  (`dynamic` or `static`), and a description, and creates the block at
+  `wp-content/plugins/lohko/src/<slug>`.
 - `jcore create user`: Prompts to create a new WordPress user in the running environment.
 
 ## `status`

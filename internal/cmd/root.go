@@ -114,41 +114,55 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		projectRoot, _ := project.FindProjectRoot()
-		branch := project.CurrentBranch(projectRoot)
-
-		// 1. Set Defaults
-		defaultConfig, err := container.BaseAssets.Open("base/defaults.toml")
-		if err == nil {
-			viper.SetConfigType("toml")
-			_ = viper.MergeConfig(defaultConfig)
-			defaultConfig.Close()
-		}
-
-		// 2. Global Config
-		if globalPath, err := config.GetConfigPath(config.ScopeGlobal, ""); err == nil {
-			mergeTOMLWithBranchOverlay(globalPath, branch, "Loaded global config from "+globalPath)
-		}
-
-		// 3. Project & Local Config
-		if projectRoot != "" {
-			// Project Defaults (the per-template defaults.toml scaffolded
-			// into every project, distinct from jcore.toml)
-			projectDefaults := filepath.Join(projectRoot, "defaults.toml")
-			mergeTOMLWithBranchOverlay(projectDefaults, branch, "Loaded project defaults from "+projectDefaults)
-
-			// Project Config
-			if projectConfig, err := config.GetConfigPath(config.ScopeProject, projectRoot); err == nil {
-				mergeTOMLWithBranchOverlay(projectConfig, branch, "Loaded project config from "+projectConfig)
-			}
-
-			// Local Config
-			if localConfig, err := config.GetConfigPath(config.ScopeLocal, projectRoot); err == nil {
-				mergeTOMLWithBranchOverlay(localConfig, branch, "Loaded local config from "+localConfig)
-			}
-		}
+		LoadConfigForProject(projectRoot)
 	}
 
 	viper.AutomaticEnv()
+}
+
+// LoadConfigForProject merges every config layer (embedded base defaults,
+// global, the project's own defaults.toml, jcore.toml, local) for
+// projectRoot into the global viper singleton, branch-adjusted for
+// projectRoot's currently checked-out git branch. It's exactly what
+// initConfig does using the CWD-derived project root at startup, exposed
+// separately so a command that creates or moves into a *different* project
+// directory mid-run (e.g. `clone`, right after cloning into a fresh
+// directory) can reload settings for it before finalizing that project —
+// otherwise commands like FinalizeProject/GenerateEnvFile would still see
+// only whatever was in effect at the original working directory.
+func LoadConfigForProject(projectRoot string) {
+	branch := project.CurrentBranch(projectRoot)
+
+	// 1. Set Defaults
+	defaultConfig, err := container.BaseAssets.Open("base/defaults.toml")
+	if err == nil {
+		viper.SetConfigType("toml")
+		_ = viper.MergeConfig(defaultConfig)
+		defaultConfig.Close()
+	}
+
+	// 2. Global Config
+	if globalPath, err := config.GetConfigPath(config.ScopeGlobal, ""); err == nil {
+		mergeTOMLWithBranchOverlay(globalPath, branch, "Loaded global config from "+globalPath)
+	}
+
+	// 3. Project & Local Config
+	if projectRoot != "" {
+		// Project Defaults (the per-template defaults.toml scaffolded
+		// into every project, distinct from jcore.toml)
+		projectDefaults := filepath.Join(projectRoot, "defaults.toml")
+		mergeTOMLWithBranchOverlay(projectDefaults, branch, "Loaded project defaults from "+projectDefaults)
+
+		// Project Config
+		if projectConfig, err := config.GetConfigPath(config.ScopeProject, projectRoot); err == nil {
+			mergeTOMLWithBranchOverlay(projectConfig, branch, "Loaded project config from "+projectConfig)
+		}
+
+		// Local Config
+		if localConfig, err := config.GetConfigPath(config.ScopeLocal, projectRoot); err == nil {
+			mergeTOMLWithBranchOverlay(localConfig, branch, "Loaded local config from "+localConfig)
+		}
+	}
 }
 
 // mergeTOMLWithBranchOverlay loads path — applying any "branch-<branch>"

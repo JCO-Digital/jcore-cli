@@ -402,11 +402,7 @@ func coerceValue(def SettingDef, raw any) (any, error) {
 		case bool:
 			return v, nil
 		case string:
-			b, err := strconv.ParseBool(v)
-			if err != nil {
-				return nil, fmt.Errorf("invalid bool value %q for %s", v, def.Key)
-			}
-			return b, nil
+			return parseBoolean(v), nil
 		default:
 			return nil, fmt.Errorf("cannot use %T as bool for %s", raw, def.Key)
 		}
@@ -439,6 +435,18 @@ func coerceValue(def SettingDef, raw any) (any, error) {
 			return s, nil
 		}
 		return fmt.Sprintf("%v", raw), nil
+	}
+}
+
+// parseBoolean matches the legacy TypeScript CLI's parseBoolean: it never
+// errors, treating "true"/"yes"/"on"/"y"/"t"/"1" (case-insensitively) as
+// true and anything else — including typos — as false.
+func parseBoolean(value string) bool {
+	switch strings.ToLower(value) {
+	case "true", "yes", "on", "y", "t", "1":
+		return true
+	default:
+		return false
 	}
 }
 

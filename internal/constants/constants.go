@@ -18,6 +18,11 @@ var GlobalFolders = []string{
 
 const ChecksumFile = ".file.checksums.json"
 
+// JcoreThemeSubmodulePath is the jcore2 theme's git submodule path within a
+// project, whose branch `jcore clone` switches to match the `branch`
+// setting.
+const JcoreThemeSubmodulePath = "wp-content/themes/jcore2"
+
 var ExternalCommands = []ExternalCommand{
 	{Name: "docker", Version: "-v"},
 	{Name: "docker-compose", Version: "-v"},

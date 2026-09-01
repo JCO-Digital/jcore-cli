@@ -94,7 +94,7 @@ func ScaffoldProject(targetDir string, template string) error {
 
 // copyOrRenderFile copies srcPath to destPath. If srcPath ends in TemplateExt,
 // its content is executed as a Go template against data first.
-func copyOrRenderFile(srcFS fs.FS, srcPath, destPath string, data TemplateData) error {
+func copyOrRenderFile(srcFS fs.FS, srcPath, destPath string, data any) error {
 	content, err := fs.ReadFile(srcFS, srcPath)
 	if err != nil {
 		return err

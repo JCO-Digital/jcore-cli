@@ -1,0 +1,17 @@
+<?php
+/**
+ * Server-side render for this block. Attributes set in edit.js (see
+ * block.json) are available in $attributes; pass whatever the Twig view
+ * needs into $context.
+ *
+ * @see https://github.com/WordPress/gutenberg/blob/trunk/docs/reference-guides/block-api/block-metadata.md#render
+ */
+
+namespace Jcore\Lohko;
+
+use Timber\Timber;
+
+$context = timber_block_context( $attributes );
+$context['content'] = $attributes['content'] ?? '';
+
+Timber::render( '@lohko/{{.Slug}}/view.twig', $context );

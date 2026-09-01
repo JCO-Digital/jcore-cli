@@ -216,6 +216,35 @@ func TestStoreTypeCoercion(t *testing.T) {
 	}
 }
 
+// TestStoreTypeCoercion_BoolAcceptsLegacyTruthyStrings mirrors the legacy
+// TypeScript CLI's parseBoolean, which never errors and accepts a wider set
+// of case-insensitive truthy strings than strconv.ParseBool. Anything not
+// on that list (typos included) is false, not an error.
+func TestStoreTypeCoercion_BoolAcceptsLegacyTruthyStrings(t *testing.T) {
+	root := t.TempDir()
+
+	cases := map[string]bool{
+		"true": true, "True": true, "TRUE": true,
+		"yes": true, "on": true, "y": true, "t": true, "1": true,
+		"false": false, "no": false, "off": false, "n": false, "0": false,
+		"typo": false, "": false,
+	}
+
+	for input, want := range cases {
+		store, err := OpenStore(ScopeProject, root, "")
+		if err != nil {
+			t.Fatalf("OpenStore error = %v", err)
+		}
+		if err := store.Set("debug", input); err != nil {
+			t.Fatalf("Set(%q) unexpected error = %v (parseBoolean must never error)", input, err)
+		}
+		got, _ := store.Get("debug")
+		if got != want {
+			t.Errorf("Set(%q) -> debug = %#v, want %v", input, got, want)
+		}
+	}
+}
+
 func TestStoreUnset(t *testing.T) {
 	root := t.TempDir()
 

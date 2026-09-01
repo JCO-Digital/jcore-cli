@@ -38,8 +38,10 @@ func CurrentTemplateData() TemplateData {
 	}
 }
 
-// renderTemplate executes a Go template's content against data.
-func renderTemplate(name string, content []byte, data TemplateData) ([]byte, error) {
+// renderTemplate executes a Go template's content against data. data may be
+// any type text/template accepts (TemplateData for the main project
+// scaffold, LohkoBlockData for a Lohko block template, ...).
+func renderTemplate(name string, content []byte, data any) ([]byte, error) {
 	tmpl, err := template.New(name).Parse(string(content))
 	if err != nil {
 		return nil, err

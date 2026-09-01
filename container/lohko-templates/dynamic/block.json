@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "lohko/dynamic",
+  "version": "0.1.0",
+  "title": "Dynamic",
+  "category": "widgets",
+  "icon": "text-page",
+  "description": "Dynamic block template.",
+  "attributes": {
+    "content": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "example": {
+    "attributes": {
+      "content": "Example content"
+    }
+  },
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"],
+    "background": {
+      "backgroundImage": true,
+      "backgroundSize": true
+    },
+    "color": {
+      "background": true,
+      "text": true
+    }
+  },
+  "textdomain": "lohko",
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css",
+  "render": "file:./render.php"
+}
