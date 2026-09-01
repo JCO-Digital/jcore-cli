@@ -138,6 +138,20 @@ project name, template, and (if the template offers more than one) branch.`,
 			}
 		}
 
+		var installedPlugins []string
+		noplugins, _ := cmd.Flags().GetBool("noplugins")
+		if !noplugins {
+			for _, pluginURL := range catalogEntry.Plugins {
+				fmt.Printf("Installing plugin from %s...\n", pluginURL)
+				pluginName, err := project.InstallGithubPlugin(targetDir, pluginURL)
+				if err != nil {
+					fmt.Printf("Warning: failed to install plugin from %s: %v\n", pluginURL, err)
+					continue
+				}
+				installedPlugins = append(installedPlugins, pluginName)
+			}
+		}
+
 		// Write jcore.toml: merges with anything already there rather than
 		// overwriting, so re-running init in an existing project is safe.
 		store, err := config.OpenStore(config.ScopeProject, targetDir, "")
@@ -149,6 +163,15 @@ project name, template, and (if the template offers more than one) branch.`,
 		_ = store.Set("branch", branch)
 		if theme != "" {
 			_ = store.Set("theme", theme)
+		}
+		if len(installedPlugins) > 0 {
+			// pluginGit means "not remote-synced, tracked in this
+			// project's own git repo" regardless of how it actually got
+			// installed (a real git submodule, or — like these and
+			// Lohko — a downloaded release zip); merge rather than
+			// overwrite so the template's own defaults.toml pluginGit
+			// entries (e.g. "lohko") survive alongside these.
+			_ = store.Set("pluginGit", project.MergeUnique(viper.GetStringSlice("pluginGit"), installedPlugins))
 		}
 		if err := store.Save(); err != nil {
 			fmt.Printf("Error writing project config: %v\n", err)
@@ -191,4 +214,5 @@ func init() {
 	initCmd.Flags().StringP("template", "t", "jcore3", "Project template to use")
 	initCmd.Flags().StringP("branch", "b", "", "Git branch of the theme/plugins to track (defaults to the template's own default branch)")
 	initCmd.Flags().BoolP("notheme", "n", false, "Skip downloading and creating the child theme")
+	initCmd.Flags().Bool("noplugins", false, "Skip installing the template's GitHub-release plugins")
 }

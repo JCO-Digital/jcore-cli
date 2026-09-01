@@ -3,6 +3,10 @@ branch = "hurricane"
 branches = ["gintonic", "hurricane"]
 themeUrl = "https://github.com/JCO-Digital/jcore-ilme/archive/refs/heads/{{branch}}.zip"
 lohko = true
+plugins = [
+  "https://github.com/JCO-Digital/jcore-dynamic-archive/releases/latest/download/jcore-dynamic-archive.zip",
+  "https://github.com/JCO-Digital/jcore-turva/releases/latest/download/jcore-turva.zip",
+]
 
 [jcore2]
 branch = "grasshopper"

@@ -35,6 +35,15 @@ the `[name]` argument or `--template`/`--branch`:
   rewriting the theme's own `style.css` "Theme Name:" header and the
   project's `Makefile`/`pnpm-workspace.yaml` theme path references to
   match. Requires network access.
+- Unless `--noplugins` is passed, it also installs the template's own list
+  of plugins (`plugins` in the template catalog) directly from a GitHub
+  release asset — for `jcore3`, `jcore-dynamic-archive` and `jcore-turva`,
+  always their current latest release (each entry is that repo's
+  `/releases/latest/download/<name>.zip` URL, which needs no version to
+  keep in sync) — into `wp-content/plugins/<name>`, and adds each to
+  `pluginGit` in `jcore.toml` (merged with, not replacing, whatever the
+  template's own `defaults.toml` already lists there, e.g. `lohko`) so
+  `jcore pull plugins`' remote sync doesn't delete them.
 - Initializes a git repository, writes `jcore.toml` with `projectName`
   (and `branch`/`theme`, if set), and commits the initial scaffold (`git
   add -A && git commit`).
