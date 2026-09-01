@@ -49,8 +49,18 @@ Updates the current project files from the template.
 - You can specify specific targets to update.
 
 ## `update self`
-Updates the JCore CLI itself to the latest version.
-- Supports both `pnpm` global updates and direct binary replacement.
+Updates the JCore CLI binary itself to the latest GitHub release.
+- Downloads the release asset matching the current OS/arch, verifies it against
+  its detached Ed25519 signature (`<asset>.minisig`), and replaces the running
+  executable in place. Aborts without touching the binary if verification fails.
+- `--force` / `-f`: reinstall even if already on the latest version, and skip
+  the confirmation prompt.
+- Every command run does a cheap, non-blocking check for a newer release (at
+  most once every 24h): if one is due, a detached background process performs
+  it and records the result, so it never adds latency to the command you
+  actually ran. If a newer version was found, the *next* invocation prints a
+  one-line notice suggesting `jcore update self`.
+- Set `JCORE_NO_UPDATE_CHECK=1` to disable this check entirely (e.g. in CI).
 
 ## `config`
 Manages configuration settings.

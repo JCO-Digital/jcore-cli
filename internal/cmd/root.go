@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/JCO-Digital/jcore/container"
+	"github.com/JCO-Digital/jcore/internal/config"
 	"github.com/JCO-Digital/jcore/internal/project"
+	"github.com/JCO-Digital/jcore/internal/update"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,6 +21,18 @@ var rootCmd = &cobra.Command{
 	Short: "A command-line interface for jcore WordPress development",
 	Long: `JCore CLI is a tool designed to manage WordPress development environments.
 It simplifies the process of setting up, running, and maintaining WordPress projects using Docker.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Kick off a background check (at most once every update.CheckInterval)
+		// and surface the result of the last one. Both are no-ops when
+		// JCORE_NO_UPDATE_CHECK is set, e.g. in CI.
+		if os.Getenv("JCORE_NO_UPDATE_CHECK") != "" {
+			return
+		}
+		update.MaybeCheckInBackground()
+		if notice := update.AvailableNotice(config.AppVersion); notice != "" {
+			fmt.Fprintln(os.Stderr, notice)
+		}
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

@@ -1,0 +1,88 @@
+name: Release jcore CLI
+
+on:
+  push:
+    branches:
+      - main
+      - "push-action/**"
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Test
+        run: make test
+
+      - name: Verify Build
+        run: make build
+
+      - name: Run foonver
+        id: foonver
+        uses: foonly/foonver@v0.9.1
+        with:
+          command: "auto"
+          changelog: "true"
+          push: "true"
+
+      - name: Build Release Binaries
+        # Re-build now that the new tag exists, so the version is embedded correctly
+        if: steps.foonver.outputs.is_bumped == 'true'
+        run: make release
+
+      - name: Sign Binaries
+        if: steps.foonver.outputs.is_bumped == 'true'
+        env:
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+        run: go run ./cmd/sign-binaries bin/jcore_*
+
+      - name: Create GitHub Release
+        if: steps.foonver.outputs.is_bumped == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.foonver.outputs.version }}
+          name: Release ${{ steps.foonver.outputs.version }}
+          body: ${{ steps.foonver.outputs.release_notes }}
+          draft: false
+          prerelease: false
+          files: bin/jcore_*
+
+      - name: Slack notification (success)
+        if: success() && steps.foonver.outputs.is_bumped == 'true'
+        uses: slackapi/slack-github-action@v2
+        env:
+          MSG: |-
+            ✅ jcore-cli release ${{ steps.foonver.outputs.version }} by ${{ github.actor }} succeeded.
+
+            ${{ steps.foonver.outputs.release_notes }}
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "CU8LPT03W",
+              "text": ${{ toJSON(env.MSG) }}
+            }
+
+      - name: Slack notification (failure)
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "CU8LPT03W",
+              "text": ${{ toJSON(format('❌ jcore-cli build/release {0} failed.', github.sha)) }}
+            }
