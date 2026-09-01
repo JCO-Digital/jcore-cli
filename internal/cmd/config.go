@@ -25,7 +25,7 @@ Settings can be managed at different levels: global, project, or local.`,
 
 // listCmd represents the config list command
 var listCmd = &cobra.Command{
-	Use:   "list [active|global|project|local|all]",
+	Use:   "list [active|global|project|local|defaults|all]",
 	Short: "List configuration settings",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -46,13 +46,18 @@ var listCmd = &cobra.Command{
 			printScope(config.ScopeProject, projectRoot, branch, "Project settings")
 		case "local":
 			printScope(config.ScopeLocal, projectRoot, branch, "Local settings")
+		case "defaults":
+			printProjectDefaults(projectRoot, branch)
 		case "all":
 			printActiveSettings(projectRoot, branch)
+			if projectRoot != "" {
+				printProjectDefaults(projectRoot, branch)
+			}
 			printScope(config.ScopeGlobal, projectRoot, branch, "Global settings")
 			printScope(config.ScopeProject, projectRoot, branch, "Project settings")
 			printScope(config.ScopeLocal, projectRoot, branch, "Local settings")
 		default:
-			fmt.Printf("Unknown scope %q; expected active, global, project, local, or all.\n", scope)
+			fmt.Printf("Unknown scope %q; expected active, global, project, local, defaults, or all.\n", scope)
 		}
 	},
 }
@@ -61,10 +66,11 @@ var listCmd = &cobra.Command{
 // currently has loaded, annotated with which scope (and branch override, if
 // any) each value actually resolves from.
 func printActiveSettings(projectRoot, branch string) {
-	fmt.Println("\nActive (merged) settings:")
+	fmt.Println()
+	fmt.Println(styleHeading.Render("Active (merged) settings:"))
 	settings := viper.AllSettings()
 	if len(settings) == 0 {
-		fmt.Println("  (none)")
+		fmt.Println(styleDim.Render("  (none)"))
 		return
 	}
 
@@ -75,7 +81,7 @@ func printActiveSettings(projectRoot, branch string) {
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		fmt.Printf("  %s: %v  (%s)\n", k, settings[k], sourceLabel(k, projectRoot, branch))
+		fmt.Printf("  %s: %s  (%s)\n", styleKey.Render(k), colorizeValue(settings[k]), colorizeScopeLabel(sourceLabel(k, projectRoot, branch)))
 	}
 }
 
@@ -93,21 +99,52 @@ func sourceLabel(key, projectRoot, branch string) string {
 	return label
 }
 
+// printProjectDefaults prints the project's own defaults.toml (the
+// per-template defaults file scaffolded into every project, distinct from
+// jcore.toml) — a resolution layer between Project and Global scope (see
+// config.Resolve) that isn't itself a Store `config set`/the TUI can write
+// to, so it's read-only here.
+func printProjectDefaults(projectRoot, branch string) {
+	fmt.Println()
+	fmt.Println(styleHeading.Render("Project defaults (defaults.toml) settings:"))
+	if projectRoot == "" {
+		fmt.Println(styleDim.Render("  (not in a project)"))
+		return
+	}
+
+	settings := config.ProjectDefaultsFile(projectRoot, branch)
+	if len(settings) == 0 {
+		fmt.Println(styleDim.Render("  (none)"))
+		return
+	}
+
+	keys := make([]string, 0, len(settings))
+	for k := range settings {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		fmt.Printf("  %s: %s\n", styleKey.Render(k), colorizeValue(settings[k]))
+	}
+}
+
 // printScope prints exactly what's explicitly set in scope's own file
 // (branch-adjusted), annotating each value with "@<branch>" when it
 // specifically comes from that file's branch override table rather than its
 // top-level settings.
 func printScope(scope config.Scope, projectRoot, branch, heading string) {
-	fmt.Printf("\n%s:\n", heading)
+	fmt.Println()
+	fmt.Println(styleHeading.Render(heading + ":"))
 	store, err := config.OpenStore(scope, projectRoot, branch)
 	if err != nil {
-		fmt.Printf("  %v\n", err)
+		fmt.Println(styleDim.Render(fmt.Sprintf("  %v", err)))
 		return
 	}
 
 	settings := store.All()
 	if len(settings) == 0 {
-		fmt.Println("  (none)")
+		fmt.Println(styleDim.Render("  (none)"))
 		return
 	}
 
@@ -119,9 +156,9 @@ func printScope(scope config.Scope, projectRoot, branch, heading string) {
 
 	for _, k := range keys {
 		if branch != "" && store.SourceIsBranchOverride(k) {
-			fmt.Printf("  %s: %v  (@%s)\n", k, settings[k], branch)
+			fmt.Printf("  %s: %s  (%s)\n", styleKey.Render(k), colorizeValue(settings[k]), styleDim.Render("@"+branch))
 		} else {
-			fmt.Printf("  %s: %v\n", k, settings[k])
+			fmt.Printf("  %s: %s\n", styleKey.Render(k), colorizeValue(settings[k]))
 		}
 	}
 }

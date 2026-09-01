@@ -284,6 +284,21 @@ func projectDefaultsFile(projectRoot string, branch string) map[string]any {
 	return applyBranch(top, branches, branch)
 }
 
+// ProjectDefaultsFile is projectDefaultsFile's exported, value-normalized
+// form — used by `config list defaults`/`config list all` to show this
+// layer directly. It's its own resolution layer between the project's
+// jcore.toml and the global scope (see Resolve), but unlike Global/
+// Project/Local it's not a Store `config set`/the TUI can write to, so it
+// only needs a read path.
+func ProjectDefaultsFile(projectRoot string, branch string) map[string]any {
+	raw := projectDefaultsFile(projectRoot, branch)
+	out := make(map[string]any, len(raw))
+	for k, v := range raw {
+		out[k] = normalizeValue(v)
+	}
+	return out
+}
+
 // LoadTOMLWithBranchOverlay reads path (a TOML file) and returns its
 // top-level settings with the matching "branch-<branch>" table's keys (if
 // any) merged in, mirroring the legacy TypeScript CLI's per-file branch

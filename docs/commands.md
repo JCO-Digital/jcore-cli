@@ -151,14 +151,21 @@ This applies everywhere settings are read — the actual running commands,
 targets top-level settings); `jcore config edit` can write into one, per
 the rule below.
 
-- `jcore config list [active|global|project|local|all]`: Lists settings.
-  `active` (default) shows the fully merged view, with each value annotated
-  with which scope it actually resolves from (`global`, `project`, `local`,
-  or `default` if nothing overrides it) — plus `@<branch>` appended if that
-  came from a branch override table. `global`/`project`/`local` show only
-  what's explicitly set in that one scope's file (branch-adjusted), with
-  `@<branch>` annotated on any value that specifically comes from that
-  file's own branch table rather than its top level.
+- `jcore config list [active|global|project|local|defaults|all]`: Lists
+  settings. `active` (default) shows the fully merged view, with each
+  value annotated with which scope it actually resolves from (`global`,
+  `project`, `local`, or `default` if nothing overrides it) — plus
+  `@<branch>` appended if that came from a branch override table.
+  `global`/`project`/`local` show only what's explicitly set in that one
+  scope's file (branch-adjusted), with `@<branch>` annotated on any value
+  that specifically comes from that file's own branch table rather than
+  its top level. `defaults` shows the project's own `defaults.toml` (the
+  per-template file scaffolded into every project, distinct from
+  `jcore.toml`) — a real resolution layer between Project and Global scope
+  that isn't itself writable via `config set`/the TUI, so this is the only
+  way to see it directly; outside a project it just says so. `all` shows
+  every one of the above (`defaults` only inside a project) one after
+  another.
 - `jcore config set <key> <value>`: Sets a configuration value, coerced to
   the setting's real type (bool/int/list), not stored as a raw string. A
   bool setting accepts `true`/`yes`/`on`/`y`/`t`/`1` (case-insensitive) as

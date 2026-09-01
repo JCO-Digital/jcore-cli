@@ -394,6 +394,41 @@ func TestResolveFallsBackToProjectDefaultsFile(t *testing.T) {
 	}
 }
 
+// TestProjectDefaultsFile checks the read path `config list defaults`/
+// `config list all` uses directly: branch-adjusted and value-normalized,
+// same as Resolve's own internal use of this layer.
+func TestProjectDefaultsFile(t *testing.T) {
+	root := t.TempDir()
+
+	content := `pluginGit = ["lohko"]
+logLevel = 2
+
+[branch-staging]
+logLevel = 5
+`
+	if err := os.WriteFile(filepath.Join(root, "defaults.toml"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	settings := ProjectDefaultsFile(root, "")
+	if got, ok := settings["logLevel"].(int); !ok || got != 2 {
+		t.Fatalf("ProjectDefaultsFile()[logLevel] = %#v, want int 2", settings["logLevel"])
+	}
+	slice, ok := settings["pluginGit"].([]string)
+	if !ok || len(slice) != 1 || slice[0] != "lohko" {
+		t.Fatalf("ProjectDefaultsFile()[pluginGit] = %#v, want [lohko]", settings["pluginGit"])
+	}
+
+	staging := ProjectDefaultsFile(root, "staging")
+	if got, ok := staging["logLevel"].(int); !ok || got != 5 {
+		t.Fatalf(`ProjectDefaultsFile(root, "staging")[logLevel] = %#v, want int 5 (branch override)`, staging["logLevel"])
+	}
+
+	if got := ProjectDefaultsFile(t.TempDir(), ""); len(got) != 0 {
+		t.Fatalf("ProjectDefaultsFile() for a project with no defaults.toml = %#v, want empty", got)
+	}
+}
+
 func TestBranchOverride(t *testing.T) {
 	root := t.TempDir()
 	jcoreToml := `remoteDomain = 'kehitys.jcore.fi'
