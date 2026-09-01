@@ -29,6 +29,11 @@ It generates the .env file and runs docker compose up.`,
 			return
 		}
 
+		if !checkFolders() || !checkDocker() {
+			fmt.Println("Error: pre-flight checks failed, aborting start. Run 'jcore doctor' for details.")
+			return
+		}
+
 		running, err := runningProjects()
 		if err != nil {
 			fmt.Printf("Error checking running projects: %v\n", err)

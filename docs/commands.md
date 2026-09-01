@@ -54,6 +54,11 @@ the `[name]` argument or `--template`/`--branch`:
 
 ## `start`
 Starts the WordPress environment for the current project.
+- First runs the same folder/Docker pre-flight checks as `jcore doctor`
+  (creating any missing `.jcore`/global folders, checking they're
+  writable, and confirming the Docker daemon is reachable) — if either
+  fails, it aborts with a clear error instead of letting a raw
+  docker/compose error surface later.
 - If any JCore project (this one or another) is already running, it warns
   and does nothing unless `--force`/`-f` is passed, in which case every
   other running project is stopped first (most JCore dev setups can only
