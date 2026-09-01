@@ -2,24 +2,53 @@
 
 This document describes the available commands in JCore CLI.
 
+## Global flags
+
+Every command accepts:
+- `--verbose`/`-v`: print more output (e.g. which config files were loaded).
+- `--debug`/`-d`: print everything.
+- `--quiet`/`-q`: print only errors.
+- `--loglevel <n>`: set the numeric log level directly (0=error, 1=warn,
+  2=info (default), 3=http, 4=verbose, 5=debug, 6=silly), overriding
+  `-v`/`-d`/`-q`.
+
+With none of these passed, the effective level comes from the persisted
+`logLevel` setting (default `2`/info). A flag always wins over that
+setting for the current invocation only.
+
 ## `init [name]`
-Creates a new JCore project in a new `[name]` directory (or the current
-directory's name if omitted), scaffolding it from an embedded template.
-- `--template`/`-t` (default `jcore3`): which embedded template to scaffold.
-- `--branch`/`-b`: git branch of the theme/plugins to track. Defaults to
-  the template's own default branch (from the embedded template catalog),
-  e.g. `hurricane` for `jcore3`.
+Creates a new JCore project in a new directory (a sibling of the current
+one), named after the project (slugified — `projectName` itself keeps the
+name as given). Prompts interactively for anything not already given via
+the `[name]` argument or `--template`/`--branch`:
+- Project name, if `[name]` wasn't given.
+- `--template`/`-t`: which embedded template to scaffold, from the
+  template catalog (`jcore3`, `jcore2`, `jcore1`, `blank`). If given
+  explicitly, an unknown template is an error, not a fallback.
+- `--branch`/`-b`: git branch of the theme/plugins to track. If not given
+  and the chosen template offers more than one branch, prompts to pick
+  one; otherwise defaults to the template's own default branch (e.g.
+  `hurricane` for `jcore3`).
 - Unless `--notheme`/`-n` is passed, it also downloads and creates a child
   theme at `wp-content/themes/<slugified-project-name>` from the template's
   theme repository (for `jcore3`, `jcore-ilme` at the chosen branch),
   rewriting the theme's own `style.css` "Theme Name:" header and the
   project's `Makefile`/`pnpm-workspace.yaml` theme path references to
   match. Requires network access.
-- Initializes a git repository and writes `jcore.toml` with `projectName`
-  (and `branch`/`theme`, if set).
+- Initializes a git repository, writes `jcore.toml` with `projectName`
+  (and `branch`/`theme`, if set), and commits the initial scaffold (`git
+  add -A && git commit`).
+- Then generates `.env`, finalizes the project (`site.conf`/`php.ini`
+  rendering), and installs dependencies (always, regardless of the
+  `install` setting — see `start`) — all after the initial commit, since
+  that per-environment output isn't part of the project's own history.
 
 ## `start`
 Starts the WordPress environment for the current project.
+- If any JCore project (this one or another) is already running, it warns
+  and does nothing unless `--force`/`-f` is passed, in which case every
+  other running project is stopped first (most JCore dev setups can only
+  run one project at a time, due to shared host ports).
 - Runs `docker compose up`.
 - If `mode` is `foreground` (default), it stays in the foreground.
 - Before starting, it also installs host-side dependencies: a Makefile's
@@ -29,8 +58,9 @@ Starts the WordPress environment for the current project.
   `--install`/`-i` to force this even when `install` is disabled.
 
 ## `stop`
-Stops the WordPress environment for the current project.
-- Runs `docker compose stop`.
+Stops every currently running JCore project on the machine (not just the
+current one, and not limited to being run from inside a project) — runs
+`docker compose stop` for each.
 
 ## `attach`
 Attaches to the logs of the running containers.

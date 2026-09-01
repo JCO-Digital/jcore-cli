@@ -7,6 +7,7 @@ import (
 
 	"github.com/JCO-Digital/jcore/container"
 	"github.com/JCO-Digital/jcore/internal/config"
+	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/JCO-Digital/jcore/internal/update"
 	"github.com/spf13/cobra"
@@ -102,13 +103,55 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/jcore/config.toml)")
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
-	rootCmd.PersistentFlags().BoolP("debug", "d", false, "debug output")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "print more output")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "print everything")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "print only errors")
+	// No shorthand: -p is already "project" scope on `jcore config`, which
+	// every command inherits this persistent flag set alongside.
+	rootCmd.PersistentFlags().Int("loglevel", -1, "set a numeric log level directly (0=error .. 6=silly), overriding -v/-d/-q")
 	rootCmd.PersistentFlags().Bool("letmebreakthings", false, `override the refusal to run while pluginInstall is the deprecated "composer" value`)
+}
+
+// resolveLogLevelFromFlags returns the log level requested via -v/-d/-q/
+// --loglevel on rootCmd's persistent flags (the same underlying flag set
+// every subcommand inherits, so this works regardless of which one was
+// actually invoked), or -1 if none of them were passed — meaning the
+// caller should fall back to the persisted `logLevel` setting once config
+// loading has made it available.
+func resolveLogLevelFromFlags() int {
+	flags := rootCmd.PersistentFlags()
+
+	if debug, _ := flags.GetBool("debug"); debug {
+		return logging.LevelDebug
+	}
+	if verbose, _ := flags.GetBool("verbose"); verbose {
+		return logging.LevelVerbose
+	}
+	if quiet, _ := flags.GetBool("quiet"); quiet {
+		return logging.LevelError
+	}
+	if lvl, _ := flags.GetInt("loglevel"); lvl >= 0 {
+		return lvl
+	}
+	return -1
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// Set the effective log level before loading any config, so the
+	// loading process's own Verbose-gated messages already respect
+	// -v/-d/-q/--loglevel. If none of those were passed, this is
+	// provisional — re-resolved below from the just-loaded `logLevel`
+	// setting, mirroring the legacy CLI's readSettings() (set from the CLI
+	// first, re-applied from settings after they're read, unless the CLI
+	// explicitly overrode it).
+	cliLevel := resolveLogLevelFromFlags()
+	if cliLevel >= 0 {
+		logging.SetLevel(cliLevel)
+	} else {
+		logging.SetLevel(logging.DefaultLevel)
+	}
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -118,6 +161,10 @@ func initConfig() {
 	}
 
 	viper.AutomaticEnv()
+
+	if cliLevel < 0 {
+		logging.SetLevel(viper.GetInt("logLevel"))
+	}
 }
 
 // LoadConfigForProject merges every config layer (embedded base defaults,
@@ -177,8 +224,6 @@ func mergeTOMLWithBranchOverlay(path, branch, loadedMsg string) {
 		return
 	}
 	if err := viper.MergeConfigMap(merged); err == nil {
-		if viper.GetBool("verbose") || viper.GetBool("debug") {
-			os.Stderr.WriteString(loadedMsg + "\n")
-		}
+		logging.Verbose(loadedMsg)
 	}
 }

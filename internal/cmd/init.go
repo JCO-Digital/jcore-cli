@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/container"
 	"github.com/JCO-Digital/jcore/internal/config"
 	"github.com/JCO-Digital/jcore/internal/project"
@@ -17,32 +19,87 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init [name]",
 	Short: "Initialize a new JCore project",
-	Long: `Creates a new JCore project directory with a default configuration and project skeleton.
-If no name is provided, it will use the current directory name.`,
+	Long: `Creates a new JCore project in a new directory named after the
+project (a sibling of the current directory). Prompts interactively for
+anything not already given via the [name] argument or --template/--branch:
+project name, template, and (if the template offers more than one) branch.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
-		targetDir := ""
-		var err error
-
 		if len(args) > 0 {
 			name = args[0]
-			targetDir, err = os.Getwd()
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+		}
+		if name == "" {
+			if err := survey.AskOne(&survey.Input{Message: "Enter a project name:"}, &name); err != nil {
+				fmt.Println(err.Error())
 				return
 			}
-			targetDir = filepath.Join(targetDir, name)
-		} else {
-			targetDir, err = os.Getwd()
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				return
-			}
-			name = filepath.Base(targetDir)
+		}
+		if name == "" {
+			fmt.Println("Error: no project name given.")
+			return
 		}
 
+		catalog, err := project.LoadTemplateCatalog()
+		if err != nil {
+			fmt.Printf("Error loading template catalog: %v\n", err)
+			return
+		}
+		templateNames := make([]string, 0, len(catalog))
+		for k := range catalog {
+			templateNames = append(templateNames, k)
+		}
+		sort.Strings(templateNames)
+
 		template, _ := cmd.Flags().GetString("template")
+		if !cmd.Flags().Changed("template") {
+			if err := survey.AskOne(&survey.Select{
+				Message: "Select a project template:",
+				Options: templateNames,
+				Default: template,
+			}, &template); err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+		}
+
+		catalogEntry, ok := catalog[template]
+		if !ok {
+			fmt.Printf("Error: unknown template %q.\n", template)
+			return
+		}
+
+		branch, _ := cmd.Flags().GetString("branch")
+		if !cmd.Flags().Changed("branch") {
+			if len(catalogEntry.Branches) > 1 {
+				if err := survey.AskOne(&survey.Select{
+					Message: "Select a branch:",
+					Options: catalogEntry.Branches,
+					Default: catalogEntry.Branch,
+				}, &branch); err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+			} else {
+				branch = catalogEntry.Branch
+			}
+		}
+		if branch == "" {
+			fmt.Println("Error: no branch selected.")
+			return
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		targetDir := filepath.Join(cwd, project.Slugify(name))
+		if _, err := os.Stat(targetDir); err == nil {
+			fmt.Printf("Error: %s already exists.\n", targetDir)
+			return
+		}
+
 		fmt.Printf("Initializing JCore project: %s in %s (Template: %s)\n", name, targetDir, template)
 
 		// Merge the template's own defaults (e.g. theme) so the initial scaffold
@@ -54,22 +111,7 @@ If no name is provided, it will use the current directory name.`,
 			defaults.Close()
 		}
 		viper.Set("projectName", name)
-
-		// Look up the template's catalog entry (branch/themeUrl), if any —
-		// unknown templates (e.g. a custom one passed via --template) just
-		// skip the branch/theme steps below, rather than erroring.
-		var catalogEntry project.TemplateCatalogEntry
-		if catalog, err := project.LoadTemplateCatalog(); err == nil {
-			catalogEntry = catalog[template]
-		}
-
-		branch, _ := cmd.Flags().GetString("branch")
-		if branch == "" {
-			branch = catalogEntry.Branch
-		}
-		if branch != "" {
-			viper.Set("branch", branch)
-		}
+		viper.Set("branch", branch)
 
 		if err := project.ScaffoldProject(targetDir, template); err != nil {
 			fmt.Printf("Error during scaffolding: %v\n", err)
@@ -104,15 +146,39 @@ If no name is provided, it will use the current directory name.`,
 			return
 		}
 		_ = store.Set("projectName", name)
-		if branch != "" {
-			_ = store.Set("branch", branch)
-		}
+		_ = store.Set("branch", branch)
 		if theme != "" {
 			_ = store.Set("theme", theme)
 		}
 		if err := store.Save(); err != nil {
 			fmt.Printf("Error writing project config: %v\n", err)
 			return
+		}
+
+		// Commit the initial scaffold before finalizing: FinalizeProject's
+		// site.conf/php.ini rendering and InstallDependencies' lockfiles
+		// are per-environment output, not part of the project's own
+		// history, mirroring the legacy CLI's createProject() ordering.
+		addCmd := exec.Command("git", "add", "-A")
+		addCmd.Dir = targetDir
+		if out, err := addCmd.CombinedOutput(); err != nil {
+			fmt.Printf("Warning: git add failed: %v\n%s", err, out)
+		} else {
+			commitCmd := exec.Command("git", "commit", "-m", "Initial Commit")
+			commitCmd.Dir = targetDir
+			if out, err := commitCmd.CombinedOutput(); err != nil {
+				fmt.Printf("Warning: git commit failed: %v\n%s", err, out)
+			}
+		}
+
+		if err := project.GenerateEnvFile(targetDir); err != nil {
+			fmt.Printf("Warning: failed to generate .env: %v\n", err)
+		}
+		if err := project.FinalizeProject(targetDir); err != nil {
+			fmt.Printf("Warning: failed to finalize project: %v\n", err)
+		}
+		if err := project.InstallDependencies(targetDir, true); err != nil {
+			fmt.Printf("Warning: failed to install dependencies: %v\n", err)
 		}
 
 		fmt.Println("Project successfully initialized.")

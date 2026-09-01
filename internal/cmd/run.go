@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/JCO-Digital/jcore/internal/docker"
+	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,6 +27,28 @@ It generates the .env file and runs docker compose up.`,
 		if projectDir == "" {
 			fmt.Println("Error: not in a JCore project (no jcore.toml found)")
 			return
+		}
+
+		running, err := runningProjects()
+		if err != nil {
+			fmt.Printf("Error checking running projects: %v\n", err)
+			return
+		}
+		if len(running) > 0 {
+			force, _ := cmd.Flags().GetBool("force")
+			if !force {
+				for _, p := range running {
+					logging.Warn("Project %s is running!", p.Name)
+				}
+				return
+			}
+			for _, p := range running {
+				fmt.Printf("Stopping %s.\n", p.Name)
+				if err := docker.ComposeStop(p.Path); err != nil {
+					fmt.Printf("Docker failed: %v\n", err)
+					return
+				}
+			}
 		}
 
 		fmt.Println("Finalizing project configuration...")
@@ -57,27 +80,48 @@ It generates the .env file and runs docker compose up.`,
 	},
 }
 
-// stopCmd represents the stop command
+// stopCmd represents the stop command. Unlike most other commands, it isn't
+// scoped to the current project: it stops every currently running JCore
+// project on the machine, mirroring the legacy TypeScript CLI's plain
+// `stop` (most JCore dev setups can only run one project at a time anyway,
+// due to shared host ports).
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop the WordPress environment",
+	Short: "Stop every running JCore project",
 	Run: func(cmd *cobra.Command, args []string) {
-		projectDir, err := project.FindProjectRoot()
+		running, err := runningProjects()
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Printf("Error checking running projects: %v\n", err)
 			return
 		}
-		if projectDir == "" {
-			fmt.Println("Error: not in a JCore project (no jcore.toml found)")
+		if len(running) == 0 {
+			fmt.Println("No running projects.")
 			return
 		}
 
-		fmt.Println("Stopping Docker containers...")
-		if err := docker.ComposeStop(projectDir); err != nil {
-			fmt.Printf("Docker failed: %v\n", err)
-			return
+		for _, p := range running {
+			fmt.Printf("Stopping %s.\n", p.Name)
+			if err := docker.ComposeStop(p.Path); err != nil {
+				fmt.Printf("Docker failed: %v\n", err)
+			}
 		}
 	},
+}
+
+// runningProjects returns every currently running JCore project.
+func runningProjects() ([]project.DockerProject, error) {
+	all, err := project.ListDockerProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	var running []project.DockerProject
+	for _, p := range all {
+		if p.Running {
+			running = append(running, p)
+		}
+	}
+	return running, nil
 }
 
 // pullCmd represents the pull command
@@ -228,5 +272,6 @@ func init() {
 
 	startCmd.Flags().Bool("detached", false, "Run containers in background")
 	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
+	startCmd.Flags().BoolP("force", "f", false, "Stop any other running JCore project first")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
 }
