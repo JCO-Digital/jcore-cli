@@ -15,7 +15,11 @@ It sets up the project directory, initializes a Git repository, and creates the 
 Starts the WordPress environment for the current project.
 - Runs `docker compose up`.
 - If `mode` is `foreground` (default), it stays in the foreground.
-- Use `--install` flag to force re-running the project finalization (updating files from template).
+- Before starting, it also installs host-side dependencies: a Makefile's
+  `install` target if one exists, otherwise npm/pnpm (from `package.json`)
+  and Composer (from `composer.json`) packages, then `docker compose pull`
+  to refresh images — unless the `install` setting is `false`. Use
+  `--install`/`-i` to force this even when `install` is disabled.
 
 ## `stop`
 Stops the WordPress environment for the current project.
@@ -61,16 +65,78 @@ Updates the JCore CLI binary itself to the latest GitHub release.
   actually ran. If a newer version was found, the *next* invocation prints a
   one-line notice suggesting `jcore update self`.
 - Set `JCORE_NO_UPDATE_CHECK=1` to disable this check entirely (e.g. in CI).
+- On every successful run (whether it actually updated the binary or found
+  you already current), it also (re)installs bash/zsh/fish completions by
+  running `completion <shell>` on the resulting binary and writing the output
+  to the same paths `make install-completions` uses. This is best-effort and
+  never fails the update itself. Note that zsh only picks these up
+  automatically if that directory is already on `$fpath` (e.g. via `make
+  install-completions`, which the project doesn't set up automatically) —
+  bash (with the bash-completion framework) and fish work out of the box.
 
 ## `config`
-Manages configuration settings.
+Manages configuration settings. Settings live in one of three TOML files:
+global (`~/.config/jcore/config.toml`), project (`<project>/jcore.toml`), or
+local (`<project>/.localConfig.toml`, meant for gitignored per-checkout
+overrides). Some settings (e.g. `debug`, `mode`, `logLevel`, `template`) are
+global-only and can't be set at project scope.
+
+Any of these files can also contain a `[branch-<name>]` table to override
+settings only while that git branch is checked out, e.g.:
+```toml
+remoteHost = "prod.example.com"
+
+[branch-staging]
+remoteHost = "staging.example.com"
+```
+This applies everywhere settings are read — the actual running commands,
+`jcore config list`, and `jcore config edit` — not just for display. The
+`config set`/`unset` CLI is hand-edit-only for branch tables (it always
+targets top-level settings); `jcore config edit` can write into one, per
+the rule below.
+
 - `jcore config list [active|global|project|local|all]`: Lists settings.
-- `jcore config set <key> <value>`: Sets a configuration value.
+  `active` (default) shows the fully merged view, with each value annotated
+  with which scope it actually resolves from (`global`, `project`, `local`,
+  or `default` if nothing overrides it) — plus `@<branch>` appended if that
+  came from a branch override table. `global`/`project`/`local` show only
+  what's explicitly set in that one scope's file (branch-adjusted), with
+  `@<branch>` annotated on any value that specifically comes from that
+  file's own branch table rather than its top level.
+- `jcore config set <key> <value>`: Sets a configuration value, coerced to
+  the setting's real type (bool/int/list), not stored as a raw string.
     - Special pseudo-setters:
         - `wpe <name>`: Sets up WP Engine remote settings.
         - `php <version>`: Sets the WordPress PHP image version.
-- `jcore config unset <key>`: Removes a configuration setting.
-- Supports `--global`, `--project`, and `--local` flags to specify the configuration scope.
+- `jcore config unset <key>`: Removes a configuration setting from the
+  targeted scope's file.
+- `jcore config edit`: Opens a full-screen interactive editor listing every
+  known setting, its current effective value, and which scope (default,
+  global, project, or local — with `@<branch>` appended if that value comes
+  from a branch override) that value comes from. Settings with a fixed set
+  of known values (e.g. `mode`, `pluginInstall`) are edited via an up/down
+  select list of those values instead of free text; if the current value
+  isn't one of them (a hand-edited or legacy value), it's shown as an extra,
+  pre-selected choice so leaving it alone and pressing enter is a no-op.
+  Editing (or resetting, `x`) a setting always acts on wherever its value is
+  actually coming from:
+  if it's already overridden somewhere — even somewhere a fresh value
+  wouldn't normally be allowed, e.g. a hand-set project-level override of a
+  global-only setting — the edit updates that override in place, since
+  writing anywhere else wouldn't change anything (a more specific override
+  would still win). A value currently coming from a branch table is edited
+  in that branch's table, not the file's top level. Only a setting with no
+  existing override anywhere picks a scope by category: Global for
+  CLI-behavior settings, Project for everything else (Global if not inside
+  a project). `/` to filter, `q` to quit.
+- `--global`, `--project` (default), and `--local` flags specify the scope
+  for `set`/`unset`; project/local require being inside a project.
+
+`pluginInstall = "composer"` is deprecated (it breaks the mainWP/wp-cli
+workflow) and jcore refuses to run any command other than `config`/
+`completion` while it's set — fix it with `jcore config set pluginInstall
+remote` (or `local`, or via `config edit`), or pass the global
+`--letmebreakthings` flag to proceed anyway.
 
 ## `checksum`
 Manages file checksums to track changes in core files.

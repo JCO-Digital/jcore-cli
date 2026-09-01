@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/spf13/viper"
+	"github.com/JCO-Digital/jcore/internal/config"
 )
 
 // LegacyConfigFilename is the pre-jcore.toml, bash-based project config file.
@@ -52,35 +52,38 @@ func ConvertLegacyConfig(projectDir string) error {
 		}
 	}
 
-	v := viper.New()
-	v.SetConfigFile(filepath.Join(projectDir, "jcore.toml"))
-	v.Set("projectName", values["name"])
-	v.Set("template", "jcore2")
-	setIfPresent(v, "theme", values["theme"])
-	setIfPresent(v, "branch", values["branch"])
-	setIfPresent(v, "remoteHost", values["remotehost"])
-	setIfPresent(v, "remotePath", values["remotepath"])
-	v.Set("replace", replace)
-	v.Set("domains", domains)
-	v.Set("remoteDomain", newDomain)
-	v.Set("localDomain", newLocal)
-	setIfPresent(v, "dbExclude", values["db_exclude"])
-	setIfPresent(v, "pluginExclude", values["plugin_exclude"])
-	setIfPresent(v, "pluginGit", values["plugin_git"])
-	setIfPresent(v, "pluginInstall", values["plugin_install"])
-	v.Set("install", values["install"] == "true")
-
-	if err := v.WriteConfig(); err != nil {
-		return v.SafeWriteConfig()
+	// Deliberately uses config.Store rather than a bare *viper.Viper: viper
+	// lower-cases every key on WriteConfig, which previously corrupted the
+	// camelCase keys (projectName, remoteHost, ...) this function writes.
+	store, err := config.OpenStore(config.ScopeProject, projectDir, "")
+	if err != nil {
+		return err
 	}
-	return nil
+	_ = store.Set("projectName", values["name"])
+	_ = store.Set("template", "jcore2")
+	setIfPresent(store, "theme", values["theme"])
+	setIfPresent(store, "branch", values["branch"])
+	setIfPresent(store, "remoteHost", values["remotehost"])
+	setIfPresent(store, "remotePath", values["remotepath"])
+	_ = store.Set("replace", replace)
+	_ = store.Set("domains", domains)
+	_ = store.Set("remoteDomain", newDomain)
+	_ = store.Set("localDomain", newLocal)
+	setIfPresent(store, "dbExclude", values["db_exclude"])
+	setIfPresent(store, "pluginExclude", values["plugin_exclude"])
+	setIfPresent(store, "pluginGit", values["plugin_git"])
+	setIfPresent(store, "pluginInstall", values["plugin_install"])
+	_ = store.Set("install", values["install"] == "true")
+
+	return store.Save()
 }
 
-// setIfPresent sets key on v only when val is a non-nil parsed value, so
-// fields absent from the legacy config are simply omitted from jcore.toml.
-func setIfPresent(v *viper.Viper, key string, val any) {
+// setIfPresent sets key on store only when val is a non-nil parsed value,
+// so fields absent from the legacy config are simply omitted from
+// jcore.toml.
+func setIfPresent(store *config.Store, key string, val any) {
 	if val != nil {
-		v.Set(key, val)
+		_ = store.Set(key, val)
 	}
 }
 

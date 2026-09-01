@@ -2,10 +2,15 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/JCO-Digital/jcore/internal/config"
+	"github.com/JCO-Digital/jcore/internal/project"
+	"github.com/JCO-Digital/jcore/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -29,25 +34,96 @@ var listCmd = &cobra.Command{
 			scope = args[0]
 		}
 
-		fmt.Printf("Listing %s settings:\n", scope)
+		projectRoot, _ := project.FindProjectRoot()
+		branch := project.CurrentBranch(projectRoot)
 
-		// Get all settings from Viper
-		settings := viper.AllSettings()
-
-		// Filter by scope if needed (Viper merges them by default,
-		// so getting individual scopes might require reading files manually
-		// if we want to be exact, but for now we'll show merged active settings)
-
-		keys := make([]string, 0, len(settings))
-		for k := range settings {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for _, k := range keys {
-			fmt.Printf("  %s: %v\n", k, settings[k])
+		switch scope {
+		case "active":
+			printActiveSettings(projectRoot, branch)
+		case "global":
+			printScope(config.ScopeGlobal, projectRoot, branch, "Global settings")
+		case "project":
+			printScope(config.ScopeProject, projectRoot, branch, "Project settings")
+		case "local":
+			printScope(config.ScopeLocal, projectRoot, branch, "Local settings")
+		case "all":
+			printActiveSettings(projectRoot, branch)
+			printScope(config.ScopeGlobal, projectRoot, branch, "Global settings")
+			printScope(config.ScopeProject, projectRoot, branch, "Project settings")
+			printScope(config.ScopeLocal, projectRoot, branch, "Local settings")
+		default:
+			fmt.Printf("Unknown scope %q; expected active, global, project, local, or all.\n", scope)
 		}
 	},
+}
+
+// printActiveSettings prints the fully merged view of every setting viper
+// currently has loaded, annotated with which scope (and branch override, if
+// any) each value actually resolves from.
+func printActiveSettings(projectRoot, branch string) {
+	fmt.Println("\nActive (merged) settings:")
+	settings := viper.AllSettings()
+	if len(settings) == 0 {
+		fmt.Println("  (none)")
+		return
+	}
+
+	keys := make([]string, 0, len(settings))
+	for k := range settings {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		fmt.Printf("  %s: %v  (%s)\n", k, settings[k], sourceLabel(k, projectRoot, branch))
+	}
+}
+
+// sourceLabel renders where a setting's effective value actually comes
+// from, e.g. "project", "project@staging", or "default".
+func sourceLabel(key, projectRoot, branch string) string {
+	res, err := config.Resolve(key, projectRoot, branch)
+	if err != nil || res.IsDefault {
+		return "default"
+	}
+	label := strings.ToLower(res.SourceScope.String())
+	if res.FromBranchOverride && branch != "" {
+		label += "@" + branch
+	}
+	return label
+}
+
+// printScope prints exactly what's explicitly set in scope's own file
+// (branch-adjusted), annotating each value with "@<branch>" when it
+// specifically comes from that file's branch override table rather than its
+// top-level settings.
+func printScope(scope config.Scope, projectRoot, branch, heading string) {
+	fmt.Printf("\n%s:\n", heading)
+	store, err := config.OpenStore(scope, projectRoot, branch)
+	if err != nil {
+		fmt.Printf("  %v\n", err)
+		return
+	}
+
+	settings := store.All()
+	if len(settings) == 0 {
+		fmt.Println("  (none)")
+		return
+	}
+
+	keys := make([]string, 0, len(settings))
+	for k := range settings {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		if branch != "" && store.SourceIsBranchOverride(k) {
+			fmt.Printf("  %s: %v  (@%s)\n", k, settings[k], branch)
+		} else {
+			fmt.Printf("  %s: %v\n", k, settings[k])
+		}
+	}
 }
 
 // setCmd represents the config set command
@@ -59,48 +135,41 @@ var setCmd = &cobra.Command{
 		key := args[0]
 		value := args[1]
 
-		isGlobal, _ := cmd.Flags().GetBool("global")
-		isProject, _ := cmd.Flags().GetBool("project")
-		isLocal, _ := cmd.Flags().GetBool("local")
+		projectRoot, _ := project.FindProjectRoot()
+		scope := resolveRequestedScope(cmd, projectRoot)
+		branch := project.CurrentBranch(projectRoot)
 
-		scope := config.ScopeProject
-		if isGlobal {
-			scope = config.ScopeGlobal
-		} else if isLocal {
-			scope = config.ScopeLocal
-		} else if isProject {
-			scope = config.ScopeProject
+		if err := config.ValidateScope(key, scope, projectRoot); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
 		}
 
-		path, err := config.GetConfigPath(scope)
+		store, err := config.OpenStore(scope, projectRoot, branch)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
 
-		// Use a temporary viper instance to write to a specific file
-		v := viper.New()
-		v.SetConfigFile(path)
-		_ = v.ReadInConfig()
-
-		// Handle pseudo-setters
+		// Pseudo-setters: compound actions that set 1-2 real keys, not real
+		// schema keys themselves.
 		switch strings.ToLower(key) {
 		case "wpe":
-			v.Set("remoteHost", fmt.Sprintf("%s@%s.ssh.wpengine.net", value, value))
-			v.Set("remotePath", fmt.Sprintf("/sites/%s", value))
-			fmt.Printf("Set WP Engine settings for: %s in %s\n", value, path)
+			_ = store.Set("remoteHost", fmt.Sprintf("%s@%s.ssh.wpengine.net", value, value))
+			_ = store.Set("remotePath", fmt.Sprintf("/sites/%s", value))
+			fmt.Printf("Set WP Engine settings for: %s in %s\n", value, store.Path())
 		case "php":
-			v.Set("wpImage", fmt.Sprintf("jcodigi/wordpress:%s", value))
-			fmt.Printf("Set PHP version (wpImage) to: %s in %s\n", value, path)
+			_ = store.Set("wpImage", fmt.Sprintf("jcodigi/wordpress:%s", value))
+			fmt.Printf("Set PHP version (wpImage) to: %s in %s\n", value, store.Path())
 		default:
-			v.Set(key, value)
-			fmt.Printf("Set %s to %s in %s\n", key, value, path)
+			if err := store.Set(key, value); err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			fmt.Printf("Set %s to %s in %s\n", key, value, store.Path())
 		}
 
-		if err := v.WriteConfig(); err != nil {
-			if err := v.SafeWriteConfig(); err != nil {
-				fmt.Printf("Error saving config to %s: %v\n", path, err)
-			}
+		if err := store.Save(); err != nil {
+			fmt.Printf("Error saving config to %s: %v\n", store.Path(), err)
 		}
 	},
 }
@@ -112,11 +181,77 @@ var unsetCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		key := args[0]
-		// Viper doesn't have a direct "unset" that removes from the file easily
-		// in a way that respects scopes perfectly without more logic,
-		// but we can set it to nil or handle it via a custom manager later.
-		fmt.Printf("Unsetting %s (Not fully implemented yet)\n", key)
+
+		projectRoot, _ := project.FindProjectRoot()
+		scope := resolveRequestedScope(cmd, projectRoot)
+		branch := project.CurrentBranch(projectRoot)
+
+		if err := config.ValidateScope(key, scope, projectRoot); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+
+		store, err := config.OpenStore(scope, projectRoot, branch)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+
+		if _, ok := store.Get(key); !ok {
+			fmt.Printf("%s is not set in %s\n", key, store.Path())
+			return
+		}
+
+		if err := store.Unset(key); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		if err := store.Save(); err != nil {
+			fmt.Printf("Error saving config to %s: %v\n", store.Path(), err)
+			return
+		}
+		fmt.Printf("Removed %s from %s\n", key, store.Path())
 	},
+}
+
+// editCmd launches the interactive TUI settings editor.
+var editCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Interactively browse and edit configuration settings",
+	Long: `Opens a full-screen editor listing every known jcore setting, its
+current effective value, and which scope (default, global, project, or
+local) that value actually comes from. Editing a setting prompts for which
+scope to save it to when more than one is applicable.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		projectRoot, _ := project.FindProjectRoot()
+		branch := project.CurrentBranch(projectRoot)
+		m := tui.NewModel(projectRoot, branch)
+		if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "Error running config editor:", err)
+			os.Exit(1)
+		}
+	},
+}
+
+// resolveRequestedScope determines the scope requested via -g/-p/-l flags.
+// With none given, it defaults to Project when run inside a project (this
+// command's long-standing behavior) or Global otherwise — matching the
+// legacy TypeScript CLI's default, rather than hard-failing with "not in a
+// jcore project" for a plain `config set` run outside one.
+func resolveRequestedScope(cmd *cobra.Command, projectRoot string) config.Scope {
+	isGlobal, _ := cmd.Flags().GetBool("global")
+	isLocal, _ := cmd.Flags().GetBool("local")
+
+	switch {
+	case isGlobal:
+		return config.ScopeGlobal
+	case isLocal:
+		return config.ScopeLocal
+	case projectRoot == "":
+		return config.ScopeGlobal
+	default:
+		return config.ScopeProject
+	}
 }
 
 func init() {
@@ -124,6 +259,7 @@ func init() {
 	configCmd.AddCommand(listCmd)
 	configCmd.AddCommand(setCmd)
 	configCmd.AddCommand(unsetCmd)
+	configCmd.AddCommand(editCmd)
 
 	// Local flags for scope
 	configCmd.PersistentFlags().BoolP("global", "g", false, "Apply setting globally")

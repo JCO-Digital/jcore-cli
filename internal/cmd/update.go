@@ -92,6 +92,17 @@ this platform, verifies its signature, and replaces the running executable.`,
 
 		fmt.Printf("Current version: %s\n", config.AppVersion)
 
+		exePath, err := os.Executable()
+		if err != nil {
+			fmt.Printf("Error determining executable path: %v\n", err)
+			os.Exit(1)
+		}
+		exePath, err = filepath.EvalSymlinks(exePath)
+		if err != nil {
+			fmt.Printf("Error resolving executable path: %v\n", err)
+			os.Exit(1)
+		}
+
 		latest, downloadURL, sigURL, available, err := update.CheckForUpdate(config.AppVersion)
 		if err != nil {
 			fmt.Printf("Error checking for updates: %v\n", err)
@@ -106,6 +117,7 @@ this platform, verifies its signature, and replaces the running executable.`,
 				os.Exit(1)
 			} else {
 				fmt.Println("You are already running the latest version of jcore.")
+				reportCompletions(installShellCompletions(exePath))
 				return
 			}
 		} else {
@@ -120,17 +132,6 @@ this platform, verifies its signature, and replaces the running executable.`,
 			}
 		}
 
-		exePath, err := os.Executable()
-		if err != nil {
-			fmt.Printf("Error determining executable path: %v\n", err)
-			os.Exit(1)
-		}
-		exePath, err = filepath.EvalSymlinks(exePath)
-		if err != nil {
-			fmt.Printf("Error resolving executable path: %v\n", err)
-			os.Exit(1)
-		}
-
 		fmt.Println("Downloading update...")
 		if err := update.DownloadAndReplace(downloadURL, sigURL, exePath); err != nil {
 			fmt.Printf("Update failed: %v\n", err)
@@ -142,6 +143,10 @@ this platform, verifies its signature, and replaces the running executable.`,
 		_ = update.SaveState(update.State{Latest: latest, LastChecked: time.Now()})
 
 		fmt.Printf("jcore updated to %s.\n", latest)
+
+		// Regenerate completions from the newly-installed binary, not this
+		// still-running (now stale) process, so they match the new version.
+		reportCompletions(installShellCompletions(exePath))
 	},
 }
 

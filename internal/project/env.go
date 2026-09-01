@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -82,7 +83,20 @@ func GenerateEnvFile(projectDir string) error {
 		}
 	}
 
-	// 4. Write to .env file
+	// 4. Always ensure the base domain search/replace row is present in
+	// REPLACE, on top of the user's own `replace` setting (if any) —
+	// mirroring the legacy TypeScript CLI's createEnv(), which
+	// unconditionally added this row so `jcore pull db` rewrites the
+	// remote domain to the local one even with no explicit `replace`
+	// setting configured.
+	defaultRow := fmt.Sprintf("//%s|//%s", envMap["REMOTE_DOMAIN"], envMap["LOCAL_DOMAIN"])
+	replaceRows := viper.GetStringSlice("replace")
+	if !slices.Contains(replaceRows, defaultRow) {
+		replaceRows = append([]string{defaultRow}, replaceRows...)
+	}
+	envMap["REPLACE"] = formatEnvValue(replaceRows)
+
+	// 5. Write to .env file
 	var env strings.Builder
 	for key, value := range envMap {
 		env.WriteString(fmt.Sprintf("%s=\"%s\"\n", key, value))

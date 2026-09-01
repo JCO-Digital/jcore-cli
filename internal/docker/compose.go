@@ -23,6 +23,16 @@ func ComposeUp(projectDir string, detached bool) error {
 	return cmd.Run()
 }
 
+// ComposePull runs docker compose pull
+func ComposePull(projectDir string) error {
+	cmd := exec.Command("docker", "compose", "pull")
+	cmd.Dir = projectDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
 // ComposeStop runs docker compose stop
 func ComposeStop(projectDir string) error {
 	cmd := exec.Command("docker", "compose", "stop")

@@ -38,6 +38,12 @@ It generates the .env file and runs docker compose up.`,
 			return
 		}
 
+		forceInstall, _ := cmd.Flags().GetBool("install")
+		if err := project.InstallDependencies(projectDir, forceInstall); err != nil {
+			fmt.Printf("Error installing dependencies: %v\n", err)
+			return
+		}
+
 		detached, _ := cmd.Flags().GetBool("detached")
 		if viper.GetString("mode") == "background" {
 			detached = true
@@ -221,5 +227,6 @@ func init() {
 	rootCmd.AddCommand(attachCmd)
 
 	startCmd.Flags().Bool("detached", false, "Run containers in background")
+	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
 }

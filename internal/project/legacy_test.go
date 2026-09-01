@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -75,6 +76,19 @@ func TestConvertLegacyConfig(t *testing.T) {
 
 	if !v.GetBool("install") {
 		t.Errorf("install = false, want true")
+	}
+
+	// Regression check: viper.WriteConfig lower-cases every key, which
+	// previously corrupted this function's output. Confirm the raw file
+	// still has real camelCase keys, not e.g. "projectname".
+	raw, err := os.ReadFile(filepath.Join(dir, "jcore.toml"))
+	if err != nil {
+		t.Fatalf("failed to read generated jcore.toml: %v", err)
+	}
+	for _, key := range []string{"projectName", "remoteHost", "remotePath", "remoteDomain", "localDomain"} {
+		if !strings.Contains(string(raw), key) {
+			t.Errorf("jcore.toml missing correctly-cased key %q; got:\n%s", key, raw)
+		}
 	}
 }
 
