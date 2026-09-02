@@ -17,7 +17,7 @@
 		}
 	},
 	"require": {
-		"jcore/ydin": "^3",
+		"jcore/ydin": "^4",
 		"jcore/oikeus": "^1"
 	},
 	"require-dev": {
