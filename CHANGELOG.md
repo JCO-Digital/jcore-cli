@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.18.0 (2026-09-02)
+
+#### Features
+
+- config: hide project-only settings from config edit outside a project (7fe3500)
+
 ### v3.17.1 (2026-09-02)
 
 #### Bug Fixes
