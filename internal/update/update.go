@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -84,11 +85,22 @@ func GetLatestRelease(apiURL string) (*Release, error) {
 	return &release, nil
 }
 
+// devSuffix matches the "-<n>-g<hash>[-dirty]" suffix `git describe --tags
+// --always --dirty` appends to the nearest tag when built from a commit
+// that isn't itself tagged (see Makefile's LDFLAGS). Semver treats a
+// trailing "-..." as a pre-release, which sorts *below* the bare tag — the
+// opposite of what it means here, since those commits come *after* the
+// tag. Stripped down to the tag itself, "am I newer" becomes "did the tag
+// move past me", which is what's actually being asked.
+var devSuffix = regexp.MustCompile(`-\d+-g[0-9a-fA-F]+(-dirty)?$`)
+
 // IsNewer reports whether latestVersion is a greater semantic version than
 // currentVersion. If currentVersion isn't valid semver (e.g. a "dev"
 // build), it's treated as "not newer" rather than an error, since there's
 // no reliable way to compare it.
 func IsNewer(latestVersion, currentVersion string) (bool, error) {
+	currentVersion = devSuffix.ReplaceAllString(currentVersion, "")
+
 	vCurrent, err := hcversion.NewVersion(currentVersion)
 	if err != nil {
 		return false, nil

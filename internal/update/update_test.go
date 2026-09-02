@@ -15,6 +15,10 @@ func TestIsNewer(t *testing.T) {
 		{"current is newer", "v3.16.0", "3.16.3", false, false},
 		{"dev build never newer", "v3.17.0", "dev", false, false},
 		{"invalid latest errors", "not-a-version", "3.16.3", false, true},
+		{"git describe suffix, same tag not newer", "v3.16.3", "v3.16.3-11-gda4c707", false, false},
+		{"git describe suffix, tag moved on", "v3.17.0", "v3.16.3-11-gda4c707", true, false},
+		{"git describe suffix, dirty build", "v3.16.3", "v3.16.3-11-gda4c707-dirty", false, false},
+		{"git describe suffix, current ahead of older tag", "v3.16.0", "v3.16.3-11-gda4c707", false, false},
 	}
 
 	for _, tc := range cases {
