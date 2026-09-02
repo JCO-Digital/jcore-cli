@@ -1,5 +1,13 @@
 # Changelog
 
+### v3.17.1 (2026-09-02)
+
+#### Bug Fixes
+
+- update: handle redundant v-prefix in version tags (10924e5)
+
+## vv3.17.0 (2026-09-02)
+
 ## v3.17.0 (2026-09-02)
 
 #### Features
