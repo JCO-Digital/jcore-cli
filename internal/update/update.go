@@ -94,12 +94,20 @@ func GetLatestRelease(apiURL string) (*Release, error) {
 // move past me", which is what's actually being asked.
 var devSuffix = regexp.MustCompile(`-\d+-g[0-9a-fA-F]+(-dirty)?$`)
 
+// redundantVPrefix strips every leading "v" but one, tolerating a release
+// tag like "vv3.17.0" - seen in the wild from a CI step that prepended its
+// own "v" onto a version foonver had already prefixed with one. hcversion
+// already accepts a single leading "v" itself; this only handles doubling
+// up on top of that.
+var redundantVPrefix = regexp.MustCompile(`^v+`)
+
 // IsNewer reports whether latestVersion is a greater semantic version than
 // currentVersion. If currentVersion isn't valid semver (e.g. a "dev"
 // build), it's treated as "not newer" rather than an error, since there's
 // no reliable way to compare it.
 func IsNewer(latestVersion, currentVersion string) (bool, error) {
 	currentVersion = devSuffix.ReplaceAllString(currentVersion, "")
+	latestVersion = redundantVPrefix.ReplaceAllString(latestVersion, "v")
 
 	vCurrent, err := hcversion.NewVersion(currentVersion)
 	if err != nil {
@@ -122,6 +130,7 @@ func CheckForUpdate(currentVersion string) (latest, downloadURL, sigURL string, 
 	if err != nil {
 		return "", "", "", false, fmt.Errorf("failed to check for updates: %w", err)
 	}
+	release.TagName = redundantVPrefix.ReplaceAllString(release.TagName, "v")
 
 	assetName := AssetName()
 	sigName := assetName + ".minisig"

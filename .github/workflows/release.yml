@@ -51,7 +51,7 @@ jobs:
         if: steps.foonver.outputs.is_bumped == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.foonver.outputs.version }}
+          tag_name: ${{ steps.foonver.outputs.version }}
           name: Release ${{ steps.foonver.outputs.version }}
           body: ${{ steps.foonver.outputs.release_notes }}
           draft: false
