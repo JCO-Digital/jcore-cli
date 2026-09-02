@@ -66,6 +66,71 @@ func TestGenerateEnvFile_ReplacePreservesUserRowsAndDedupes(t *testing.T) {
 	}
 }
 
+// TestGenerateEnvFile_DomainDefaults reproduces a project whose jcore.toml
+// has neither `localDomain` nor `domains` set (e.g. it predates `init`
+// seeding them): LOCAL_DOMAIN must fall back to
+// "<slugified-project-name>.localhost", and DOMAINS must default to just
+// that value, rather than being left blank.
+func TestGenerateEnvFile_DomainDefaults(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("projectName", "My Project")
+
+	dir := t.TempDir()
+	if err := GenerateEnvFile(dir); err != nil {
+		t.Fatalf("GenerateEnvFile error = %v", err)
+	}
+
+	localDomain := readEnvVar(t, dir, "LOCAL_DOMAIN")
+	if localDomain != "my-project.localhost" {
+		t.Errorf("LOCAL_DOMAIN = %q, want %q", localDomain, "my-project.localhost")
+	}
+
+	domains := readEnvVar(t, dir, "DOMAINS")
+	if domains != "my-project.localhost" {
+		t.Errorf("DOMAINS = %q, want %q", domains, "my-project.localhost")
+	}
+}
+
+// TestGenerateEnvFile_DomainsDefaultsToLocalDomain checks that an explicit
+// `localDomain` (but no `domains`) still yields a non-blank DOMAINS,
+// defaulting to an array containing just that localDomain.
+func TestGenerateEnvFile_DomainsDefaultsToLocalDomain(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("localDomain", "example.localhost")
+
+	dir := t.TempDir()
+	if err := GenerateEnvFile(dir); err != nil {
+		t.Fatalf("GenerateEnvFile error = %v", err)
+	}
+
+	domains := readEnvVar(t, dir, "DOMAINS")
+	if domains != "example.localhost" {
+		t.Errorf("DOMAINS = %q, want %q", domains, "example.localhost")
+	}
+}
+
+// TestGenerateEnvFile_DomainsExplicitNotOverridden checks that an explicit
+// `domains` list is used as-is, not replaced by the LOCAL_DOMAIN fallback.
+func TestGenerateEnvFile_DomainsExplicitNotOverridden(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("localDomain", "example.localhost")
+	viper.Set("domains", []string{"example.localhost", "extra.localhost"})
+
+	dir := t.TempDir()
+	if err := GenerateEnvFile(dir); err != nil {
+		t.Fatalf("GenerateEnvFile error = %v", err)
+	}
+
+	domains := readEnvVar(t, dir, "DOMAINS")
+	want := "example.localhost extra.localhost"
+	if domains != want {
+		t.Errorf("DOMAINS = %q, want %q", domains, want)
+	}
+}
+
 // readEnvVar reads and returns the unquoted value of key from the .env file
 // GenerateEnvFile wrote in dir.
 func readEnvVar(t *testing.T, dir, key string) string {

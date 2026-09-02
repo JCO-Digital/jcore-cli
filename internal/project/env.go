@@ -74,13 +74,19 @@ func GenerateEnvFile(projectDir string) error {
 		envMap["WP_IMAGE"] = "jcodigi/wordpress:latest"
 	}
 	if envMap["LOCAL_DOMAIN"] == "" {
-		// Fallback to project name .test if not set
+		// Fallback for a project whose jcore.toml predates `init` seeding
+		// this itself — ".localhost" matches the convention used
+		// everywhere else (legacy CLI project creation, legacy-config
+		// migration).
 		projectName := viper.GetString("projectName")
 		if projectName != "" {
-			envMap["LOCAL_DOMAIN"] = projectName + ".test"
+			envMap["LOCAL_DOMAIN"] = Slugify(projectName) + ".localhost"
 		} else {
 			envMap["LOCAL_DOMAIN"] = "localhost"
 		}
+	}
+	if envMap["DOMAINS"] == "" {
+		envMap["DOMAINS"] = envMap["LOCAL_DOMAIN"]
 	}
 
 	// 4. Always ensure the base domain search/replace row is present in

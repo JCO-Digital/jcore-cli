@@ -161,6 +161,11 @@ project name, template, and (if the template offers more than one) branch.`,
 		}
 		_ = store.Set("projectName", name)
 		_ = store.Set("branch", branch)
+		if _, ok := store.Get("localDomain"); !ok {
+			localDomain := project.Slugify(name) + ".localhost"
+			_ = store.Set("localDomain", localDomain)
+			_ = store.Set("domains", []string{localDomain})
+		}
 		if theme != "" {
 			_ = store.Set("theme", theme)
 		}

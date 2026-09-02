@@ -46,7 +46,11 @@ the `[name]` argument or `--template`/`--branch`:
   `jcore pull plugins`' remote sync doesn't delete them.
 - Initializes a git repository, writes `jcore.toml` with `projectName`
   (and `branch`/`theme`, if set), and commits the initial scaffold (`git
-  add -A && git commit`).
+  add -A && git commit`). Also seeds `localDomain` (defaulting to
+  `<slugified-project-name>.localhost`) and `domains` (defaulting to just
+  that `localDomain`) if neither is already set — these back the local TLS
+  cert and the `wordpress`/`web` containers' hostname(s). Left alone on a
+  re-run of `init` in an existing project, so a customized value survives.
 - Then generates `.env`, finalizes the project (`site.conf`/`php.ini`
   rendering), and installs dependencies (always, regardless of the
   `install` setting — see `start`) — all after the initial commit, since
