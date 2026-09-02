@@ -31,18 +31,30 @@ func (h headerItem) FilterValue() string { return "" }
 
 // buildItems constructs the full, ordered list of rows (category headers
 // interleaved with their settings), each setting's value freshly resolved
-// against projectRoot/branch.
+// against projectRoot/branch. Outside a project (projectRoot == ""), only
+// ScopeClassGlobalOnly settings are included, since anything else would
+// resolve/write against Global scope but is really meant to live in a
+// project's own jcore.toml - a category ends up with no rows in that case
+// is skipped entirely, not shown as an empty header.
 func buildItems(projectRoot, branch string) []list.Item {
 	var items []list.Item
 	for _, category := range config.Categories() {
-		items = append(items, headerItem{category: category})
+		var rows []list.Item
 		for _, def := range config.InCategory(category) {
+			if projectRoot == "" && def.ScopeClass != config.ScopeClassGlobalOnly {
+				continue
+			}
 			res, err := config.Resolve(def.Key, projectRoot, branch)
 			if err != nil {
 				res = config.Resolution{IsDefault: true}
 			}
-			items = append(items, settingItem{def: def, resolution: res})
+			rows = append(rows, settingItem{def: def, resolution: res})
 		}
+		if len(rows) == 0 {
+			continue
+		}
+		items = append(items, headerItem{category: category})
+		items = append(items, rows...)
 	}
 	return items
 }

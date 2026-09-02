@@ -36,6 +36,7 @@ func asModel(t *testing.T, tm tea.Model) Model {
 
 func TestEditProjectEligibleSetting_SavesToProject(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
 	m := NewModel(root, "")
 	selectItem(t, &m, "projectName")
 
@@ -66,29 +67,20 @@ func TestEditProjectEligibleSetting_SavesToProject(t *testing.T) {
 	}
 }
 
-func TestEditProjectEligibleSetting_OutsideProject_SavesToGlobal(t *testing.T) {
+// TestEditProjectEligibleSetting_OutsideProject_NotListed used to expect
+// project-eligible settings like projectName to fall back to editing at
+// Global scope when run outside a project. That's no longer how this
+// works: it doesn't make sense to write project settings into the global
+// config, so such settings are simply absent from the list outside a
+// project - see TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings.
+func TestEditProjectEligibleSetting_OutsideProject_NotListed(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	m := NewModel("", "") // no project root
-	selectItem(t, &m, "projectName")
-
-	tm, _ := m.startEdit()
-	m = asModel(t, tm)
-	m.textInput.SetValue("myproject")
-	tm, _ = m.updateEditing(tea.KeyMsg{Type: tea.KeyEnter})
-	m = asModel(t, tm)
-
-	if m.isError {
-		t.Fatalf("unexpected error status: %s", m.status)
-	}
-
-	store, err := config.OpenStore(config.ScopeGlobal, "", "")
-	if err != nil {
-		t.Fatalf("OpenStore error = %v", err)
-	}
-	v, ok := store.Get("projectName")
-	if !ok || v != "myproject" {
-		t.Fatalf("projectName = %#v, %v, want myproject, true (falls back to Global with no project)", v, ok)
+	for _, it := range m.list.Items() {
+		if si, ok := it.(settingItem); ok && si.def.Key == "projectName" {
+			t.Fatal("projectName should not be listed outside a project")
+		}
 	}
 }
 
@@ -440,6 +432,43 @@ remoteDomain = 'stagingtest.jcore.fi'
 	}
 	if badge := scopeBadge(found.resolution, "testing"); badge == "" {
 		t.Fatal("expected a non-empty badge")
+	}
+}
+
+// TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings reproduces the
+// case of running `jcore config edit` with no projectRoot: project-eligible
+// settings like remoteDomain don't make sense to edit into the global
+// config, so only ScopeClassGlobalOnly settings (e.g. logLevel, template)
+// should appear - and a category with none of those (e.g. "Domains") should
+// be dropped entirely rather than shown as an empty header.
+func TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings(t *testing.T) {
+	items := buildItems("", "")
+
+	seenKeys := make(map[string]bool)
+	seenCategories := make(map[string]bool)
+	for _, it := range items {
+		switch v := it.(type) {
+		case settingItem:
+			seenKeys[v.def.Key] = true
+			if v.def.ScopeClass != config.ScopeClassGlobalOnly {
+				t.Errorf("buildItems(\"\", \"\") included project-eligible setting %q", v.def.Key)
+			}
+		case headerItem:
+			seenCategories[v.category] = true
+		}
+	}
+
+	if !seenKeys["logLevel"] {
+		t.Error("expected global-only setting logLevel to be present")
+	}
+	if seenKeys["remoteDomain"] {
+		t.Error("expected project-eligible setting remoteDomain to be absent")
+	}
+	if seenCategories["Domains"] {
+		t.Error("expected the Domains category (no global-only settings) to be dropped entirely")
+	}
+	if !seenCategories["CLI Behavior"] {
+		t.Error("expected the CLI Behavior category to be present")
 	}
 }
 

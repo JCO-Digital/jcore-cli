@@ -197,7 +197,10 @@ the rule below.
 - `jcore config edit`: Opens a full-screen interactive editor listing every
   known setting, its current effective value, and which scope (default,
   global, project, or local — with `@<branch>` appended if that value comes
-  from a branch override) that value comes from. Settings with a fixed set
+  from a branch override) that value comes from. Run outside a project, it
+  only lists global-only settings (e.g. `mode`, `logLevel`, `template`) —
+  project-eligible settings (`remoteDomain`, `wpDbName`, etc.) are omitted
+  entirely, since they wouldn't make sense to write into the global config. Settings with a fixed set
   of known values (e.g. `mode`, `pluginInstall`) are edited via an up/down
   select list of those values instead of free text; if the current value
   isn't one of them (a hand-edited or legacy value), it's shown as an extra,
