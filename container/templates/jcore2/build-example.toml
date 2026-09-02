@@ -1,0 +1,15 @@
+[[scripts]]
+entryPoints = [ "wp-content/themes/jcore2-child/js", "wp-content/themes/jcore2/js" ]
+outdir = "wp-content/themes/jcore2-child/dist/js"
+
+[[scripts]]
+entryPoints = [ "wp-content/plugins/jcore-something/js" ]
+outdir = "wp-content/plugins/jcore-something/dist/js"
+
+[[styles]]
+entryPoints = [ "wp-content/themes/jcore2-child/scss", "wp-content/themes/jcore2/scss" ]
+outdir = "wp-content/themes/jcore2-child/dist/css"
+
+[[styles]]
+entryPoints = [ "wp-content/plugins/jcore-something/scss" ]
+outdir = "wp-content/plugins/jcore-something/dist/css"

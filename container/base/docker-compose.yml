@@ -1,0 +1,112 @@
+networks:
+  jcore:
+    driver: bridge
+
+services:
+  # Container to create certs and exit.
+  tlscerts:
+    image: "jcodigi/tlscerts:latest"
+    environment:
+      CERT_DIR: "/home/jcore/ca"
+      SSL_DIR: "/home/jcore/ssl"
+      LOCAL_DOMAIN: ${LOCAL_DOMAIN}
+      DOMAINS: ${DOMAINS}
+    volumes:
+      - .:/project
+      - ./.jcore/ssl:/home/jcore/ssl
+      - ~/.config/jcore/ssl:/home/jcore/ca
+
+  # MariaDB container
+  db:
+    image: "mariadb:11.2"
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: ${WP_DB_NAME}
+      MYSQL_USER: ${WP_DB_USER}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD}
+    volumes:
+      - db:/var/lib/mysql
+    networks:
+      - default
+
+  # Adminer running on port 1080
+  adminer:
+    depends_on:
+      db:
+        condition: service_started
+    image: adminer:latest
+    ports:
+      - 1080:8080
+    networks:
+      - default
+
+  # PHP-fpm container with WordPress stuff.
+  wordpress:
+    depends_on:
+      db:
+        condition: service_started
+      tlscerts:
+        condition: service_completed_successfully
+    links:
+      - memcached
+    image: ${WP_IMAGE}
+    user: "1000"
+    environment:
+      - CERT_DIR=/home/jcore/ca
+      - SSH_AUTH_SOCK=/run/user/1000/ssh-agent.socket
+    env_file: .env
+    volumes:
+      - .:/project
+      - ./.jcore/wordpress:/var/www/html
+      - ./.jcore/php.ini:/usr/local/etc/php/php.ini
+      - ./wp-content:/var/www/html/wp-content
+      - ./vendor:/var/www/html/vendor
+      - ~/.config/jcore/ssh:/home/jcore/.ssh
+      - ~/.config/jcore/ssl:/home/jcore/ca
+      - ${SSH_AUTH_SOCK:-/dev/null}:/run/user/1000/ssh-agent.socket:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - jcore
+    working_dir: "/var/www/html"
+
+  memcached:
+    image: "memcached:1.6.21"
+    command: ["-m", "64m"]
+
+  mailhog:
+    image: "mailhog/mailhog:latest"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # Nginx server configuration
+  web:
+    depends_on:
+      db:
+        condition: service_started
+      wordpress:
+        condition: service_started
+      tlscerts:
+        condition: service_completed_successfully
+    image: nginx:latest
+    links:
+      - db
+      - wordpress
+    volumes:
+      - ./.jcore/wordpress:/var/www/html
+      - ./.jcore/ssl:/etc/ssl
+      - ./wp-content:/var/www/html/wp-content
+      - ./.config/nginx:/etc/nginx/conf.d/
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      default:
+      jcore:
+        aliases:
+          - ${LOCAL_DOMAIN}
+
+volumes:
+  db:

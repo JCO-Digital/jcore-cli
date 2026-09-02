@@ -1,0 +1,17 @@
+template = "jcore2"
+branch = "grasshopper"
+theme = "jcore2-child"
+wpImage = "jcodigi/wordpress:latest"
+wpVersion = "latest"
+pluginLocal = ["loco-translate"]
+pluginExclude = [
+	"mainwp-child",
+	"minimal-coming-soon-maintenance-mode",
+	"coming-soon",
+]
+dbExclude = ["relevanssi"]
+remoteDomain = "localhost"
+localDomain = "localhost"
+wpDebug = true
+wpDebugLog = false
+wpDebugDisplay = true

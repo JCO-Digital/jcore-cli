@@ -1,0 +1,11 @@
+theme = "jcore-ilme"
+wpImage = "jcodigi/wordpress:latest"
+wpVersion = "latest"
+logLevel = 2
+mode = "foreground"
+dbPrefix = "wp_"
+wpDebug = true
+wpDebugDisplay = true
+wpDebugLog = false
+install = true
+template = "jcore3"

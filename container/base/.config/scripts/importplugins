@@ -1,0 +1,26 @@
+#!/bin/bash
+
+source $PROJECT_PATH/.env
+
+BEFORE_SCRIPT=$PROJECT_PATH/custom-scripts/plugin-before
+AFTER_SCRIPT=$PROJECT_PATH/custom-scripts/plugin-after
+
+# Run custom script if it exists.
+if [ -f "$BEFORE_SCRIPT" ]; then
+	source $BEFORE_SCRIPT
+fi
+
+# Write the .gitignore file.
+source $PROJECT_PATH/.config/scripts/parts/plugin-ignore.bash
+
+if [[ "$PLUGIN_INSTALL" == "composer" || "$PLUGIN_INSTALL" == "local" ]]; then
+	echo "Project set to composer or local plugins install, skipping plugins."
+else
+	# Import plugins from the plugin directory.
+	source $PROJECT_PATH/.config/scripts/parts/plugin-import.bash
+fi
+
+# Run custom script if it exists.
+if [ -f "$AFTER_SCRIPT" ]; then
+	source $AFTER_SCRIPT
+fi

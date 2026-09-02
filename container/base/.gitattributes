@@ -1,0 +1,10 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Ignore from exports.
+/package.json export-ignore
+pnpm-lock.yaml export-ignore
+
+# Always convert script files to unix line endings.
+*.sh     text eol=lf
+/.config/scripts/* text eol=lf
