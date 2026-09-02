@@ -155,6 +155,23 @@ func ComposeExec(projectDir string, service string, cmdParts []string) error {
 	return cmd.Run()
 }
 
+// ComposeExecCaptured runs a command in a service container and returns its
+// combined stdout+stderr instead of streaming it to the terminal, for a
+// caller that wants to inspect or suppress the output itself (e.g. a silent
+// polling loop probing readiness, which shouldn't spam the terminal with
+// "container not ready yet" errors on every retry). Runs non-interactively
+// (-T), since it isn't wired to a live terminal on either side.
+func ComposeExecCaptured(projectDir string, service string, cmdParts []string) (string, error) {
+	args := []string{"compose", "exec", "-T", service}
+	args = append(args, cmdParts...)
+
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
 // ComposeExecWithStdin runs a command in a service container with a custom stdin
 func ComposeExecWithStdin(projectDir string, service string, cmdParts []string, stdin io.Reader) error {
 	args := []string{"compose", "exec", "-T", service} // Use -T to disable pseudo-tty when piping

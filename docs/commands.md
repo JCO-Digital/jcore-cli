@@ -81,6 +81,13 @@ Starts the WordPress environment for the current project.
   root the moment a container starts, leaving it unwritable by build
   scripts running as a normal user. Named volumes, absolute/`~`-relative
   paths, and anything already present (a folder or a file) are left alone.
+- Activates the configured `theme` (`wp theme activate`) once WordPress is
+  actually reachable, running concurrently with the containers coming up
+  (retrying for up to 2 minutes, since `docker compose up` blocks in the
+  foreground until stopped) — a no-op if that theme is already active, so
+  it never fights a theme you deliberately switched via wp-admin. If
+  WordPress never becomes reachable in time, it warns and leaves you to
+  activate it yourself with `jcore run "wp theme activate <slug>"`.
 
 ## `stop`
 Stops every currently running JCore project on the machine (not just the

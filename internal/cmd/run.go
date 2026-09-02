@@ -85,10 +85,23 @@ It generates the .env file and runs docker compose up.`,
 			detached = true
 		}
 
+		// Activate the configured theme once containers are actually up -
+		// run concurrently since `docker compose up` blocks in the
+		// foreground until stopped. In detached mode, wait for it so it
+		// doesn't get killed by the process exiting before it's done.
+		themeDone := make(chan struct{})
+		go func() {
+			project.ActivateTheme(projectDir, viper.GetString("theme"))
+			close(themeDone)
+		}()
+
 		fmt.Println("Starting Docker containers...")
 		if err := docker.ComposeUp(projectDir, detached); err != nil {
 			fmt.Printf("Docker failed: %v\n", err)
 			return
+		}
+		if detached {
+			<-themeDone
 		}
 	},
 }
