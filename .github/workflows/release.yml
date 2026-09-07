@@ -30,7 +30,7 @@ jobs:
 
       - name: Run foonver
         id: foonver
-        uses: foonly/foonver@v0.9.1
+        uses: foonly/foonver@v0.14.0
         with:
           command: "auto"
           changelog: "true"
@@ -47,6 +47,15 @@ jobs:
           MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
         run: go run ./cmd/sign-binaries bin/jcore_*
 
+      - name: Generate legacy package.json
+        # Stub asset for the legacy TS CLI's version check (fetchVersion() in
+        # legacy-ts/src/utils.ts), which reads latest-release package.json's
+        # "version" field. Only the version field is read; rest is filler.
+        if: steps.foonver.outputs.is_bumped == 'true'
+        run: |
+          version="${{ steps.foonver.outputs.version }}"
+          printf '{"name": "jcore-cli", "version": "%s"}\n' "${version#v}" > package.json
+
       - name: Create GitHub Release
         if: steps.foonver.outputs.is_bumped == 'true'
         uses: softprops/action-gh-release@v2
@@ -59,6 +68,7 @@ jobs:
           files: |
             bin/jcore_*
             bin/jcore
+            package.json
 
       - name: Slack notification (success)
         if: success() && steps.foonver.outputs.is_bumped == 'true'
