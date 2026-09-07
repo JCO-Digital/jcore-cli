@@ -1,5 +1,11 @@
 # Changelog
 
+### v3.19.1 (2026-09-07)
+
+#### Continuous Integration
+
+- github: update foonver action and generate legacy package.json (83f3997)
+
 ## v3.19.0 (2026-09-07)
 
 #### Features
