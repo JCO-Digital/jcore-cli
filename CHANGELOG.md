@@ -1,5 +1,11 @@
 # Changelog
 
+### v3.19.2 (2026-09-07)
+
+#### Maintenance
+
+- release: remove legacy release assets and targets (a02af16)
+
 ### v3.19.1 (2026-09-07)
 
 #### Continuous Integration
