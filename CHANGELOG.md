@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.19.0 (2026-09-07)
+
+#### Features
+
+- build: add legacy binary release alias and update templates (3f49bdf)
+
 ## v3.18.0 (2026-09-02)
 
 #### Features
