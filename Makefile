@@ -14,13 +14,18 @@ RELEASE_TARGETS := linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/${BINARY_NAME} ./cmd/jcore
 
-release: $(addprefix release-,$(RELEASE_TARGETS))
+release: $(addprefix release-,$(RELEASE_TARGETS)) release-legacy-alias
 
 release-%:
 	$(eval GOOS := $(word 1,$(subst _, ,$*)))
 	$(eval GOARCH := $(word 2,$(subst _, ,$*)))
 	$(eval EXT := $(if $(filter windows,$(GOOS)),.exe,))
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "$(LDFLAGS)" -o bin/${BINARY_NAME}_$(GOOS)_$(GOARCH)$(EXT) ./cmd/jcore
+
+# Unsuffixed copy for the legacy TS CLI's self-update, which fetches a
+# plain "jcore" asset with no OS/arch suffix and no signature check.
+release-legacy-alias: release-linux_amd64
+	cp bin/${BINARY_NAME}_linux_amd64 bin/${BINARY_NAME}
 
 clean:
 	rm -f bin/${BINARY_NAME} bin/${BINARY_NAME}_*

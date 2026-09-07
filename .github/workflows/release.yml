@@ -56,7 +56,9 @@ jobs:
           body: ${{ steps.foonver.outputs.release_notes }}
           draft: false
           prerelease: false
-          files: bin/jcore_*
+          files: |
+            bin/jcore_*
+            bin/jcore
 
       - name: Slack notification (success)
         if: success() && steps.foonver.outputs.is_bumped == 'true'

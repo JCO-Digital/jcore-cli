@@ -11,13 +11,9 @@ This project is based on the **JCORE3** template, a modern WordPress development
 
 ## Development
 
-### Prerequisites
-
-This template is designed to run within the [WordPress Container](https://github.com/JCO-Digital/wordpress-container).
-
 ### Setup
 
-1.  Ensure your environment variables are configured in the root `env-values.toml` or `.env`.
+1.  Project settings are configured in the root `jcore.toml`.
 2.  Install dependencies:
     ```bash
     composer install
