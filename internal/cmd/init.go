@@ -150,6 +150,13 @@ project name, template, and (if the template offers more than one) branch.`,
 				}
 				installedPlugins = append(installedPlugins, pluginName)
 			}
+
+			if catalogEntry.Lohko {
+				fmt.Println("Installing Lohko...")
+				if err := project.InstallLohko(targetDir); err != nil {
+					fmt.Printf("Warning: failed to install Lohko: %v\n", err)
+				}
+			}
 		}
 
 		// Write jcore.toml: merges with anything already there rather than

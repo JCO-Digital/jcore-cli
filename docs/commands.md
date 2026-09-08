@@ -43,7 +43,10 @@ the `[name]` argument or `--template`/`--branch`:
   keep in sync) — into `wp-content/plugins/<name>`, and adds each to
   `pluginGit` in `jcore.toml` (merged with, not replacing, whatever the
   template's own `defaults.toml` already lists there, e.g. `lohko`) so
-  `jcore pull plugins`' remote sync doesn't delete them.
+  `jcore pull plugins`' remote sync doesn't delete them. If the template's
+  catalog entry also sets `lohko = true` (e.g. `jcore3`), this same step
+  downloads and installs the Lohko plugin into
+  `wp-content/plugins/lohko` (see `jcore create block` below).
 - Initializes a git repository, writes `jcore.toml` with `projectName`
   (and `branch`/`theme`, if set), and commits the initial scaffold (`git
   add -A && git commit`). Also seeds `localDomain` (defaulting to
