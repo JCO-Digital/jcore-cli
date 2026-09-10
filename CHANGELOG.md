@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.20.0 (2026-09-10)
+
+#### Features
+
+- container: self-manage wp-cli install/update in docker-entrypoint (fe8f5e8)
+- init: add automatic lohko plugin installation during project init (10c7ceb)
+
+#### Maintenance
+
+- legacy-ts: remove legacy TypeScript implementation (f28ac04)
+
 ### v3.19.2 (2026-09-07)
 
 #### Maintenance
