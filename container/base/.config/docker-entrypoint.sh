@@ -1,5 +1,30 @@
 #!/bin/bash
 
+# Ensure wp-cli is present and current. The base image bundles its own
+# wp-cli binary, which is easy to forget to bump when rebuilding the image,
+# so take ownership of it here and always bring it up to date instead of
+# relying on the image's baked-in version.
+WP_CLI_BIN="/usr/local/bin/wp"
+if [ ! -f "$WP_CLI_BIN" ]; then
+  echo "wp-cli not found, installing."
+  curl -sSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  chmod +x /tmp/wp-cli.phar
+  sudo install -o "$(id -u)" -g "$(id -g)" /tmp/wp-cli.phar "$WP_CLI_BIN"
+  rm -f /tmp/wp-cli.phar
+else
+  sudo chown "$(id -u):$(id -g)" "$WP_CLI_BIN"
+
+  # Only check for updates once a day to avoid hitting GitHub on every start.
+  WP_CLI_UPDATE_STAMP="$HOME/.wp-cli-update-stamp"
+  LAST_UPDATE=0
+  [ -f "$WP_CLI_UPDATE_STAMP" ] && LAST_UPDATE=$(cat "$WP_CLI_UPDATE_STAMP")
+  if (( $(date +%s) - LAST_UPDATE > 86400 )); then
+    echo "Updating wp-cli."
+    wp cli update --stable --yes
+    date +%s > "$WP_CLI_UPDATE_STAMP"
+  fi
+fi
+
 # Create Private / Public key if it doesn't exist
 if [ ! -f ~/.ssh/id_ed25519 ]; then
   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -P ""
