@@ -55,6 +55,8 @@ func GenerateEnvFile(projectDir string) error {
 		"wpDebugDisplay": "WP_DEBUG_DISPLAY",
 		"remoteHost":     "REMOTE_HOST",
 		"remotePath":     "REMOTE_PATH",
+		"knockdPorts":    "KNOCKD_PORTS",
+		"knockdTimeout":  "KNOCKD_TIMEOUT",
 		"dbExclude":      "DB_EXCLUDE",
 		"replace":        "REPLACE",
 		"pluginExclude":  "PLUGIN_EXCLUDE",

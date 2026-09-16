@@ -8,12 +8,14 @@ import (
 // from the configured remote host (skipping PLUGIN_EXCLUDE/PLUGIN_GIT ones)
 // unless pluginInstall is set to "composer" or "local".
 func SyncPlugins(projectDir string) error {
+	KnockIfNeeded()
 	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importplugins"})
 }
 
 // SyncMedia runs the container's importmedia script, which rsyncs uploads
 // from the configured remote host.
 func SyncMedia(projectDir string) error {
+	KnockIfNeeded()
 	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importmedia"})
 }
 

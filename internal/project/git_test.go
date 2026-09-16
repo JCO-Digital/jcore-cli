@@ -25,6 +25,7 @@ func TestCurrentBranch(t *testing.T) {
 	run("init", "-b", "feature-branch")
 	run("config", "user.email", "test@example.com")
 	run("config", "user.name", "Test")
+	run("config", "commit.gpgsign", "false")
 	run("commit", "--allow-empty", "-m", "init")
 
 	if got := CurrentBranch(dir); got != "feature-branch" {

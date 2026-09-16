@@ -31,7 +31,7 @@ func TestScopeClassification(t *testing.T) {
 		}
 	}
 
-	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword"}
+	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword", "knockdPorts", "knockdTimeout"}
 	for _, key := range projectEligible {
 		def, ok := Lookup(key)
 		if !ok {
@@ -52,6 +52,8 @@ func TestDefaultsArePopulated(t *testing.T) {
 	cases := map[string]any{
 		"pluginInstall":  "remote",
 		"projectDefault": "git@github.com:JCO-Digital/{name}.git",
+		"knockdPorts":    "",
+		"knockdTimeout":  60,
 	}
 	for key, want := range cases {
 		def, ok := Lookup(key)

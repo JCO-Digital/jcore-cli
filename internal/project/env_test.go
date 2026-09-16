@@ -14,6 +14,33 @@ import (
 // "//remoteDomain|//localDomain" row to REPLACE so `jcore pull db` rewrites
 // the remote domain to the local one, even with no explicit `replace`
 // setting configured.
+func TestGenerateEnvFile_KnockdSettings(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("knockdPorts", "7000,8000:udp,9000")
+	viper.Set("knockdTimeout", 15)
+
+	dir := t.TempDir()
+	if err := GenerateEnvFile(dir); err != nil {
+		t.Fatalf("GenerateEnvFile error = %v", err)
+	}
+
+	ports := readEnvVar(t, dir, "KNOCKD_PORTS")
+	if ports != "7000,8000:udp,9000" {
+		t.Errorf("KNOCKD_PORTS = %q, want %q", ports, "7000,8000:udp,9000")
+	}
+
+	timeout := readEnvVar(t, dir, "KNOCKD_TIMEOUT")
+	if timeout != "15" {
+		t.Errorf("KNOCKD_TIMEOUT = %q, want %q", timeout, "15")
+	}
+}
+
+// TestGenerateEnvFile_ReplaceAlwaysIncludesDefaultDomainRow reproduces the
+// legacy TypeScript CLI's createEnv(), which always added a
+// "//remoteDomain|//localDomain" row to REPLACE so `jcore pull db` rewrites
+// the remote domain to the local one, even with no explicit `replace`
+// setting configured.
 func TestGenerateEnvFile_ReplaceAlwaysIncludesDefaultDomainRow(t *testing.T) {
 	viper.Reset()
 	defer viper.Reset()

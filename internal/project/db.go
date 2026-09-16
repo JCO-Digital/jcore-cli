@@ -9,5 +9,6 @@ import (
 // already staged at .jcore/sql/update.sql) and imports it via wp-cli,
 // applying the configured domain search-replace.
 func ImportDatabase(projectDir string) error {
+	KnockIfNeeded()
 	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importdb"})
 }
