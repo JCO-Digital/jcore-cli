@@ -1,10 +1,12 @@
 package docker
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // ComposeUp runs docker compose up
@@ -169,6 +171,28 @@ func ComposeExecCaptured(projectDir string, service string, cmdParts []string) (
 	cmd.Dir = projectDir
 
 	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// ComposeExecCapturedTimeout is ComposeExecCaptured with an upper bound on
+// how long the command may run. A command still running when timeout
+// elapses is killed and context.DeadlineExceeded is returned. Use it for
+// polling containers that may not be healthy yet, where a single hung
+// `docker compose exec` would otherwise block the caller indefinitely.
+func ComposeExecCapturedTimeout(projectDir string, service string, cmdParts []string, timeout time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	args := []string{"compose", "exec", "-T", service}
+	args = append(args, cmdParts...)
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Dir = projectDir
+
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return string(out), ctx.Err()
+	}
 	return string(out), err
 }
 
