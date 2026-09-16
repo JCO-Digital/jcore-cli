@@ -4,7 +4,12 @@ if [ ! -f $SQLPATH/update.sql ]; then
   if [ -n "$DB_EXCLUDE" ]; then
     ARGS="--exclude_tables="
     for table in $DB_EXCLUDE ; do
-      ARGS+="${DB_PREFIX}${table},"
+      # Accept names with or without the table prefix.
+      if [[ "$table" == "${DB_PREFIX}"* ]]; then
+        ARGS+="${table},"
+      else
+        ARGS+="${DB_PREFIX}${table},"
+      fi
     done
     exclude=`echo ${ARGS} | sed s/,$//`
   fi
