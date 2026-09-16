@@ -15,7 +15,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | :--- | :--- | :--- | :--- |
 | `branch` | string | `""` | The default git branch for the project or submodules. |
 | `template` | string | `"jcore3"` | The project template to use. |
-| `dbExclude` | array | `[]` | Tables to exclude from database imports/exports. |
+| `dbExclude` | array | `[]` | Tables to exclude from database imports/exports. Names may be given with or without the table prefix. |
 | `dbPrefix` | string | `"wp_"` | WordPress database table prefix. |
 | `debug` | boolean | `false` | Enable CLI debug logging. |
 | `domains` | array | `[]` | List of domains for the project. |
