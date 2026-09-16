@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.21.0 (2026-09-16)
+
+#### Features
+
+- knock: add port knocking support for SSH and remote connections (f9b8cdf)
+
+#### Bug Fixes
+
+- config: restrict knockd settings to global scope (f636835)
+
+#### Maintenance
+
+- container: clean up base files and template readmes (8bc76e3)
+
 ### v3.20.1 (2026-09-16)
 
 #### Bug Fixes
