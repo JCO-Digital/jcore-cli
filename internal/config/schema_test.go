@@ -20,7 +20,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestScopeClassification(t *testing.T) {
-	globalOnly := []string{"template", "debug", "install", "logLevel", "mode", "pluginLocal", "projectDefault", "verbose"}
+	globalOnly := []string{"template", "debug", "install", "logLevel", "mode", "pluginLocal", "projectDefault", "verbose", "knockdPorts", "knockdTimeout"}
 	for _, key := range globalOnly {
 		def, ok := Lookup(key)
 		if !ok {
@@ -31,7 +31,7 @@ func TestScopeClassification(t *testing.T) {
 		}
 	}
 
-	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword", "knockdPorts", "knockdTimeout"}
+	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword"}
 	for _, key := range projectEligible {
 		def, ok := Lookup(key)
 		if !ok {

@@ -464,8 +464,17 @@ func TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings(t *testing.T) {
 	if seenKeys["remoteDomain"] {
 		t.Error("expected project-eligible setting remoteDomain to be absent")
 	}
-	if seenCategories["Domains"] {
-		t.Error("expected the Domains category (no global-only settings) to be dropped entirely")
+	if !seenKeys["knockdPorts"] {
+		t.Error("expected global-only setting knockdPorts to be present outside a project")
+	}
+	if !seenKeys["knockdTimeout"] {
+		t.Error("expected global-only setting knockdTimeout to be present outside a project")
+	}
+	if seenKeys["remoteHost"] {
+		t.Error("expected project-eligible setting remoteHost to be absent")
+	}
+	if !seenCategories["Deployment"] {
+		t.Error("expected the Deployment category to be present (has knockd settings)")
 	}
 	if !seenCategories["CLI Behavior"] {
 		t.Error("expected the CLI Behavior category to be present")

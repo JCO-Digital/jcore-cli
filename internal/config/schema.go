@@ -98,8 +98,8 @@ var Settings = []SettingDef{
 	// Deployment
 	{Key: "remoteHost", Type: TypeString, Category: "Deployment", Description: "SSH host of the remote/production server."},
 	{Key: "remotePath", Type: TypeString, Category: "Deployment", Description: "Remote path to the WordPress installation."},
-	{Key: "knockdPorts", Type: TypeString, Default: "", Category: "Deployment", Description: "Port knocking sequence before SSH connections."},
-	{Key: "knockdTimeout", Type: TypeInt, Default: 60, Category: "Deployment", Description: "Timeout in seconds to assume knocked SSH port remains open."},
+	{Key: "knockdPorts", Type: TypeString, Default: "", Category: "Deployment", ScopeClass: ScopeClassGlobalOnly, Description: "Port knocking sequence before SSH connections."},
+	{Key: "knockdTimeout", Type: TypeInt, Default: 60, Category: "Deployment", ScopeClass: ScopeClassGlobalOnly, Description: "Timeout in seconds to assume knocked SSH port remains open."},
 
 	// CLI Behavior
 	{Key: "debug", Type: TypeBool, Default: false, Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Print debug output."},
