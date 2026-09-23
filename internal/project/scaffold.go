@@ -20,6 +20,10 @@ func ScaffoldProject(targetDir string, template string) error {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
+	if template != "" && viper.GetString("template") == "" {
+		viper.Set("template", template)
+	}
+
 	data := CurrentTemplateData()
 	checksums := make(map[string]string)
 

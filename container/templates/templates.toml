@@ -1,6 +1,7 @@
 [jcore3]
 branch = "irishcoffee"
 branches = ["gintonic", "hurricane", "irishcoffee"]
+ydinVersions = { gintonic = "^3", hurricane = "^4", irishcoffee = "^5" }
 themeUrl = "https://github.com/JCO-Digital/jcore-ilme/archive/refs/heads/{{branch}}.zip"
 lohko = true
 plugins = [

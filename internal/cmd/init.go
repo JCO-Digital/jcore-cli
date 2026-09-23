@@ -112,6 +112,7 @@ project name, template, and (if the template offers more than one) branch.`,
 		}
 		viper.Set("projectName", name)
 		viper.Set("branch", branch)
+		viper.Set("template", template)
 
 		if err := project.ScaffoldProject(targetDir, template); err != nil {
 			fmt.Printf("Error during scaffolding: %v\n", err)

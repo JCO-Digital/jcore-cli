@@ -29,6 +29,20 @@ func TestLoadTemplateCatalog(t *testing.T) {
 		t.Error(`catalog["jcore3"].ThemeURL is empty, want the jcore-ilme archive URL`)
 	}
 
+	expectedYdin := map[string]string{
+		"gintonic":    "^3",
+		"hurricane":   "^4",
+		"irishcoffee": "^5",
+	}
+	for branch, expectedVer := range expectedYdin {
+		if got := jcore3.YdinVersion(branch); got != expectedVer {
+			t.Errorf(`jcore3.YdinVersion(%q) = %q, want %q`, branch, got, expectedVer)
+		}
+	}
+	if got := jcore3.YdinVersion(""); got != "^5" {
+		t.Errorf(`jcore3.YdinVersion("") = %q, want "^5" (fallback to default branch)`, got)
+	}
+
 	blank := catalog["blank"]
 	if blank.Branch == "" {
 		t.Error(`catalog["blank"].Branch is empty, want a fallback default branch`)

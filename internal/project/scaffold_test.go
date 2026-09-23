@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -98,5 +99,82 @@ func TestUpdateProjectForceWithoutOnlyStillUpdatesOtherFiles(t *testing.T) {
 
 	if _, err := os.Stat(readmePath); err != nil {
 		t.Errorf("expected readme.md to be recreated by the normal update pass, got: %v", err)
+	}
+}
+
+func TestScaffoldProjectYdinVersionPerBranch(t *testing.T) {
+	tests := []struct {
+		branch          string
+		expectedYdinVer string
+	}{
+		{"gintonic", "^3"},
+		{"hurricane", "^4"},
+		{"irishcoffee", "^5"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.branch, func(t *testing.T) {
+			dir := t.TempDir()
+
+			viper.Reset()
+			viper.Set("projectName", "test-project")
+			viper.Set("theme", "jcore-ilme")
+			viper.Set("template", "jcore3")
+			viper.Set("branch", tt.branch)
+			t.Cleanup(viper.Reset)
+
+			if err := ScaffoldProject(dir, "jcore3"); err != nil {
+				t.Fatalf("ScaffoldProject failed: %v", err)
+			}
+
+			composerPath := filepath.Join(dir, "composer.json")
+			content, err := os.ReadFile(composerPath)
+			if err != nil {
+				t.Fatalf("failed to read composer.json: %v", err)
+			}
+
+			expectedStr := `"jcore/ydin": "` + tt.expectedYdinVer + `"`
+			if !strings.Contains(string(content), expectedStr) {
+				t.Errorf("expected composer.json to contain %q, got:\n%s", expectedStr, string(content))
+			}
+		})
+	}
+}
+
+func TestUpdateProjectUpdatesComposerYdinVersion(t *testing.T) {
+	dir := t.TempDir()
+
+	viper.Reset()
+	viper.Set("projectName", "test-project")
+	viper.Set("theme", "jcore-ilme")
+	viper.Set("template", "jcore3")
+	viper.Set("branch", "gintonic")
+	t.Cleanup(viper.Reset)
+
+	if err := ScaffoldProject(dir, "jcore3"); err != nil {
+		t.Fatalf("ScaffoldProject failed: %v", err)
+	}
+
+	composerPath := filepath.Join(dir, "composer.json")
+	content, err := os.ReadFile(composerPath)
+	if err != nil {
+		t.Fatalf("failed to read composer.json: %v", err)
+	}
+	if !strings.Contains(string(content), `"jcore/ydin": "^3"`) {
+		t.Fatalf("expected ^3 initially, got:\n%s", string(content))
+	}
+
+	// Switch branch to irishcoffee and run update
+	viper.Set("branch", "irishcoffee")
+	if err := UpdateProject(dir, nil, nil); err != nil {
+		t.Fatalf("UpdateProject failed: %v", err)
+	}
+
+	content, err = os.ReadFile(composerPath)
+	if err != nil {
+		t.Fatalf("failed to read composer.json after update: %v", err)
+	}
+	if !strings.Contains(string(content), `"jcore/ydin": "^5"`) {
+		t.Errorf("expected ^5 after updating to branch irishcoffee, got:\n%s", string(content))
 	}
 }

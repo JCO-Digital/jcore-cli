@@ -12,15 +12,28 @@ import (
 // plugins to install directly from a GitHub release asset rather than via
 // Composer or the remote-site plugin sync.
 type TemplateCatalogEntry struct {
-	Branch   string   `toml:"branch"`
-	Branches []string `toml:"branches"`
-	ThemeURL string   `toml:"themeUrl"`
-	Lohko    bool     `toml:"lohko"`
-	// Plugins are GitHub release asset URLs (typically each repo's
-	// "/releases/latest/download/<name>.zip", so it always resolves to
-	// that repo's current latest release with no version to keep in
-	// sync here) — see InstallGithubPlugin.
-	Plugins []string `toml:"plugins"`
+	Branch       string            `toml:"branch"`
+	Branches     []string          `toml:"branches"`
+	ThemeURL     string            `toml:"themeUrl"`
+	Lohko        bool              `toml:"lohko"`
+	Plugins      []string          `toml:"plugins"`
+	YdinVersions map[string]string `toml:"ydinVersions"`
+}
+
+// YdinVersion returns the ydin constraint configured for branch, falling back
+// to the template's default branch if branch is not explicitly mapped.
+func (e TemplateCatalogEntry) YdinVersion(branch string) string {
+	if branch != "" {
+		if v, ok := e.YdinVersions[branch]; ok {
+			return v
+		}
+	}
+	if e.Branch != "" {
+		if v, ok := e.YdinVersions[e.Branch]; ok {
+			return v
+		}
+	}
+	return ""
 }
 
 // LoadTemplateCatalog parses the embedded template catalog.

@@ -15,10 +15,12 @@ const TemplateExt = ".tmpl"
 type TemplateData struct {
 	ProjectName  string
 	Theme        string
+	Branch       string
 	RemoteDomain string
 	RemoteHost   string
 	RemotePath   string
 	XdebugMode   string
+	YdinVersion  string
 }
 
 // CurrentTemplateData builds TemplateData from the currently loaded configuration.
@@ -28,13 +30,34 @@ func CurrentTemplateData() TemplateData {
 		xdebugMode = "develop,debug"
 	}
 
+	templateName := viper.GetString("template")
+	if templateName == "" {
+		templateName = "jcore3"
+	}
+
+	branch := viper.GetString("branch")
+	ydinVersion := ""
+	if catalog, err := LoadTemplateCatalog(); err == nil {
+		if entry, ok := catalog[templateName]; ok {
+			if branch == "" {
+				branch = entry.Branch
+			}
+			ydinVersion = entry.YdinVersion(branch)
+		}
+	}
+	if ydinVersion == "" {
+		ydinVersion = "^5"
+	}
+
 	return TemplateData{
 		ProjectName:  viper.GetString("projectName"),
 		Theme:        viper.GetString("theme"),
+		Branch:       branch,
 		RemoteDomain: viper.GetString("remoteDomain"),
 		RemoteHost:   viper.GetString("remoteHost"),
 		RemotePath:   viper.GetString("remotePath"),
 		XdebugMode:   xdebugMode,
+		YdinVersion:  ydinVersion,
 	}
 }
 
