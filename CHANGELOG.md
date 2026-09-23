@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.22.0 (2026-09-23)
+
+#### Features
+
+- project: support branch-specific ydin versions in templates (0fa8c87)
+
+#### Build System
+
+- composer: bump ydin dependency to version 5 (cd70a34)
+
+#### Maintenance
+
+- templates: update jcore3 branch to irishcoffee (81a3c85)
+
 ## v3.21.0 (2026-09-16)
 
 #### Features
