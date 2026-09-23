@@ -1,6 +1,6 @@
 [jcore3]
-branch = "hurricane"
-branches = ["gintonic", "hurricane"]
+branch = "irishcoffee"
+branches = ["gintonic", "hurricane", "irishcoffee"]
 themeUrl = "https://github.com/JCO-Digital/jcore-ilme/archive/refs/heads/{{branch}}.zip"
 lohko = true
 plugins = [
