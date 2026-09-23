@@ -1,5 +1,11 @@
 # Changelog
 
+### v3.22.1 (2026-09-23)
+
+#### Build System
+
+- composer: update oikeus dependency to version 2 (fd848ef)
+
 ## v3.22.0 (2026-09-23)
 
 #### Features
