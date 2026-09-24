@@ -2,7 +2,7 @@
 set -e
 
 # jcore installer script
-# Installs the latest release of jcore to ~/.local/bin/jcore and configures shell completions.
+# Installs the latest release of jcore to ~/.local/bin/jcore (or ~/bin/jcore) and configures shell completions.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/JCO-Digital/jcore-cli/main/install.sh | sh
@@ -80,7 +80,43 @@ download_file() {
 }
 
 ASSET_NAME="jcore_${OS_TYPE}_${ARCH_TYPE}"
-INSTALL_DIR="${JCORE_INSTALL_DIR:-${HOME}/.local/bin}"
+
+if [ -n "$JCORE_INSTALL_DIR" ]; then
+  INSTALL_DIR="$JCORE_INSTALL_DIR"
+else
+  # Check if ~/.local/bin or ~/bin is in PATH (preferring ~/.local/bin if both exist)
+  HAS_LOCAL_BIN=0
+  HAS_HOME_BIN=0
+
+  OLD_IFS="$IFS"
+  IFS=':'
+  for dir in $PATH; do
+    [ -z "$dir" ] && continue
+    dir="${dir%/}"
+    resolved_dir="$dir"
+    if [ -d "$dir" ] && command -v readlink >/dev/null 2>&1; then
+      resolved_dir="$(readlink -f "$dir" 2>/dev/null || echo "$dir")"
+      resolved_dir="${resolved_dir%/}"
+    fi
+
+    if [ "$dir" = "$HOME/.local/bin" ] || [ "$dir" = "~/.local/bin" ] || [ "$resolved_dir" = "$HOME/.local/bin" ]; then
+      HAS_LOCAL_BIN=1
+    fi
+    if [ "$dir" = "$HOME/bin" ] || [ "$dir" = "~/bin" ] || [ "$resolved_dir" = "$HOME/bin" ]; then
+      HAS_HOME_BIN=1
+    fi
+  done
+  IFS="$OLD_IFS"
+
+  if [ "$HAS_LOCAL_BIN" -eq 1 ]; then
+    INSTALL_DIR="$HOME/.local/bin"
+  elif [ "$HAS_HOME_BIN" -eq 1 ]; then
+    INSTALL_DIR="$HOME/bin"
+  else
+    INSTALL_DIR="$HOME/.local/bin"
+  fi
+fi
+
 mkdir -p "$INSTALL_DIR"
 TARGET="$INSTALL_DIR/jcore"
 TMP_TARGET="$INSTALL_DIR/.jcore.tmp.$$"
@@ -117,7 +153,7 @@ if [ -z "$WHICH_DIR" ] && command -v jcore >/dev/null 2>&1; then
   [ -n "$WHICH_PATH" ] && WHICH_DIR="$(dirname "$WHICH_PATH")"
 fi
 
-SEARCH_DIRS="${WHICH_DIR:+${WHICH_DIR}:}$PATH:/usr/local/bin:/usr/bin:/bin:$HOME/bin"
+SEARCH_DIRS="${WHICH_DIR:+${WHICH_DIR}:}$PATH:/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/bin"
 OLD_IFS="$IFS"
 IFS=':'
 FOUND_CONFLICT=0
@@ -197,34 +233,59 @@ if "$TARGET" completion fish > "$FISH_VENDOR_DIR/jcore.fish" 2>/dev/null; then
 fi
 
 # Check if install directory is in PATH
-case ":$PATH:" in
-  *":$INSTALL_DIR:"*)
-    ;;
-  *)
-    echo ""
-    echo "Note: $INSTALL_DIR is not currently in your PATH."
-    echo "To run 'jcore' directly, add it to your PATH by adding this line to your shell configuration:"
-    if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
-      echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
-      echo ""
-      echo "For Bash (common on WSL and Ubuntu):"
-      echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
-      echo "For Zsh:"
-      echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
-      echo "For Fish:"
-      echo "  fish_add_path ~/.local/bin"
-    else
-      echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
-      echo ""
-      echo "For Bash (common on WSL and Ubuntu):"
-      echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
-      echo "For Zsh:"
-      echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
-      echo "For Fish:"
-      echo "  fish_add_path $INSTALL_DIR"
+IN_PATH=0
+OLD_IFS="$IFS"
+IFS=':'
+for dir in $PATH; do
+  [ -z "$dir" ] && continue
+  dir="${dir%/}"
+  if [ "$dir" = "$INSTALL_DIR" ]; then
+    IN_PATH=1
+    break
+  fi
+  if [ -d "$dir" ] && command -v readlink >/dev/null 2>&1; then
+    resolved_dir="$(readlink -f "$dir" 2>/dev/null || echo "$dir")"
+    if [ "${resolved_dir%/}" = "$INSTALL_DIR" ]; then
+      IN_PATH=1
+      break
     fi
-    ;;
-esac
+  fi
+done
+IFS="$OLD_IFS"
+
+if [ "$IN_PATH" -eq 0 ]; then
+  echo ""
+  echo "Note: $INSTALL_DIR is not currently in your PATH."
+  echo "To run 'jcore' directly, add it to your PATH by adding this line to your shell configuration:"
+  if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+    echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo ""
+    echo "For Bash (common on WSL and Ubuntu):"
+    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
+    echo "For Zsh:"
+    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
+    echo "For Fish:"
+    echo "  fish_add_path ~/.local/bin"
+  elif [ "$INSTALL_DIR" = "$HOME/bin" ]; then
+    echo "  export PATH=\"\$HOME/bin:\$PATH\""
+    echo ""
+    echo "For Bash (common on WSL and Ubuntu):"
+    echo "  echo 'export PATH=\"\$HOME/bin:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
+    echo "For Zsh:"
+    echo "  echo 'export PATH=\"\$HOME/bin:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
+    echo "For Fish:"
+    echo "  fish_add_path ~/bin"
+  else
+    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+    echo "For Bash (common on WSL and Ubuntu):"
+    echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc && source ~/.bashrc"
+    echo "For Zsh:"
+    echo "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc && source ~/.zshrc"
+    echo "For Fish:"
+    echo "  fish_add_path $INSTALL_DIR"
+  fi
+fi
 
 echo ""
 echo "Installation complete! Run 'jcore version' to get started."

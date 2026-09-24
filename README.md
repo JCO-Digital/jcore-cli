@@ -31,10 +31,10 @@ wget -qO- https://raw.githubusercontent.com/JCO-Digital/jcore-cli/main/install.s
 
 The script:
 
-1. Installs the latest `jcore` binary to `~/.local/bin/jcore`.
+1. Installs the latest `jcore` binary to `~/.local/bin/jcore` (or `~/bin/jcore` if that is in your `PATH`, preferring `~/.local/bin` if both exist).
 2. Checks for older `jcore` installations elsewhere in your `PATH`, automatically removing them if user-writable or providing instructions if administrative permissions are required.
 3. Automatically generates and installs shell completions for **Bash**, **Zsh**, and **Fish**.
-4. Alerts you if `~/.local/bin` is not currently in your `PATH` and displays instructions for adding it.
+4. Alerts you if the chosen installation directory is not currently in your `PATH` and displays instructions for adding it.
 
 ### Build from source
 
