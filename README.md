@@ -13,13 +13,38 @@ This is the Go rewrite of the CLI. The previous TypeScript implementation is kep
 - `internal/docker`: Docker orchestration logic.
 - `internal/container`: Monorepo assets (embedded project skeleton and templates).
 
-## Getting Started
+## Installation
 
-### Prerequisites
+### Automated install script (recommended)
 
-- Go 1.22 or later.
+For Linux (including WSL) and macOS (Apple Silicon), you can install the latest release directly via:
 
-### Building
+```bash
+curl -fsSL https://raw.githubusercontent.com/JCO-Digital/jcore-cli/main/install.sh | sh
+```
+
+Or using `wget`:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/JCO-Digital/jcore-cli/main/install.sh | sh
+```
+
+The script:
+
+1. Installs the latest `jcore` binary to `~/.local/bin/jcore`.
+2. Checks for older `jcore` installations elsewhere in your `PATH`, automatically removing them if user-writable or providing instructions if administrative permissions are required.
+3. Automatically generates and installs shell completions for **Bash**, **Zsh**, and **Fish**.
+4. Alerts you if `~/.local/bin` is not currently in your `PATH` and displays instructions for adding it.
+
+### Build from source
+
+If you prefer building locally:
+
+#### Prerequisites
+
+- Go 1.24 or later.
+
+#### Building
 
 ```bash
 make build
@@ -27,10 +52,16 @@ make build
 
 The binary will be created in `bin/jcore`.
 
+To install the binary to `~/.local/bin` and install shell completions:
+
+```bash
+make install
+```
+
 ### Running
 
 ```bash
-./bin/jcore --help
+jcore --help
 ```
 
 ## Development
