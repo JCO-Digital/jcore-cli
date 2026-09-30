@@ -204,7 +204,7 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 
 		if targets["plugins"] {
 			fmt.Println("Pulling plugins...")
-			if err := project.SyncPlugins(projectDir); err != nil {
+			if err := project.SyncPlugins(projectDir, legacy); err != nil {
 				fmt.Printf("Error syncing plugins: %v\n", err)
 			}
 		}

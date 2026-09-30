@@ -94,6 +94,7 @@ var Settings = []SettingDef{
 	{Key: "pluginInstall", Type: TypeString, Default: "remote", Category: "Plugins", Description: "How plugins are installed: remote (default) or local. \"composer\" is deprecated.", Options: []string{"remote", "local"}},
 	{Key: "pluginExclude", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins excluded from install/sync."},
 	{Key: "pluginGit", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins installed from their own git repository."},
+	{Key: "pluginPullLegacy", Type: TypeBool, Default: false, Category: "Plugins", Description: "Use legacy in-container script (importplugins) for pulling plugins."},
 	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalOnly, Description: "Plugins symlinked from a local checkout."},
 
 	// Deployment

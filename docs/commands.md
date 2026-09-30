@@ -126,8 +126,8 @@ Runs a specific command inside the `wordpress` container.
 Pulls data from the remote environment to the local environment.
 
 - Defaults to `plugins` and `db` if no target is specified.
-- Database pull runs natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container.
-- Can take a `--legacy` flag to fall back to the legacy in-container import script (`.config/scripts/importdb`).
+- Database and plugin pulls run natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container, and syncs plugins via host `rsync`.
+- Can take a `--legacy` flag to fall back to the legacy in-container import scripts (`.config/scripts/importdb` / `importplugins`).
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 
 ## `clone <repository> [name]`
