@@ -11,6 +11,7 @@
 /wp-content/mu-plugins/*
 !/wp-content/mu-plugins/jcore-loader.php
 !/wp-content/mu-plugins/module-loader.php
+!/wp-content/mu-plugins/generic-asset-versioner.php
 !/wp-content/mu-plugins/debug.php
 *.log
 /vendor/
