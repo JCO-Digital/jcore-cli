@@ -41,16 +41,9 @@ func ImportDatabaseLegacy(projectDir string) error {
 // 5. Rotates update.sql to db.sql.
 // 6. Runs wp search-replace in the wordpress container with --skip-plugins --skip-themes.
 func ImportDatabaseNative(projectDir string) error {
-	// Check for custom scripts and inform user
-	hasCustomScripts := false
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "db-before")); err == nil {
-		hasCustomScripts = true
-	}
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "db-after")); err == nil {
-		hasCustomScripts = true
-	}
-	if hasCustomScripts {
-		logging.Warn("Notice: custom-scripts/db-* detected. Set 'dbPullLegacy = true' in jcore.toml or pass '--legacy' to run legacy in-container scripts.")
+	// Execute custom before-script inside container if present
+	if err := RunCustomScript(projectDir, "db-before"); err != nil {
+		return err
 	}
 
 	sqlDir := filepath.Join(projectDir, ".jcore", "sql")
@@ -119,6 +112,11 @@ func ImportDatabaseNative(projectDir string) error {
 		if err := ApplyDomainReplacements(projectDir); err != nil {
 			logging.Warn("Domain replacement warning: %v", err)
 		}
+	}
+
+	// Execute custom after-script inside container if present
+	if err := RunCustomScript(projectDir, "db-after"); err != nil {
+		return err
 	}
 
 	return nil

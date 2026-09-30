@@ -35,15 +35,9 @@ func SyncPluginsLegacy(projectDir string) error {
 
 // SyncPluginsNative syncs plugins from the remote host to the local wp-content/plugins directory using rsync.
 func SyncPluginsNative(projectDir string) error {
-	hasCustomScripts := false
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "plugin-before")); err == nil {
-		hasCustomScripts = true
-	}
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "plugin-after")); err == nil {
-		hasCustomScripts = true
-	}
-	if hasCustomScripts {
-		logging.Warn("Notice: custom-scripts/plugin-* detected. Set 'pluginPullLegacy = true' in jcore.toml or pass '--legacy' to run legacy in-container scripts.")
+	// Execute custom before-script inside container if present
+	if err := RunCustomScript(projectDir, "plugin-before"); err != nil {
+		return err
 	}
 
 	pluginDir := filepath.Join(projectDir, "wp-content", "plugins")
@@ -74,7 +68,16 @@ func SyncPluginsNative(projectDir string) error {
 	KnockIfNeeded()
 
 	pluginExclude := viper.GetStringSlice("pluginExclude")
-	return RunPluginsRsync(remoteHost, remotePath, pluginDir, pluginExclude, pluginGit)
+	if err := RunPluginsRsync(remoteHost, remotePath, pluginDir, pluginExclude, pluginGit); err != nil {
+		return err
+	}
+
+	// Execute custom after-script inside container if present
+	if err := RunCustomScript(projectDir, "plugin-after"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // WritePluginsGitignore generates the wp-content/plugins/.gitignore file from pluginGit.
@@ -179,15 +182,9 @@ func SyncMediaLegacy(projectDir string) error {
 // SyncMediaNative syncs uploads from the remote host to wp-content/uploads using rsync,
 // optionally presenting an interactive folder selection if running in an interactive terminal.
 func SyncMediaNative(projectDir string) error {
-	hasCustomScripts := false
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "media-before")); err == nil {
-		hasCustomScripts = true
-	}
-	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "media-after")); err == nil {
-		hasCustomScripts = true
-	}
-	if hasCustomScripts {
-		logging.Warn("Notice: custom-scripts/media-* detected. Set 'mediaPullLegacy = true' in jcore.toml or pass '--legacy' to run legacy in-container scripts.")
+	// Execute custom before-script inside container if present
+	if err := RunCustomScript(projectDir, "media-before"); err != nil {
+		return err
 	}
 
 	uploadsDir := filepath.Join(projectDir, "wp-content", "uploads")
@@ -230,7 +227,16 @@ func SyncMediaNative(projectDir string) error {
 		}
 	}
 
-	return RunMediaRsync(remoteHost, remotePath, uploadsDir, selectedFolders, totalFolders)
+	if err := RunMediaRsync(remoteHost, remotePath, uploadsDir, selectedFolders, totalFolders); err != nil {
+		return err
+	}
+
+	// Execute custom after-script inside container if present
+	if err := RunCustomScript(projectDir, "media-after"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // FetchRemoteUploadFolders queries the remote server via SSH to list the immediate subfolders of wp-content/uploads.
