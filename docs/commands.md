@@ -5,6 +5,7 @@ This document describes the available commands in JCore CLI.
 ## Global flags
 
 Every command accepts:
+
 - `--verbose`/`-v`: print more output (e.g. which config files were loaded).
 - `--debug`/`-d`: print everything.
 - `--quiet`/`-q`: print only errors.
@@ -17,10 +18,12 @@ With none of these passed, the effective level comes from the persisted
 setting for the current invocation only.
 
 ## `init [name]`
+
 Creates a new JCore project in a new directory (a sibling of the current
 one), named after the project (slugified — `projectName` itself keeps the
 name as given). Prompts interactively for anything not already given via
 the `[name]` argument or `--template`/`--branch`:
+
 - Project name, if `[name]` wasn't given.
 - `--template`/`-t`: which embedded template to scaffold, from the
   template catalog (`jcore3`, `jcore2`, `jcore1`, `blank`). If given
@@ -49,7 +52,7 @@ the `[name]` argument or `--template`/`--branch`:
   `wp-content/plugins/lohko` (see `jcore create block` below).
 - Initializes a git repository, writes `jcore.toml` with `projectName`
   (and `branch`/`theme`, if set), and commits the initial scaffold (`git
-  add -A && git commit`). Also seeds `localDomain` (defaulting to
+add -A && git commit`). Also seeds `localDomain` (defaulting to
   `<slugified-project-name>.localhost`) and `domains` (defaulting to just
   that `localDomain`) if neither is already set — these back the local TLS
   cert and the `wordpress`/`web` containers' hostname(s). Left alone on a
@@ -60,7 +63,9 @@ the `[name]` argument or `--template`/`--branch`:
   that per-environment output isn't part of the project's own history.
 
 ## `start`
+
 Starts the WordPress environment for the current project.
+
 - First runs the same folder/Docker pre-flight checks as `jcore doctor`
   (creating any missing `.jcore`/global folders, checking they're
   writable, and confirming the Docker daemon is reachable) — if either
@@ -93,30 +98,42 @@ Starts the WordPress environment for the current project.
   activate it yourself with `jcore run "wp theme activate <slug>"`.
 
 ## `stop`
+
 Stops every currently running JCore project on the machine (not just the
 current one, and not limited to being run from inside a project) — runs
 `docker compose stop` for each.
 
 ## `attach`
+
 Attaches to the logs of the running containers.
+
 - Runs `docker compose logs -f`.
 
 ## `shell`
+
 Opens a bash shell inside the `wordpress` container.
+
 - Runs `docker compose exec wordpress /bin/bash`.
 
 ## `run <command>`
+
 Runs a specific command inside the `wordpress` container.
+
 - Example: `jcore run "wp plugin list"`
 
 ## `pull [plugins|db|media|all]`
+
 Pulls data from the remote environment to the local environment.
+
 - Defaults to `plugins` and `db` if no target is specified.
-- Executes import scripts inside the `wordpress` container.
+- Database pull runs natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container.
+- Can take a `--legacy` flag to fall back to the legacy in-container import script (`.config/scripts/importdb`).
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 
 ## `clone <repository> [name]`
+
 Clones an existing JCore project from a Git repository.
+
 - If only a name is given, it uses the `projectDefault` setting to construct the Git URL.
 - Initializes submodules, then switches the `wp-content/themes/jcore2` theme
   submodule (if present) to the cloned project's own `branch` setting.
@@ -126,11 +143,15 @@ Clones an existing JCore project from a Git repository.
   `install` setting — see `start`).
 
 ## `update`
+
 Updates the current project files from the template.
+
 - You can specify specific targets to update.
 
 ## `update self`
+
 Updates the JCore CLI binary itself to the latest GitHub release.
+
 - Downloads the release asset matching the current OS/arch, verifies it against
   its detached Ed25519 signature (`<asset>.minisig`), and replaces the running
   executable in place. Aborts without touching the binary if verification fails.
@@ -139,7 +160,7 @@ Updates the JCore CLI binary itself to the latest GitHub release.
 - Every command run does a cheap, non-blocking check for a newer release (at
   most once every 24h): if one is due, a detached background process performs
   it and records the result, so it never adds latency to the command you
-  actually ran. If a newer version was found, the *next* invocation prints a
+  actually ran. If a newer version was found, the _next_ invocation prints a
   one-line notice suggesting `jcore update self`.
 - Set `JCORE_NO_UPDATE_CHECK=1` to disable this check entirely (e.g. in CI).
 - On every successful run (whether it actually updated the binary or found
@@ -148,10 +169,11 @@ Updates the JCore CLI binary itself to the latest GitHub release.
   to the same paths `make install-completions` uses. This is best-effort and
   never fails the update itself. Note that zsh only picks these up
   automatically if that directory is already on `$fpath` (e.g. via `make
-  install-completions`, which the project doesn't set up automatically) —
+install-completions`, which the project doesn't set up automatically) —
   bash (with the bash-completion framework) and fish work out of the box.
 
 ## `config`
+
 Manages configuration settings. Settings live in one of three TOML files:
 global (`~/.config/jcore/config.toml`), project (`<project>/jcore.toml`), or
 local (`<project>/.localConfig.toml`, meant for gitignored per-checkout
@@ -160,12 +182,14 @@ global-only and can't be set at project scope.
 
 Any of these files can also contain a `[branch-<name>]` table to override
 settings only while that git branch is checked out, e.g.:
+
 ```toml
 remoteHost = "prod.example.com"
 
 [branch-staging]
 remoteHost = "staging.example.com"
 ```
+
 This applies everywhere settings are read — the actual running commands,
 `jcore config list`, and `jcore config edit` — not just for display. The
 `config set`/`unset` CLI is hand-edit-only for branch tables (it always
@@ -192,9 +216,9 @@ the rule below.
   bool setting accepts `true`/`yes`/`on`/`y`/`t`/`1` (case-insensitive) as
   true and anything else as false — it never errors on an unrecognized
   value.
-    - Special pseudo-setters:
-        - `wpe <name>`: Sets up WP Engine remote settings.
-        - `php <version>`: Sets the WordPress PHP image version.
+  - Special pseudo-setters:
+    - `wpe <name>`: Sets up WP Engine remote settings.
+    - `php <version>`: Sets the WordPress PHP image version.
 - `jcore config unset <key>`: Removes a configuration setting from the
   targeted scope's file.
 - `jcore config edit`: Opens a full-screen interactive editor listing every
@@ -230,19 +254,25 @@ remote` (or `local`, or via `config edit`), or pass the global
 `--letmebreakthings` flag to proceed anyway.
 
 ## `checksum`
+
 Manages file checksums to track changes in core files.
+
 - `jcore checksum list`: Lists files and their checksum status (OK, Changed, Missing).
 - `jcore checksum set <file1> <file2> ...`: Sets the current checksum for the specified files.
 
 ## `doctor`
+
 Checks the system for potential issues.
+
 - Verifies that necessary folders exist and have correct permissions.
 - Checks if required external commands (like `docker`, `git`) are installed and available.
 
 ## `migrate`
+
 Migrates a legacy JCore project to the current format.
 
 ## `create`
+
 - `jcore create block`: If Lohko isn't installed yet, offers to install it
   (downloaded fresh from GitHub into `wp-content/plugins/lohko`) and lets
   you pick which of its bundled example blocks to keep — any left
@@ -252,9 +282,11 @@ Migrates a legacy JCore project to the current format.
 - `jcore create user`: Prompts to create a new WordPress user in the running environment.
 
 ## `status`
+
 Shows which JCore projects are currently running.
 
 ## `clean [all|docker]`
+
 - `jcore clean`: Cleans containers and volumes for the current project.
 - `jcore clean all`: Cleans all non-running JCore projects and prunes Docker.
 - `jcore clean docker`: Prunes Docker containers, images, volumes, and networks.

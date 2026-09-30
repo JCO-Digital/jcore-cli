@@ -80,6 +80,7 @@ var Settings = []SettingDef{
 	// Database
 	{Key: "dbPrefix", Type: TypeString, Default: "wp_", Category: "Database", Description: "Database table prefix."},
 	{Key: "dbExclude", Type: TypeStringSlice, Category: "Database", Description: "Database tables excluded when pulling/pushing."},
+	{Key: "dbPullLegacy", Type: TypeBool, Default: false, Category: "Database", Description: "Use legacy in-container script (importdb) for pulling database."},
 	{Key: "wpDbName", Type: TypeString, Category: "Database", Description: "Remote database name override."},
 	{Key: "wpDbUser", Type: TypeString, Category: "Database", Description: "Remote database user override."},
 	{Key: "wpDbPassword", Type: TypeString, Category: "Database", Sensitive: true, Description: "Remote database password override."},

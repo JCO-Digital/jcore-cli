@@ -200,6 +200,8 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 			return
 		}
 
+		legacy, _ := cmd.Flags().GetBool("legacy")
+
 		if targets["plugins"] {
 			fmt.Println("Pulling plugins...")
 			if err := project.SyncPlugins(projectDir); err != nil {
@@ -209,7 +211,7 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 
 		if targets["db"] {
 			fmt.Println("Pulling database...")
-			if err := project.ImportDatabase(projectDir); err != nil {
+			if err := project.ImportDatabase(projectDir, legacy); err != nil {
 				fmt.Printf("Error importing database: %v\n", err)
 			}
 		}
@@ -300,4 +302,5 @@ func init() {
 	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	startCmd.Flags().BoolP("force", "f", false, "Stop any other running JCore project first")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
+	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")
 }

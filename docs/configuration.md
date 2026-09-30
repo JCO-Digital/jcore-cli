@@ -17,6 +17,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `template`       | string  | `"jcore3"`                                | The project template to use.                                                                          |
 | `dbExclude`      | array   | `[]`                                      | Tables to exclude from database imports/exports. Names may be given with or without the table prefix. |
 | `dbPrefix`       | string  | `"wp_"`                                   | WordPress database table prefix.                                                                      |
+| `dbPullLegacy`   | boolean | `false`                                   | Use legacy in-container script (`importdb`) for pulling database.                                     |
 | `debug`          | boolean | `false`                                   | Enable CLI debug logging.                                                                             |
 | `domains`        | array   | `[]`                                      | List of domains for the project.                                                                      |
 | `install`        | boolean | `true`                                    | Whether to run installation/setup steps on start.                                                     |
