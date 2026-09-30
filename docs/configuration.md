@@ -25,6 +25,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `knockdTimeout`    | number  | `60`                                      | Timeout in seconds to assume knocked port remains open.                                               |
 | `localDomain`      | string  | `""`                                      | The domain used for local development.                                                                |
 | `logLevel`         | number  | `2`                                       | Logging verbosity (0: error, 1: warn, 2: info, 3: verbose, 4: debug).                                 |
+| `mediaPullLegacy`  | boolean | `false`                                   | Use legacy in-container script (`importmedia`) for pulling media.                                     |
 | `mode`             | string  | `"foreground"`                            | Docker run mode (`foreground` or `background`).                                                       |
 | `pluginExclude`    | array   | `[]`                                      | Plugins to exclude from syncing.                                                                      |
 | `pluginGit`        | array   | `[]`                                      | Plugins to be managed via Git submodules.                                                             |

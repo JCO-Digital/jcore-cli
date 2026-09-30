@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -77,6 +78,70 @@ func TestBuildPluginsRsyncArgs(t *testing.T) {
 	// Verify source and dest
 	expectedSrc := "user@server.example.com:/var/www/site/wp-content/plugins/"
 	expectedDest := "/tmp/project/wp-content/plugins/"
+	if args[len(args)-2] != expectedSrc {
+		t.Errorf("expected src %q, got %q", expectedSrc, args[len(args)-2])
+	}
+	if args[len(args)-1] != expectedDest {
+		t.Errorf("expected dest %q, got %q", expectedDest, args[len(args)-1])
+	}
+}
+
+func TestSortUploadFolders(t *testing.T) {
+	input := []string{"2021", "woocommerce_uploads", "2024", "elementor", "2026", "2020", "cache"}
+	expected := []string{"2026", "2024", "2021", "2020", "cache", "elementor", "woocommerce_uploads"}
+
+	actual := SortUploadFolders(input)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("SortUploadFolders() = %v, want %v", actual, expected)
+	}
+}
+
+func TestBuildMediaRsyncArgs_FullSync(t *testing.T) {
+	remoteHost := "user@server.example.com"
+	remotePath := "/var/www/site"
+	uploadsDir := "/tmp/project/wp-content/uploads"
+	folders := []string{"2025", "2026"}
+
+	// When all folders are selected, no --include/--exclude=*/ rules should be added
+	args, err := BuildMediaRsyncArgs(remoteHost, remotePath, uploadsDir, folders, 2)
+	if err != nil {
+		t.Fatalf("BuildMediaRsyncArgs failed: %v", err)
+	}
+
+	if slices.Contains(args, "--exclude=*/") {
+		t.Errorf("expected full sync to not contain '--exclude=*/', got %v", args)
+	}
+	if !slices.Contains(args, "--exclude=wp-migrate-db") {
+		t.Errorf("expected '--exclude=wp-migrate-db' in args, got %v", args)
+	}
+}
+
+func TestBuildMediaRsyncArgs_FilteredSync(t *testing.T) {
+	remoteHost := "user@server.example.com:2222"
+	remotePath := "/var/www/site"
+	uploadsDir := "/tmp/project/wp-content/uploads"
+	selected := []string{"2026", "woocommerce_uploads"}
+
+	// 2 of 5 folders selected
+	args, err := BuildMediaRsyncArgs(remoteHost, remotePath, uploadsDir, selected, 5)
+	if err != nil {
+		t.Fatalf("BuildMediaRsyncArgs failed: %v", err)
+	}
+
+	expectedIncludes := []string{
+		"--include=2026/***",
+		"--include=woocommerce_uploads/***",
+		"--exclude=*/",
+	}
+	for _, inc := range expectedIncludes {
+		if !slices.Contains(args, inc) {
+			t.Errorf("expected %q in args, got %v", inc, args)
+		}
+	}
+
+	// Verify source and dest
+	expectedSrc := "user@server.example.com:/var/www/site/wp-content/uploads/"
+	expectedDest := "/tmp/project/wp-content/uploads/"
 	if args[len(args)-2] != expectedSrc {
 		t.Errorf("expected src %q, got %q", expectedSrc, args[len(args)-2])
 	}

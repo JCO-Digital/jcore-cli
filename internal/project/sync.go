@@ -6,12 +6,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/internal/docker"
 	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/spf13/viper"
 )
+
+var yearRegex = regexp.MustCompile(`^\d{4}$`)
 
 // SyncPlugins runs the plugin synchronization, either natively from the host via rsync
 // or falls back to the container's importplugins script if legacy is true or pluginPullLegacy is configured.
@@ -155,11 +160,231 @@ func RunPluginsRsync(remoteHost, remotePath, pluginDir string, pluginExclude, pl
 	return nil
 }
 
-// SyncMedia runs the container's importmedia script, which rsyncs uploads
-// from the configured remote host.
-func SyncMedia(projectDir string) error {
+// SyncMedia runs the media synchronization, either natively from the host via rsync
+// (with interactive upload folder selection) or falls back to the container's importmedia
+// script if legacy is true or mediaPullLegacy is configured.
+func SyncMedia(projectDir string, legacy bool) error {
+	if legacy || viper.GetBool("mediaPullLegacy") {
+		return SyncMediaLegacy(projectDir)
+	}
+	return SyncMediaNative(projectDir)
+}
+
+// SyncMediaLegacy runs the container's importmedia script inside the wordpress container.
+func SyncMediaLegacy(projectDir string) error {
 	KnockIfNeeded()
 	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importmedia"})
+}
+
+// SyncMediaNative syncs uploads from the remote host to wp-content/uploads using rsync,
+// optionally presenting an interactive folder selection if running in an interactive terminal.
+func SyncMediaNative(projectDir string) error {
+	hasCustomScripts := false
+	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "media-before")); err == nil {
+		hasCustomScripts = true
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, "custom-scripts", "media-after")); err == nil {
+		hasCustomScripts = true
+	}
+	if hasCustomScripts {
+		logging.Warn("Notice: custom-scripts/media-* detected. Set 'mediaPullLegacy = true' in jcore.toml or pass '--legacy' to run legacy in-container scripts.")
+	}
+
+	uploadsDir := filepath.Join(projectDir, "wp-content", "uploads")
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create uploads directory: %w", err)
+	}
+
+	remoteHost := viper.GetString("remoteHost")
+	if remoteHost == "" {
+		return errors.New("remoteHost is not configured in jcore.toml")
+	}
+	remotePath := viper.GetString("remotePath")
+	if remotePath == "" {
+		return errors.New("remotePath is not configured in jcore.toml")
+	}
+
+	KnockIfNeeded()
+
+	var selectedFolders []string
+	var totalFolders int
+
+	// In an interactive terminal, fetch remote upload folders and prompt user
+	if isTerminal() {
+		fmt.Println("Discovering remote upload folders...")
+		folders, err := FetchRemoteUploadFolders(remoteHost, remotePath)
+		if err != nil {
+			logging.Verbose("Could not list remote upload folders: %v (syncing all)", err)
+		} else if len(folders) > 0 {
+			totalFolders = len(folders)
+			sorted := SortUploadFolders(folders)
+			selected, err := PromptSelectUploadFolders(sorted)
+			if err != nil {
+				return err
+			}
+			if len(selected) == 0 {
+				fmt.Println("No upload folders selected, skipping media sync.")
+				return nil
+			}
+			selectedFolders = selected
+		}
+	}
+
+	return RunMediaRsync(remoteHost, remotePath, uploadsDir, selectedFolders, totalFolders)
+}
+
+// FetchRemoteUploadFolders queries the remote server via SSH to list the immediate subfolders of wp-content/uploads.
+func FetchRemoteUploadFolders(remoteHost, remotePath string) ([]string, error) {
+	host, port := ParseSSHHostPort(remoteHost)
+	if host == "" {
+		return nil, errors.New("remoteHost is empty")
+	}
+	if remotePath == "" {
+		return nil, errors.New("remotePath is empty")
+	}
+
+	remoteCmd := fmt.Sprintf("cd '%s/wp-content/uploads' 2>/dev/null && for d in */; do [ -d \"$d\" ] && echo \"${d%%/}\"; done", strings.TrimRight(remotePath, "/"))
+
+	sshArgs := []string{
+		"-T",
+		"-o", "ConnectTimeout=10",
+	}
+	if port != "" {
+		sshArgs = append(sshArgs, "-p", port)
+	}
+	sshArgs = append(sshArgs, host, remoteCmd)
+
+	cmd := exec.Command("ssh", sshArgs...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var folders []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && line != "wp-migrate-db" {
+			folders = append(folders, line)
+		}
+	}
+	return folders, nil
+}
+
+// SortUploadFolders sorts year folders (e.g. 2026, 2025, 2024) descending first,
+// followed by other folders alphabetically.
+func SortUploadFolders(folders []string) []string {
+	var years []string
+	var others []string
+
+	for _, f := range folders {
+		if yearRegex.MatchString(f) {
+			years = append(years, f)
+		} else {
+			others = append(others, f)
+		}
+	}
+
+	// Sort years descending (newest first)
+	sort.Slice(years, func(i, j int) bool {
+		return years[i] > years[j]
+	})
+
+	// Sort others alphabetically
+	sort.Strings(others)
+
+	return append(years, others...)
+}
+
+// PromptSelectUploadFolders presents an interactive checklist for the user to select which folders to sync.
+func PromptSelectUploadFolders(folders []string) ([]string, error) {
+	var selected []string
+	prompt := &survey.MultiSelect{
+		Message:  "Select upload folders to sync:",
+		Options:  folders,
+		Default:  folders, // pre-select all so Enter syncs everything
+		PageSize: 15,
+	}
+	if err := survey.AskOne(prompt, &selected); err != nil {
+		return nil, err
+	}
+	return selected, nil
+}
+
+// BuildMediaRsyncArgs constructs the arguments for media rsync.
+func BuildMediaRsyncArgs(remoteHost, remotePath, uploadsDir string, selectedFolders []string, totalFolderCount int) ([]string, error) {
+	host, port := ParseSSHHostPort(remoteHost)
+	if host == "" {
+		return nil, errors.New("remoteHost is empty")
+	}
+	if remotePath == "" {
+		return nil, errors.New("remotePath is empty")
+	}
+
+	sshCmd := "ssh -T -o ConnectTimeout=10"
+	if port != "" {
+		sshCmd = fmt.Sprintf("ssh -T -o ConnectTimeout=10 -p %s", port)
+	}
+
+	args := []string{
+		"-r",
+		"--delete",
+		"--info=progress2",
+		"--no-inc-recursive",
+		"-e", sshCmd,
+		"--exclude=wp-migrate-db",
+	}
+
+	// If a subset of folders was selected, include those folders and exclude other dirs
+	if len(selectedFolders) > 0 && (totalFolderCount == 0 || len(selectedFolders) < totalFolderCount) {
+		for _, folder := range selectedFolders {
+			folder = strings.TrimSpace(folder)
+			if folder != "" {
+				args = append(args, fmt.Sprintf("--include=%s/***", folder))
+			}
+		}
+		// Exclude all other subdirectories in uploads
+		args = append(args, "--exclude=*/")
+	}
+
+	src := fmt.Sprintf("%s:%s/wp-content/uploads/", host, strings.TrimRight(remotePath, "/"))
+	dest := filepath.Clean(uploadsDir) + "/"
+
+	args = append(args, src, dest)
+	return args, nil
+}
+
+// RunMediaRsync executes rsync for wp-content/uploads on the host.
+func RunMediaRsync(remoteHost, remotePath, uploadsDir string, selectedFolders []string, totalFolderCount int) error {
+	if _, err := exec.LookPath("rsync"); err != nil {
+		return fmt.Errorf("rsync not found on host: %w (install rsync, or use --legacy to run in container)", err)
+	}
+
+	args, err := BuildMediaRsyncArgs(remoteHost, remotePath, uploadsDir, selectedFolders, totalFolderCount)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Syncing media")
+	cmd := exec.Command("rsync", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("media sync failed: %w", err)
+	}
+
+	fmt.Println("Media synced")
+	return nil
+}
+
+func isTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
 // InstallLocalPlugins runs the container's installplugins script, which
