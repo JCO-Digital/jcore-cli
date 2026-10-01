@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - beta
       - "push-action/**"
   workflow_dispatch:
 
@@ -35,6 +36,7 @@ jobs:
           command: "auto"
           changelog: "true"
           push: "true"
+          prerelease: ${{ github.ref == 'refs/heads/beta' }}
 
       - name: Build Release Binaries
         # Re-build now that the new tag exists, so the version is embedded correctly
