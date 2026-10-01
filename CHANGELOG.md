@@ -1,5 +1,20 @@
 # Changelog
 
+### v3.23.0-beta.1 (2026-10-01)
+
+#### Features
+
+- project: execute custom scripts natively during sync and import tasks (eedc819)
+- project: support native host rsync for media synchronization (b077c23)
+- project: implement native host-side plugin pulling with rsync (50521aa)
+- project: add native database pulling and legacy fallback support (ceffbe2)
+- plugin: add generic asset versioner mu-plugin (e66ffed)
+
+#### Continuous Integration
+
+- github: add support for beta branch releases (3ab9ccb)
+- github: update foonver action to v1.1.0 (3363343)
+
 ### v3.22.1 (2026-09-23)
 
 #### Build System
