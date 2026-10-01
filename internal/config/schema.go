@@ -77,6 +77,7 @@ var Settings = []SettingDef{
 	{Key: "wpDebugLog", Type: TypeBool, Default: false, Category: "WordPress", Description: "Enable WP_DEBUG_LOG."},
 	{Key: "wpDebugDisplay", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG_DISPLAY."},
 	{Key: "mediaPullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importmedia) for pulling media."},
+	{Key: "themePullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importthemes) for pulling themes."},
 
 	// Database
 	{Key: "dbPrefix", Type: TypeString, Default: "wp_", Category: "Database", Description: "Database table prefix."},

@@ -398,3 +398,199 @@ func isTerminal() bool {
 func InstallLocalPlugins(projectDir string) error {
 	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/installplugins"})
 }
+
+// SyncThemes runs theme synchronization, either natively from the host via rsync
+// (with interactive theme folder selection) or falls back to the container's importthemes
+// script if legacy is true or themePullLegacy is configured.
+func SyncThemes(projectDir string, legacy bool) error {
+	if legacy || viper.GetBool("themePullLegacy") {
+		return SyncThemesLegacy(projectDir)
+	}
+	return SyncThemesNative(projectDir)
+}
+
+// SyncThemesLegacy runs the container's importthemes script inside the wordpress container.
+func SyncThemesLegacy(projectDir string) error {
+	KnockIfNeeded()
+	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importthemes"})
+}
+
+// SyncThemesNative syncs themes from the remote host to wp-content/themes using rsync,
+// optionally presenting an interactive folder selection if running in an interactive terminal.
+func SyncThemesNative(projectDir string) error {
+	// Execute custom before-script inside container if present
+	if err := RunCustomScript(projectDir, "theme-before"); err != nil {
+		return err
+	}
+
+	themesDir := filepath.Join(projectDir, "wp-content", "themes")
+	if err := os.MkdirAll(themesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create themes directory: %w", err)
+	}
+
+	remoteHost := viper.GetString("remoteHost")
+	if remoteHost == "" {
+		return errors.New("remoteHost is not configured in jcore.toml")
+	}
+	remotePath := viper.GetString("remotePath")
+	if remotePath == "" {
+		return errors.New("remotePath is not configured in jcore.toml")
+	}
+
+	KnockIfNeeded()
+
+	var selectedThemes []string
+	var totalThemes int
+
+	// In an interactive terminal, fetch remote theme folders and prompt user
+	if isTerminal() {
+		fmt.Println("Discovering remote theme folders...")
+		folders, err := FetchRemoteThemeFolders(remoteHost, remotePath)
+		if err != nil {
+			logging.Verbose("Could not list remote theme folders: %v (syncing all)", err)
+		} else if len(folders) > 0 {
+			totalThemes = len(folders)
+			sort.Strings(folders)
+			selected, err := PromptSelectThemeFolders(folders)
+			if err != nil {
+				return err
+			}
+			if len(selected) == 0 {
+				fmt.Println("No theme folders selected, skipping theme sync.")
+				return nil
+			}
+			selectedThemes = selected
+		}
+	}
+
+	if err := RunThemesRsync(remoteHost, remotePath, themesDir, selectedThemes, totalThemes); err != nil {
+		return err
+	}
+
+	// Execute custom after-script inside container if present
+	if err := RunCustomScript(projectDir, "theme-after"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// FetchRemoteThemeFolders queries the remote server via SSH to list the immediate subfolders of wp-content/themes.
+func FetchRemoteThemeFolders(remoteHost, remotePath string) ([]string, error) {
+	host, port := ParseSSHHostPort(remoteHost)
+	if host == "" {
+		return nil, errors.New("remoteHost is empty")
+	}
+	if remotePath == "" {
+		return nil, errors.New("remotePath is empty")
+	}
+
+	remoteCmd := fmt.Sprintf("cd '%s/wp-content/themes' 2>/dev/null && for d in */; do [ -d \"$d\" ] && echo \"${d%%%%/}\"; done", strings.TrimRight(remotePath, "/"))
+
+	sshArgs := []string{
+		"-T",
+		"-o", "ConnectTimeout=10",
+	}
+	if port != "" {
+		sshArgs = append(sshArgs, "-p", port)
+	}
+	sshArgs = append(sshArgs, host, remoteCmd)
+
+	cmd := exec.Command("ssh", sshArgs...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var folders []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "twenty") {
+			folders = append(folders, line)
+		}
+	}
+	return folders, nil
+}
+
+// PromptSelectThemeFolders presents an interactive checklist for the user to select which themes to sync.
+func PromptSelectThemeFolders(folders []string) ([]string, error) {
+	var selected []string
+	prompt := &survey.MultiSelect{
+		Message:  "Select theme folders to sync:",
+		Options:  folders,
+		PageSize: 15,
+	}
+	if err := survey.AskOne(prompt, &selected); err != nil {
+		return nil, err
+	}
+	return selected, nil
+}
+
+// BuildThemesRsyncArgs constructs the arguments for theme rsync.
+func BuildThemesRsyncArgs(remoteHost, remotePath, themesDir string, selectedThemes []string, totalThemeCount int) ([]string, error) {
+	host, port := ParseSSHHostPort(remoteHost)
+	if host == "" {
+		return nil, errors.New("remoteHost is empty")
+	}
+	if remotePath == "" {
+		return nil, errors.New("remotePath is empty")
+	}
+
+	sshCmd := "ssh -T -o ConnectTimeout=10"
+	if port != "" {
+		sshCmd = fmt.Sprintf("ssh -T -o ConnectTimeout=10 -p %s", port)
+	}
+
+	args := []string{
+		"-r",
+		"--delete",
+		"--info=progress2",
+		"--no-inc-recursive",
+		"-e", sshCmd,
+		"--exclude=twenty*",
+	}
+
+	// If a subset of themes was selected, include those themes and exclude other dirs
+	if len(selectedThemes) > 0 && (totalThemeCount == 0 || len(selectedThemes) < totalThemeCount) {
+		for _, theme := range selectedThemes {
+			theme = strings.TrimSpace(theme)
+			if theme != "" {
+				args = append(args, fmt.Sprintf("--include=%s/***", theme))
+			}
+		}
+		// Exclude all other subdirectories in themes
+		args = append(args, "--exclude=*/")
+	}
+
+	src := fmt.Sprintf("%s:%s/wp-content/themes/", host, strings.TrimRight(remotePath, "/"))
+	dest := filepath.Clean(themesDir) + "/"
+
+	args = append(args, src, dest)
+	return args, nil
+}
+
+// RunThemesRsync executes rsync for wp-content/themes on the host.
+func RunThemesRsync(remoteHost, remotePath, themesDir string, selectedThemes []string, totalThemeCount int) error {
+	if _, err := exec.LookPath("rsync"); err != nil {
+		return fmt.Errorf("rsync not found on host: %w (install rsync, or use --legacy to run in container)", err)
+	}
+
+	args, err := BuildThemesRsyncArgs(remoteHost, remotePath, themesDir, selectedThemes, totalThemeCount)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Syncing themes")
+	cmd := exec.Command("rsync", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("theme sync failed: %w", err)
+	}
+
+	fmt.Println("Themes synced")
+	return nil
+}

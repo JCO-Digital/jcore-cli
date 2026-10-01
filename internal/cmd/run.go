@@ -152,7 +152,7 @@ func runningProjects() ([]project.DockerProject, error) {
 
 // pullCmd represents the pull command
 var pullCmd = &cobra.Command{
-	Use:   "pull [db|plugins|media|all]",
+	Use:   "pull [db|plugins|media|themes|all]",
 	Short: "Sync content from upstream",
 	Long: `Pulls data from the remote environment to the local environment.
 If no target is specified, it defaults to pulling the database and plugins.`,
@@ -174,6 +174,7 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 					targets["db"] = true
 					targets["plugins"] = true
 					targets["media"] = true
+					targets["themes"] = true
 				} else {
 					targets[arg] = true
 				}
@@ -206,6 +207,13 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 			fmt.Println("Pulling plugins...")
 			if err := project.SyncPlugins(projectDir, legacy); err != nil {
 				fmt.Printf("Error syncing plugins: %v\n", err)
+			}
+		}
+
+		if targets["themes"] {
+			fmt.Println("Pulling themes...")
+			if err := project.SyncThemes(projectDir, legacy); err != nil {
+				fmt.Printf("Error syncing themes: %v\n", err)
 			}
 		}
 

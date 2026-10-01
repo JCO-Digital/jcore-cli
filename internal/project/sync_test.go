@@ -149,3 +149,53 @@ func TestBuildMediaRsyncArgs_FilteredSync(t *testing.T) {
 		t.Errorf("expected dest %q, got %q", expectedDest, args[len(args)-1])
 	}
 }
+
+func TestBuildThemesRsyncArgs_FullSync(t *testing.T) {
+	remoteHost := "user@server.example.com"
+	remotePath := "/var/www/site"
+	themesDir := "/tmp/project/wp-content/themes"
+	themes := []string{"jcore-ilme", "custom-child"}
+
+	args, err := BuildThemesRsyncArgs(remoteHost, remotePath, themesDir, themes, 2)
+	if err != nil {
+		t.Fatalf("BuildThemesRsyncArgs failed: %v", err)
+	}
+
+	if slices.Contains(args, "--exclude=*/") {
+		t.Errorf("expected full sync to not contain '--exclude=*/', got %v", args)
+	}
+	if !slices.Contains(args, "--exclude=twenty*") {
+		t.Errorf("expected '--exclude=twenty*' in args, got %v", args)
+	}
+}
+
+func TestBuildThemesRsyncArgs_FilteredSync(t *testing.T) {
+	remoteHost := "user@server.example.com:2222"
+	remotePath := "/var/www/site"
+	themesDir := "/tmp/project/wp-content/themes"
+	selected := []string{"jcore-ilme"}
+
+	args, err := BuildThemesRsyncArgs(remoteHost, remotePath, themesDir, selected, 3)
+	if err != nil {
+		t.Fatalf("BuildThemesRsyncArgs failed: %v", err)
+	}
+
+	expectedIncludes := []string{
+		"--include=jcore-ilme/***",
+		"--exclude=*/",
+	}
+	for _, inc := range expectedIncludes {
+		if !slices.Contains(args, inc) {
+			t.Errorf("expected %q in args, got %v", inc, args)
+		}
+	}
+
+	expectedSrc := "user@server.example.com:/var/www/site/wp-content/themes/"
+	expectedDest := "/tmp/project/wp-content/themes/"
+	if args[len(args)-2] != expectedSrc {
+		t.Errorf("expected src %q, got %q", expectedSrc, args[len(args)-2])
+	}
+	if args[len(args)-1] != expectedDest {
+		t.Errorf("expected dest %q, got %q", expectedDest, args[len(args)-1])
+	}
+}

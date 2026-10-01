@@ -121,13 +121,13 @@ Runs a specific command inside the `wordpress` container.
 
 - Example: `jcore run "wp plugin list"`
 
-## `pull [plugins|db|media|all]`
+## `pull [plugins|db|media|themes|all]`
 
 Pulls data from the remote environment to the local environment.
 
 - Defaults to `plugins` and `db` if no target is specified.
-- Database, plugin, and media pulls run natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container, and syncs plugins and uploads via host `rsync`.
-- When pulling media, interactively prompts with a checklist to select which upload folders to sync (e.g. specific years or plugin upload folders).
+- Database, plugin, media, and theme pulls run natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container, and syncs plugins, uploads, and themes via host `rsync`.
+- When pulling media or themes, interactively prompts with a checklist to select which folders to sync.
 - Can take a `--legacy` flag to fall back to the legacy in-container import scripts (`.config/scripts/import*`).
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 

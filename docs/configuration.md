@@ -39,6 +39,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `remotePath`       | string  | `""`                                      | File path on the remote host.                                                                         |
 | `replace`          | array   | `[]`                                      | String replacements to perform during database import.                                                |
 | `theme`            | string  | `""`                                      | The name of the active WordPress theme.                                                               |
+| `themePullLegacy`  | boolean | `false`                                   | Use legacy in-container script (`importthemes`) for pulling themes.                                   |
 | `wpDebug`          | boolean | `true`                                    | Enable `WP_DEBUG` in WordPress.                                                                       |
 | `wpDebugDisplay`   | boolean | `true`                                    | Enable `WP_DEBUG_DISPLAY` in WordPress.                                                               |
 | `wpDebugLog`       | boolean | `false`                                   | Enable `WP_DEBUG_LOG` in WordPress.                                                                   |
