@@ -73,6 +73,7 @@ them all as-is, or select the ones you want overwritten.`,
 var (
 	selfUpdateForce     bool
 	selfUpdateCheckOnly bool
+	selfUpdateBeta      bool
 )
 
 // updateSelfCmd represents the update self command
@@ -103,7 +104,12 @@ this platform, verifies its signature, and replaces the running executable.`,
 			os.Exit(1)
 		}
 
-		latest, downloadURL, sigURL, available, err := update.CheckForUpdate(config.AppVersion)
+		includeBeta := update.IsPrerelease(config.AppVersion)
+		if cmd.Flags().Changed("beta") {
+			includeBeta = selfUpdateBeta
+		}
+
+		latest, downloadURL, sigURL, available, err := update.CheckForUpdate(config.AppVersion, includeBeta)
 		if err != nil {
 			fmt.Printf("Error checking for updates: %v\n", err)
 			os.Exit(1)
@@ -155,6 +161,7 @@ func init() {
 	updateCmd.AddCommand(updateSelfCmd)
 
 	updateSelfCmd.Flags().BoolVarP(&selfUpdateForce, "force", "f", false, "Reinstall even if already on the latest version, skip confirmation")
+	updateSelfCmd.Flags().BoolVar(&selfUpdateBeta, "beta", false, "Include pre-release/beta versions")
 	updateSelfCmd.Flags().BoolVar(&selfUpdateCheckOnly, "check-only", false, "Only check for an update and record the result (used internally)")
 	_ = updateSelfCmd.Flags().MarkHidden("check-only")
 }
