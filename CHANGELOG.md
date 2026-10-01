@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.0-beta.1 (2026-10-01)
+
+#### Maintenance
+
+- update configuration and remove obsolete script (054e55b)
+
 ### v3.23.0-beta.1 (2026-10-01)
 
 #### Features
