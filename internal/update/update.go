@@ -28,6 +28,9 @@ const Repo = "JCO-Digital/jcore-cli"
 // LatestReleaseURL is the GitHub API endpoint for the latest release.
 const LatestReleaseURL = "https://api.github.com/repos/" + Repo + "/releases/latest"
 
+// ReleasesListURL is the GitHub API endpoint for recent releases.
+const ReleasesListURL = "https://api.github.com/repos/" + Repo + "/releases"
+
 // maxDownloadSize caps how much data will be read from a release asset, to
 // bound memory/disk use if an upstream host is compromised or misbehaves.
 const maxDownloadSize = 200 * 1024 * 1024 // 200 MiB
@@ -41,9 +44,11 @@ var allowedDownloadHosts = []string{"github.com", "objects.githubusercontent.com
 
 // Release is the subset of the GitHub release API response used here.
 type Release struct {
-	TagName string  `json:"tag_name"`
-	HTMLURL string  `json:"html_url"`
-	Assets  []Asset `json:"assets"`
+	TagName    string  `json:"tag_name"`
+	HTMLURL    string  `json:"html_url"`
+	Draft      bool    `json:"draft"`
+	Prerelease bool    `json:"prerelease"`
+	Assets     []Asset `json:"assets"`
 }
 
 // Asset is a single GitHub release asset.
@@ -85,6 +90,75 @@ func GetLatestRelease(apiURL string) (*Release, error) {
 	return &release, nil
 }
 
+// GetReleases fetches recent releases from the GitHub API.
+func GetReleases(apiURL string) ([]Release, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch releases: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch releases: received status code %d", resp.StatusCode)
+	}
+
+	var releases []Release
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+		return nil, fmt.Errorf("failed to decode release data: %w", err)
+	}
+
+	return releases, nil
+}
+
+// SelectBestRelease returns the release with the highest semantic version
+// among those that contain binary and signature assets for the current platform.
+// If includeBeta is false, pre-releases are ignored.
+func SelectBestRelease(releases []Release, includeBeta bool) *Release {
+	assetName := AssetName()
+	sigName := assetName + ".minisig"
+
+	var bestRelease *Release
+	var bestVersion *hcversion.Version
+
+	for i := range releases {
+		r := &releases[i]
+		if r.Draft {
+			continue
+		}
+		if !includeBeta && r.Prerelease {
+			continue
+		}
+
+		hasAsset := false
+		hasSig := false
+		for _, asset := range r.Assets {
+			if asset.Name == assetName {
+				hasAsset = true
+			} else if asset.Name == sigName {
+				hasSig = true
+			}
+		}
+		if !hasAsset || !hasSig {
+			continue
+		}
+
+		tag := redundantVPrefix.ReplaceAllString(r.TagName, "v")
+		v, err := hcversion.NewVersion(tag)
+		if err != nil {
+			continue
+		}
+
+		if bestVersion == nil || v.GreaterThan(bestVersion) {
+			bestVersion = v
+			bestRelease = r
+		}
+	}
+
+	return bestRelease
+}
+
 // devSuffix matches the "-<n>-g<hash>[-dirty]" suffix `git describe --tags
 // --always --dirty` appends to the nearest tag when built from a commit
 // that isn't itself tagged (see Makefile's LDFLAGS). Semver treats a
@@ -100,6 +174,21 @@ var devSuffix = regexp.MustCompile(`-\d+-g[0-9a-fA-F]+(-dirty)?$`)
 // already accepts a single leading "v" itself; this only handles doubling
 // up on top of that.
 var redundantVPrefix = regexp.MustCompile(`^v+`)
+
+// IsPrerelease reports whether the given version string represents a
+// pre-release or beta version (e.g. "v4.0.0-beta.1", "4.0.0-beta", etc.).
+func IsPrerelease(version string) bool {
+	cleaned := devSuffix.ReplaceAllString(version, "")
+	cleaned = redundantVPrefix.ReplaceAllString(cleaned, "v")
+
+	v, err := hcversion.NewVersion(cleaned)
+	if err == nil {
+		return v.Prerelease() != ""
+	}
+
+	lower := strings.ToLower(version)
+	return strings.Contains(lower, "beta") || strings.Contains(lower, "alpha") || strings.Contains(lower, "rc")
+}
 
 // IsNewer reports whether latestVersion is a greater semantic version than
 // currentVersion. If currentVersion isn't valid semver (e.g. a "dev"
@@ -125,10 +214,31 @@ func IsNewer(latestVersion, currentVersion string) (bool, error) {
 // CheckForUpdate checks whether a newer release of the CLI is available. It
 // returns the latest version tag, the download URL and signature URL for
 // the current platform's binary, and whether an update is available.
-func CheckForUpdate(currentVersion string) (latest, downloadURL, sigURL string, available bool, err error) {
-	release, err := GetLatestRelease(LatestReleaseURL)
-	if err != nil {
-		return "", "", "", false, fmt.Errorf("failed to check for updates: %w", err)
+// If includeBeta is specified, it controls whether pre-release/beta versions
+// are considered; if omitted, it defaults to true if currentVersion is already
+// a pre-release version.
+func CheckForUpdate(currentVersion string, opts ...bool) (latest, downloadURL, sigURL string, available bool, err error) {
+	includeBeta := IsPrerelease(currentVersion)
+	if len(opts) > 0 {
+		includeBeta = opts[0]
+	}
+
+	var release *Release
+	if includeBeta {
+		releases, err := GetReleases(ReleasesListURL + "?per_page=20")
+		if err != nil {
+			return "", "", "", false, fmt.Errorf("failed to check for updates: %w", err)
+		}
+		release = SelectBestRelease(releases, true)
+		if release == nil {
+			return "", "", "", false, fmt.Errorf("no release found matching this platform (%s)", AssetName())
+		}
+	} else {
+		var err error
+		release, err = GetLatestRelease(LatestReleaseURL)
+		if err != nil {
+			return "", "", "", false, fmt.Errorf("failed to check for updates: %w", err)
+		}
 	}
 	release.TagName = redundantVPrefix.ReplaceAllString(release.TagName, "v")
 

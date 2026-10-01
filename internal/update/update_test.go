@@ -65,3 +65,93 @@ func TestAssetName(t *testing.T) {
 		t.Fatal("AssetName() returned empty string")
 	}
 }
+
+func TestIsPrerelease(t *testing.T) {
+	cases := []struct {
+		version string
+		want    bool
+	}{
+		{"v4.0.0-beta.1", true},
+		{"v4.0.0-beta.2", true},
+		{"v4.0.0-alpha.1", true},
+		{"v4.0.0-rc.1", true},
+		{"v4.0.0-beta.1-12-g1234567", true},
+		{"v4.0.0-beta.1-12-g1234567-dirty", true},
+		{"v3.16.3", false},
+		{"v3.16.3-11-gda4c707", false},
+		{"3.16.3", false},
+		{"dev", false},
+		{"dev-beta", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.version, func(t *testing.T) {
+			got := IsPrerelease(tc.version)
+			if got != tc.want {
+				t.Fatalf("IsPrerelease(%q) = %v, want %v", tc.version, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSelectBestRelease(t *testing.T) {
+	assetName := AssetName()
+	sigName := assetName + ".minisig"
+
+	mockAssets := []Asset{
+		{Name: assetName, BrowserDownloadURL: "https://github.com/test/download"},
+		{Name: sigName, BrowserDownloadURL: "https://github.com/test/sig"},
+	}
+
+	releases := []Release{
+		{
+			TagName:    "v3.22.0",
+			Prerelease: false,
+			Assets:     mockAssets,
+		},
+		{
+			TagName:    "v4.0.0-beta.1",
+			Prerelease: true,
+			Assets:     mockAssets,
+		},
+		{
+			TagName:    "v4.0.0-beta.2",
+			Prerelease: true,
+			Assets:     mockAssets,
+		},
+		{
+			TagName:    "v4.0.0-beta.3",
+			Draft:      true,
+			Prerelease: true,
+			Assets:     mockAssets,
+		},
+		{
+			TagName:    "v4.0.0-beta.4",
+			Prerelease: true,
+			Assets:     []Asset{}, // missing assets
+		},
+	}
+
+	// Without beta: should select v3.22.0
+	r := SelectBestRelease(releases, false)
+	if r == nil || r.TagName != "v3.22.0" {
+		t.Fatalf("SelectBestRelease(false) = %v, want v3.22.0", r)
+	}
+
+	// With beta: should select highest valid beta (v4.0.0-beta.2, skipping draft beta.3 and asset-missing beta.4)
+	r = SelectBestRelease(releases, true)
+	if r == nil || r.TagName != "v4.0.0-beta.2" {
+		t.Fatalf("SelectBestRelease(true) = %v, want v4.0.0-beta.2", r)
+	}
+
+	// When a stable release is newer than the beta
+	releasesWithStable := append(releases, Release{
+		TagName:    "v4.0.0",
+		Prerelease: false,
+		Assets:     mockAssets,
+	})
+	r = SelectBestRelease(releasesWithStable, true)
+	if r == nil || r.TagName != "v4.0.0" {
+		t.Fatalf("SelectBestRelease(true) with newer stable = %v, want v4.0.0", r)
+	}
+}
