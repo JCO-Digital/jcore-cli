@@ -115,6 +115,35 @@ Pulls data from the remote environment to the local environment.
 - Executes import scripts inside the `wordpress` container.
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 
+## `sync <id|slug>`
+Pushes **one** local post to the remote (`remoteHost`/`remotePath`, including
+any `[branch-<name>]` override for the current git branch).
+- Syncs content, title, excerpt, featured image and page template. The post's
+  status is never changed on update.
+- The remote post is matched by post type + slug. If none exists, it's created
+  as a **draft**. If several match, the command aborts.
+- Referenced media is uploaded (`rsync --ignore-existing`, so existing remote
+  files are never overwritten) and registered in the remote media library
+  (`wp media import --skip-copy`, so URLs stay the same). Attachment IDs in
+  blocks and `wp-image-N` classes are remapped, and `localDomain` URLs are
+  rewritten to `remoteDomain`. If the remote has a *different* file at the same
+  path, the command aborts.
+- Always shows a summary and asks for confirmation. If the remote post was
+  modified after the local one, or after the last `jcore pull db`, you have to
+  type the slug to overwrite it.
+- Before an update, the remote post and its meta are saved to
+  `.jcore/sync-backups/`. Afterwards the content is read back and compared with
+  what was sent.
+- Runs entirely inside the `wordpress` container, using the jcore SSH key
+  (`~/.config/jcore/ssh`) and wp-cli on the remote. Multisite isn't supported.
+- Flags:
+  - `--type <post_type>`: narrow a slug lookup.
+  - `--dry-run`: show the plan without changing anything.
+  - `--meta`: also copy custom post meta (ACF etc.). Prints a warning and asks
+    for extra confirmation. IDs stored in meta are **not** remapped.
+  - `--as <login>`: remote user to write as (default: the first administrator).
+    Writing as a real user keeps WordPress from stripping markup.
+
 ## `clone <repository> [name]`
 Clones an existing JCore project from a Git repository.
 - If only a name is given, it uses the `projectDefault` setting to construct the Git URL.
