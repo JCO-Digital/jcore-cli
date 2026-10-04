@@ -88,8 +88,15 @@ func (p *Plan) Imports() []MediaItem {
 	return out
 }
 
-// Prepare inspects both sites and returns the sync plan. It never writes.
-func Prepare(r Runner, opts Options) (*Plan, error) {
+// Site is what preflight learned about the remote.
+type Site struct {
+	URL      string
+	Warnings []string
+}
+
+// preflight checks that both sites are reachable single-site installs and
+// reads the remote siteurl. It never writes.
+func preflight(r Runner, opts Options) (*Site, error) {
 	if _, err := r.Local("core", "is-installed"); err != nil {
 		return nil, fmt.Errorf("local WordPress isn't reachable (is the project running? try `jcore start`): %w", err)
 	}
@@ -97,20 +104,29 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 		return nil, errors.New("the local site is a multisite network, which sync doesn't support yet")
 	}
 
-	p := &Plan{}
-
+	site := &Site{}
 	out, err := r.Remote("option", "get", "siteurl")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't run wp-cli on the remote over SSH: %w", err)
 	}
-	p.RemoteSiteURL = lastLine(out)
+	site.URL = lastLine(out)
 	if _, err := r.Remote("core", "is-installed", "--network"); err == nil {
 		return nil, errors.New("the remote site is a multisite network, which sync doesn't support yet")
 	}
-	if u, err := url.Parse(p.RemoteSiteURL); err == nil && opts.RemoteDomain != "" &&
+	if u, err := url.Parse(site.URL); err == nil && opts.RemoteDomain != "" &&
 		!strings.EqualFold(strings.TrimPrefix(u.Host, "www."), strings.TrimPrefix(opts.RemoteDomain, "www.")) {
-		p.Warnings = append(p.Warnings, fmt.Sprintf("remote siteurl is %s but remoteDomain is %q; URLs will be rewritten to %q", p.RemoteSiteURL, opts.RemoteDomain, opts.RemoteDomain))
+		site.Warnings = append(site.Warnings, fmt.Sprintf("remote siteurl is %s but remoteDomain is %q; URLs will be rewritten to %q", site.URL, opts.RemoteDomain, opts.RemoteDomain))
 	}
+	return site, nil
+}
+
+// Prepare inspects both sites and returns the sync plan. It never writes.
+func Prepare(r Runner, opts Options) (*Plan, error) {
+	site, err := preflight(r, opts)
+	if err != nil {
+		return nil, err
+	}
+	p := &Plan{RemoteSiteURL: site.URL, Warnings: site.Warnings}
 
 	// Local post.
 	local, err := resolveLocalPost(r, opts.Ident, opts.PostType)
@@ -177,7 +193,7 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 
 	// Remote user to write as. Running without one would let kses strip
 	// markup from the content.
-	if err := p.resolveRemoteUser(r, opts.As); err != nil {
+	if p.RemoteUser, err = remoteUser(r, opts.As); err != nil {
 		return nil, err
 	}
 
@@ -222,20 +238,20 @@ func (p *Plan) checkDrift(lastPull time.Time) {
 	}
 }
 
-func (p *Plan) resolveRemoteUser(r Runner, as string) error {
+// remoteUser returns the remote login to write as: as, if it exists, or the
+// first administrator.
+func remoteUser(r Runner, as string) (string, error) {
 	if as != "" {
 		if _, err := r.Remote("user", "get", as, "--field=ID"); err != nil {
-			return fmt.Errorf("remote user %q not found", as)
+			return "", fmt.Errorf("remote user %q not found", as)
 		}
-		p.RemoteUser = as
-		return nil
+		return as, nil
 	}
 	out, err := r.Remote("user", "list", "--role=administrator", "--field=user_login", "--number=1", "--orderby=ID", "--order=ASC")
 	if err != nil || strings.TrimSpace(out) == "" {
-		return errors.New("couldn't find an administrator on the remote to write as; pass --as <login>")
+		return "", errors.New("couldn't find an administrator on the remote to write as; pass --as <login>")
 	}
-	p.RemoteUser = lastLine(out)
-	return nil
+	return lastLine(out), nil
 }
 
 // resolveCreateRelations maps the local parent and author to the remote by

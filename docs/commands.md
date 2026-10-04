@@ -143,6 +143,32 @@ any `[branch-<name>]` override for the current git branch).
     for extra confirmation. IDs stored in meta are **not** remapped.
   - `--as <login>`: remote user to write as (default: the first administrator).
     Writing as a real user keeps WordPress from stripping markup.
+  - `--menu <slug|name|id>`: sync a classic navigation menu instead of a post
+    (see below).
+
+### `sync --menu <slug|name|id>`
+Pushes **one** classic menu (`register_nav_menus` style) to the remote.
+- The remote menu is matched by slug, falling back to name. If there is none,
+  it's created.
+- Items linking to pages or posts are mapped to the remote by post type + slug,
+  and term links by taxonomy + slug. Custom link URLs are rewritten to
+  `remoteDomain`. If any linked page or term is missing on the remote, the
+  command aborts before changing anything and lists them (for pages, it prints
+  the `jcore sync <id>` command to run first).
+- Items that match an existing remote item are updated in place, and only the
+  fields that differ are changed. New items are added, nested under the right
+  parents.
+- Remote items that aren't in the local menu are listed in red and removed only
+  if you confirm a second prompt (default No).
+- Theme locations the local menu uses are assigned on the remote only if
+  they're free. A location that already shows another menu is left alone.
+- Before an existing menu is changed, it's saved to `.jcore/sync-backups/`,
+  along with every remote menu's locations. If a remote item was modified
+  after your last `jcore pull db`, you have to type the menu slug to continue.
+- Not synced: custom meta on menu items (e.g. mega-menu or ACF fields; you get
+  a warning if there is any). Block-theme `wp_navigation` menus aren't
+  supported.
+- Works with `--dry-run` and `--as`. `--type` and `--meta` don't apply.
 
 ## `clone <repository> [name]`
 Clones an existing JCore project from a Git repository.
