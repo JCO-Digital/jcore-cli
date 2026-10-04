@@ -53,9 +53,11 @@ func localAttachment(r Runner, id int) (*MediaItem, string) {
 }
 
 // findRemoteAttachment returns the ID of the remote attachment stored at
-// rel, or 0 if there is none.
-func findRemoteAttachment(r Runner, rel string) (int, error) {
-	out, err := r.Remote("post", "list", "--post_type=attachment", "--post_status=any", "--meta_key=_wp_attached_file", "--meta_value="+rel, "--fields=ID", "--format=json")
+// rel, or 0 if there is none. With Polylang media translation, one file can
+// back an attachment per language; the one in lang is preferred.
+func findRemoteAttachment(r Runner, rel string, pll *PLLState, lang string) (int, error) {
+	args := []string{"post", "list", "--post_type=attachment", "--post_status=any", "--meta_key=_wp_attached_file", "--meta_value=" + rel, "--fields=ID", "--format=json"}
+	out, err := r.Remote(append(args, langArgs(pll)...)...)
 	if err != nil {
 		return 0, err
 	}
@@ -67,6 +69,15 @@ func findRemoteAttachment(r Runner, rel string) (int, error) {
 	}
 	if len(refs) == 0 {
 		return 0, nil
+	}
+	if len(refs) > 1 && pll != nil && pll.Media && lang != "" {
+		ids := make([]int, len(refs))
+		for i, ref := range refs {
+			ids[i] = int(ref.ID)
+		}
+		if same, err := filterByLang(r.Remote, "post", ids, lang); err == nil && len(same) > 0 {
+			return same[0], nil
+		}
 	}
 	return int(refs[0].ID), nil
 }
@@ -88,7 +99,15 @@ func planMedia(r Runner, p *Plan, content string, extraIDs []int, localDomain st
 			p.Warnings = append(p.Warnings, reason+"; its references are left unchanged")
 			continue
 		}
-		remoteID, err := findRemoteAttachment(r, item.RelPath)
+		var pll *PLLState
+		lang := ""
+		if p.site != nil {
+			pll = p.site.RemotePLL
+		}
+		if p.PLL != nil {
+			lang = p.PLL.Lang
+		}
+		remoteID, err := findRemoteAttachment(r, item.RelPath, pll, lang)
 		if err != nil {
 			return fmt.Errorf("looking up %s on remote: %w", item.RelPath, err)
 		}

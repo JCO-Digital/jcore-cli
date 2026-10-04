@@ -87,6 +87,9 @@ func baseFake() *fakeRunner {
 	f.failing["L core is-installed --network"] = true
 	f.responses["R option get siteurl"] = "https://example.com\n"
 	f.failing["R core is-installed --network"] = true
+	// Polylang, ACF and Gravity Forms aren't active unless a test says so.
+	f.responses["L eval"] = "null\n"
+	f.responses["R eval"] = "null\n"
 	f.responses["L post get 5 --format=json"] = `{"ID":5,"post_type":"page","post_name":"about","post_title":"About","post_status":"publish","post_excerpt":"","post_content":` + jsonString(testContent) + `,"post_parent":0,"post_author":"1","post_modified_gmt":"2025-03-10 10:00:00"}`
 	f.responses["L post meta list 5"] = `[{"meta_key":"_wp_page_template","meta_value":"default"}]`
 	f.responses["L post list --post_type=any --name=about"] = `[{"ID":5,"post_type":"page","post_title":"About","post_status":"publish"}]`

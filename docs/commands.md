@@ -138,13 +138,54 @@ any `[branch-<name>]` override for the current git branch).
   (`~/.config/jcore/ssh`) and wp-cli on the remote. Multisite isn't supported.
 - Flags:
   - `--type <post_type>`: narrow a slug lookup.
+  - `--lang <slug>`: narrow a slug that several Polylang languages share
+    (e.g. `--lang en`).
   - `--dry-run`: show the plan without changing anything.
   - `--meta`: also copy custom post meta (ACF etc.). Prints a warning and asks
-    for extra confirmation. IDs stored in meta are **not** remapped.
+    for extra confirmation. IDs in ACF image, file, gallery, post-object,
+    relationship and page-link fields are remapped. Other IDs stored in meta
+    are **not**.
   - `--as <login>`: remote user to write as (default: the first administrator).
     Writing as a real user keeps WordPress from stripping markup.
   - `--menu <slug|name|id>`: sync a classic navigation menu instead of a post
     (see below).
+
+#### Polylang
+When Polylang (free or Pro) is active, it's used through its PHP API with
+`wp eval`.
+- The remote post is matched by type, slug **and language**. If the local post
+  has a language, the command aborts when:
+  - Polylang isn't active on the remote,
+  - that language isn't set up there, or
+  - a remote post with the slug has no language.
+- A new post is given the local post's language, and its slug is saved again
+  afterwards so Polylang Pro's shared slugs apply. If WordPress still changes
+  the slug, you're told.
+- The post is linked to the remote versions of its local translations, matched
+  by slug and language. The remote's existing translation groups are merged,
+  never unlinked. If a translation is already linked to other posts in a
+  conflicting way, it's left alone with a warning. Translations that aren't on
+  the remote yet are linked once you sync them.
+- With Polylang media translation enabled, an existing attachment in the same
+  language is preferred, and new attachments get the post's language.
+- If the remote's Polylang settings copy data between translations (taxonomies,
+  meta, featured image…), the summary warns that linked translations may
+  change as well.
+
+#### ACF
+- Image, file and gallery values inside ACF block `data` are uploaded and
+  remapped like other media. Post-object, relationship and page-link values
+  are mapped to the remote post by slug, and by language under Polylang. A
+  linked post that's missing on the remote aborts the sync, with the
+  `jcore sync <id>` to run first.
+- With `--meta`, the same remapping applies to ACF fields in post meta.
+- Taxonomy and user fields are copied as-is (a warning lists them).
+
+#### Gravity Forms
+- `gravityforms/form` blocks and `[gravityform id="…"]` shortcodes are remapped
+  to the remote form with the exact same title. If the form is missing on the
+  remote, or several have that title, the sync aborts. Import missing forms
+  with Forms → Import/Export first.
 
 ### `sync --menu <slug|name|id>`
 Pushes **one** classic menu (`register_nav_menus` style) to the remote.
@@ -165,10 +206,14 @@ Pushes **one** classic menu (`register_nav_menus` style) to the remote.
 - Before an existing menu is changed, it's saved to `.jcore/sync-backups/`,
   along with every remote menu's locations. If a remote item was modified
   after your last `jcore pull db`, you have to type the menu slug to continue.
+- With Polylang, linked pages and terms are matched in the same language. Theme
+  locations are assigned per language through Polylang's own settings, only
+  where the slot is free, and the backup includes Polylang's location map.
 - Not synced: custom meta on menu items (e.g. mega-menu or ACF fields; you get
   a warning if there is any). Block-theme `wp_navigation` menus aren't
   supported.
-- Works with `--dry-run` and `--as`. `--type` and `--meta` don't apply.
+- Works with `--dry-run` and `--as`. `--type`, `--lang` and `--meta` don't
+  apply.
 
 ## `clone <repository> [name]`
 Clones an existing JCore project from a Git repository.

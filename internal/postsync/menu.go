@@ -90,9 +90,14 @@ type MenuPlan struct {
 	Ops         []MenuOp // local position order
 	Removals    []MenuItem
 	Locations   []string // local locations to assign on the remote
-	Drift       []string
-	Warnings    []string
-	InSync      bool
+	// PLLLocations are Polylang per-language locations to assign on the
+	// remote (location → languages), used instead of Locations when the
+	// local site runs Polylang.
+	PLLLocations map[string][]string
+	pllNavMenus  map[string]map[string]int // remote, for the backup
+	Drift        []string
+	Warnings     []string
+	InSync       bool
 }
 
 // Creating reports whether the plan creates a new remote menu.
@@ -100,7 +105,7 @@ func (p *MenuPlan) Creating() bool { return p.Remote == nil }
 
 // Pending reports whether there's anything to add or change, apart from removals.
 func (p *MenuPlan) Pending() bool {
-	if p.Remote == nil || len(p.Locations) > 0 {
+	if p.Remote == nil || len(p.Locations) > 0 || len(p.PLLLocations) > 0 {
 		return true
 	}
 	for _, op := range p.Ops {
@@ -222,7 +227,7 @@ func PrepareMenu(r Runner, opts Options, ident string) (*MenuPlan, error) {
 	p.warnItemMeta(r, localItems)
 
 	// Resolve every item's target on the remote; abort if any is missing.
-	if err := p.resolveTargets(r, localItems, opts); err != nil {
+	if err := p.resolveTargets(r, newPostMapper(r, site), localItems, opts); err != nil {
 		return nil, err
 	}
 
@@ -256,7 +261,12 @@ func PrepareMenu(r Runner, opts Options, ident string) (*MenuPlan, error) {
 		p.checkDrift(opts.LastPull)
 	}
 
-	if err := p.planLocations(r, remoteMenus); err != nil {
+	if site.LocalPLL != nil {
+		err = p.planPLLLocations(r, site)
+	} else {
+		err = p.planLocations(r, remoteMenus)
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -292,63 +302,27 @@ func (p *MenuPlan) warnItemMeta(r Runner, items []MenuItem) {
 }
 
 // resolveTargets maps each local item's linked post/term to the remote.
-func (p *MenuPlan) resolveTargets(r Runner, items []MenuItem, opts Options) error {
+func (p *MenuPlan) resolveTargets(r Runner, mapper *postMapper, items []MenuItem, opts Options) error {
 	var missing []string
-	type key struct{ kind, a, b string }
-	cache := map[key]int{}
-
 	for _, it := range items {
 		op := MenuOp{Local: it}
 		switch it.Type {
-		case "post_type":
-			lp, err := getPost(r.Local, int(it.ObjectID))
-			if err != nil || lp.PostName == "" {
-				missing = append(missing, fmt.Sprintf("item %q links to local %s %d, which can't be read", it.Label, it.Object, it.ObjectID))
-				break
-			}
-			k := key{"post", lp.PostType, lp.PostName}
-			id, ok := cache[k]
-			if !ok {
-				refs, err := listPosts(r.Remote, lp.PostType, lp.PostName, "any")
-				if err != nil {
-					return fmt.Errorf("looking up %s %q on the remote: %w", lp.PostType, lp.PostName, err)
-				}
-				if len(refs) == 1 {
-					id = int(refs[0].ID)
-				} else if len(refs) > 1 {
-					id = -1
-				}
-				cache[k] = id
-			}
-			switch {
-			case id > 0:
-				op.RemoteObjectID = id
-			case id < 0:
-				missing = append(missing, fmt.Sprintf("%s %q: several remote posts have this slug", lp.PostType, lp.PostName))
-			default:
-				missing = append(missing, fmt.Sprintf("%s %q is missing on the remote; run: jcore sync %d", lp.PostType, lp.PostName, lp.ID))
-			}
-		case "taxonomy":
-			out, err := r.Local("term", "get", it.Object, itoa(int(it.ObjectID)), "--field=slug")
-			if err != nil {
-				missing = append(missing, fmt.Sprintf("item %q links to local %s term %d, which can't be read", it.Label, it.Object, it.ObjectID))
-				break
-			}
-			slug := lastLine(out)
-			k := key{"term", it.Object, slug}
-			id, ok := cache[k]
-			if !ok {
-				out, err := r.Remote("term", "list", it.Object, "--slug="+slug, "--field=term_id")
-				if err == nil {
-					id, _ = parseID(out)
-				}
-				cache[k] = id
-			}
-			if id > 0 {
-				op.RemoteObjectID = id
+		case "post_type", "taxonomy":
+			var res mapResult
+			var err error
+			if it.Type == "post_type" {
+				res, err = mapper.post(int(it.ObjectID))
 			} else {
-				missing = append(missing, fmt.Sprintf("%s term %q is missing on the remote; create it there first", it.Object, slug))
+				res, err = mapper.term(it.Object, int(it.ObjectID))
 			}
+			if err != nil {
+				return err
+			}
+			if res.problem != "" {
+				missing = appendUnique(missing, res.problem)
+				break
+			}
+			op.RemoteObjectID = res.id
 		case "post_type_archive":
 			if _, err := r.Remote("post-type", "get", it.Object, "--field=name"); err != nil {
 				missing = append(missing, fmt.Sprintf("post type %q (archive link %q) doesn't exist on the remote", it.Object, it.Label))
@@ -475,21 +449,9 @@ func (p *MenuPlan) planLocations(r Runner, remoteMenus []MenuRef) error {
 	if len(p.Local.Locations) == 0 {
 		return nil
 	}
-	out, err := r.Remote("menu", "location", "list", "--format=json")
+	registered, err := remoteLocations(r)
 	if err != nil {
-		return fmt.Errorf("listing remote menu locations: %w", err)
-	}
-	var locs []struct {
-		Location string `json:"location"`
-	}
-	if strings.TrimSpace(out) != "" {
-		if err := parseJSON(out, &locs); err != nil {
-			return err
-		}
-	}
-	registered := map[string]bool{}
-	for _, l := range locs {
-		registered[l.Location] = true
+		return err
 	}
 	owner := map[string]MenuRef{}
 	for _, m := range remoteMenus {
@@ -510,6 +472,90 @@ func (p *MenuPlan) planLocations(r Runner, remoteMenus []MenuRef) error {
 		}
 	}
 	return nil
+}
+
+// planPLLLocations assigns the local menu's per-language theme locations
+// (Polylang stores these in its own settings, not the theme mods) on the
+// remote, but only ones that exist there and are free.
+func (p *MenuPlan) planPLLLocations(r Runner, site *Site) error {
+	local, err := pllNavMenus(r.Local)
+	if err != nil {
+		return fmt.Errorf("reading local Polylang menu locations: %w", err)
+	}
+	type slot struct{ loc, lang string }
+	var wanted []slot
+	for _, loc := range sortedLocKeys(local) {
+		for _, lang := range sortedKeys(local[loc]) {
+			if local[loc][lang] == int(p.Local.TermID) {
+				wanted = append(wanted, slot{loc, lang})
+			}
+		}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+	if site.RemotePLL == nil {
+		p.Warnings = append(p.Warnings, "the local menu is assigned to Polylang language locations, but Polylang isn't active on the remote; locations not assigned")
+		return nil
+	}
+	remote, err := pllNavMenus(r.Remote)
+	if err != nil {
+		return fmt.Errorf("reading remote Polylang menu locations: %w", err)
+	}
+	p.pllNavMenus = remote
+	registered, err := remoteLocations(r)
+	if err != nil {
+		return err
+	}
+	p.PLLLocations = map[string][]string{}
+	for _, w := range wanted {
+		cur := remote[w.loc][w.lang]
+		switch {
+		case !locationRe.MatchString(w.loc) || !registered[w.loc]:
+			p.Warnings = append(p.Warnings, fmt.Sprintf("theme location %q isn't registered on the remote; not assigned", w.loc))
+		case !site.RemotePLL.HasLanguage(w.lang):
+			p.Warnings = append(p.Warnings, fmt.Sprintf("language %q isn't set up on the remote; location %s not assigned for it", w.lang, w.loc))
+		case cur != 0 && p.Remote != nil && cur == int(p.Remote.TermID):
+			// Already assigned to this menu.
+		case cur != 0:
+			p.Warnings = append(p.Warnings, fmt.Sprintf("remote location %q (%s) already shows another menu (ID %d); left unchanged", w.loc, w.lang, cur))
+		default:
+			p.PLLLocations[w.loc] = append(p.PLLLocations[w.loc], w.lang)
+		}
+	}
+	if len(p.PLLLocations) == 0 {
+		p.PLLLocations = nil
+	}
+	return nil
+}
+
+func sortedLocKeys(m map[string]map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func remoteLocations(r Runner) (map[string]bool, error) {
+	out, err := r.Remote("menu", "location", "list", "--format=json")
+	if err != nil {
+		return nil, fmt.Errorf("listing remote menu locations: %w", err)
+	}
+	var locs []struct {
+		Location string `json:"location"`
+	}
+	if strings.TrimSpace(out) != "" {
+		if err := parseJSON(out, &locs); err != nil {
+			return nil, err
+		}
+	}
+	registered := map[string]bool{}
+	for _, l := range locs {
+		registered[l.Location] = true
+	}
+	return registered, nil
 }
 
 // MenuResult describes what ApplyMenu actually did, including after a failure.
@@ -616,7 +662,24 @@ func ApplyMenu(r Runner, p *MenuPlan, removeLeftovers bool, backupDir string) (*
 		}
 		res.Done = append(res.Done, "assigned to location "+loc)
 	}
+	for _, loc := range sortedLangKeys(p.PLLLocations) {
+		for _, lang := range p.PLLLocations[loc] {
+			if _, err := r.Remote("eval", pllAssignMenuPHP(res.MenuID, loc, lang), user); err != nil {
+				return res, fmt.Errorf("assigning location %q (%s): %w", loc, lang, err)
+			}
+			res.Done = append(res.Done, fmt.Sprintf("assigned to location %s (%s)", loc, lang))
+		}
+	}
 	return res, nil
+}
+
+func sortedLangKeys(m map[string][]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (p *MenuPlan) hasLocalItem(id int) bool {
@@ -746,7 +809,9 @@ func WriteMenuBackup(dir string, p *MenuPlan) (string, error) {
 		"menu":    p.Remote,
 		// Every remote menu with its theme locations, i.e. nav_menu_locations.
 		"allMenus": p.RemoteMenus,
-		"items":    backupItems(p.RemoteItems),
+		// Polylang's per-language locations (location → language → menu ID).
+		"polylangNavMenus": p.pllNavMenus,
+		"items":            backupItems(p.RemoteItems),
 	}, "", "  ")
 	if err != nil {
 		return "", err

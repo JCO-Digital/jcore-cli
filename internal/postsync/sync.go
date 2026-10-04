@@ -18,6 +18,7 @@ import (
 type Options struct {
 	Ident        string // local post ID or slug
 	PostType     string // narrows a slug lookup; "" for any
+	Lang         string // Polylang language narrowing a slug lookup; "" for any
 	Meta         bool   // also copy custom post meta
 	As           string // remote user login to write as; "" picks an administrator
 	LocalDomain  string
@@ -32,7 +33,8 @@ type Options struct {
 // MetaItem is a custom meta value --meta will write to the remote.
 type MetaItem struct {
 	Key   string
-	Value json.RawMessage // JSON, domain-rewritten
+	Value json.RawMessage // JSON, domain-rewritten (IDs not yet remapped)
+	Kind  string          // ACF kind (acfMedia/acfPost) whose IDs get remapped; "" for none
 }
 
 // Plan is everything a sync would do, worked out without changing anything.
@@ -54,6 +56,14 @@ type Plan struct {
 	Media []MediaItem
 	Files []FileItem
 	Meta  []MetaItem
+
+	PLL           *PLLPlan    // nil unless the post has a Polylang language
+	remotePLLInfo *PLLInfo    // remote post's language/translations, for the backup
+	ACF           *ACFPlan    // nil unless ACF fields hold IDs
+	PostMap       map[int]int // local → remote post IDs referenced by ACF fields
+	Forms         []FormMapping
+
+	site *Site
 
 	// Drift lists reasons the remote post may have changed since the
 	// local copy was taken.
@@ -90,8 +100,10 @@ func (p *Plan) Imports() []MediaItem {
 
 // Site is what preflight learned about the remote.
 type Site struct {
-	URL      string
-	Warnings []string
+	URL       string
+	Warnings  []string
+	LocalPLL  *PLLState // nil: Polylang isn't active locally
+	RemotePLL *PLLState // nil: Polylang isn't active on the remote
 }
 
 // preflight checks that both sites are reachable single-site installs and
@@ -117,6 +129,12 @@ func preflight(r Runner, opts Options) (*Site, error) {
 		!strings.EqualFold(strings.TrimPrefix(u.Host, "www."), strings.TrimPrefix(opts.RemoteDomain, "www.")) {
 		site.Warnings = append(site.Warnings, fmt.Sprintf("remote siteurl is %s but remoteDomain is %q; URLs will be rewritten to %q", site.URL, opts.RemoteDomain, opts.RemoteDomain))
 	}
+	if site.LocalPLL, err = detectPolylang(r.Local); err != nil {
+		return nil, fmt.Errorf("checking for Polylang locally: %w", err)
+	}
+	if site.RemotePLL, err = detectPolylang(r.Remote); err != nil {
+		return nil, fmt.Errorf("checking for Polylang on the remote: %w", err)
+	}
 	return site, nil
 }
 
@@ -126,10 +144,11 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Plan{RemoteSiteURL: site.URL, Warnings: site.Warnings}
+	p := &Plan{RemoteSiteURL: site.URL, Warnings: site.Warnings, site: site, PostMap: map[int]int{}}
+	mapper := newPostMapper(r, site)
 
 	// Local post.
-	local, err := resolveLocalPost(r, opts.Ident, opts.PostType)
+	local, err := resolveLocalPost(r, opts.Ident, opts.PostType, opts.Lang, site.LocalPLL)
 	if err != nil {
 		return nil, err
 	}
@@ -154,17 +173,63 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 	p.LocalThumbnail = metaInt(localMeta, "_thumbnail_id")
 	p.LocalTemplate = metaString(localMeta, "_wp_page_template")
 
-	// Remote counterpart, matched by type + slug.
+	// Polylang: the post's language decides which remote post it matches.
+	var localTranslations map[string]int
+	if site.LocalPLL != nil {
+		info, err := pllInfo(r.Local, "post", []int{int(local.ID)})
+		if err != nil {
+			return nil, fmt.Errorf("reading the local post's Polylang language: %w", err)
+		}
+		li := info[int(local.ID)]
+		switch {
+		case !li.Translated:
+		case li.Lang == "":
+			p.Warnings = append(p.Warnings, "the local post has no Polylang language; it's synced without one")
+		case site.RemotePLL == nil:
+			return nil, fmt.Errorf("the local post is in language %q, but Polylang isn't active on the remote", li.Lang)
+		case !site.RemotePLL.HasLanguage(li.Lang):
+			return nil, fmt.Errorf("language %q isn't set up in Polylang on the remote (it has: %s)", li.Lang, strings.Join(site.RemotePLL.Languages, ", "))
+		default:
+			p.PLL = &PLLPlan{Lang: li.Lang}
+			localTranslations = li.Translations
+		}
+	}
+
+	// Remote counterpart, matched by type + slug (+ language).
 	if _, err := r.Remote("post-type", "get", local.PostType, "--field=name"); err != nil {
 		return nil, fmt.Errorf("post type %q doesn't exist on the remote", local.PostType)
 	}
-	matches, err := listPosts(r.Remote, local.PostType, local.PostName, "any")
+	matches, err := listPosts(r.Remote, local.PostType, local.PostName, "any", langArgs(site.RemotePLL)...)
 	if err != nil {
 		return nil, fmt.Errorf("looking up the remote post: %w", err)
 	}
+	var remoteInfo map[int]PLLInfo
+	if p.PLL != nil && len(matches) > 0 {
+		ids := make([]int, len(matches))
+		for i, m := range matches {
+			ids[i] = int(m.ID)
+		}
+		if remoteInfo, err = pllInfo(r.Remote, "post", ids); err != nil {
+			return nil, fmt.Errorf("reading remote Polylang languages: %w", err)
+		}
+		var same []postRef
+		var noLang []string
+		for _, m := range matches {
+			switch remoteInfo[int(m.ID)].Lang {
+			case p.PLL.Lang:
+				same = append(same, m)
+			case "":
+				noLang = append(noLang, itoa(int(m.ID)))
+			}
+		}
+		if len(same) == 0 && len(noLang) > 0 {
+			return nil, fmt.Errorf("remote %s %s has slug %q but no Polylang language; set its language in wp-admin first (refusing to guess)", local.PostType, strings.Join(noLang, ", "), local.PostName)
+		}
+		matches = same
+	}
 	switch len(matches) {
 	case 0:
-		trashed, _ := listPosts(r.Remote, local.PostType, local.PostName, "trash")
+		trashed, _ := listPosts(r.Remote, local.PostType, local.PostName, "trash", langArgs(site.RemotePLL)...)
 		if len(trashed) > 0 {
 			p.Warnings = append(p.Warnings, fmt.Sprintf("a trashed remote %s with slug %q exists (ID %d); it's left alone and a new post is created", local.PostType, local.PostName, trashed[0].ID))
 		}
@@ -191,6 +256,18 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 		p.checkDrift(opts.LastPull)
 	}
 
+	if p.PLL != nil {
+		var remoteGroup map[string]int
+		if p.Remote != nil {
+			info := remoteInfo[int(p.Remote.ID)]
+			p.remotePLLInfo = &info
+			remoteGroup = info.Translations
+		}
+		if err := p.planTranslations(r, localTranslations, remoteGroup); err != nil {
+			return nil, err
+		}
+	}
+
 	// Remote user to write as. Running without one would let kses strip
 	// markup from the content.
 	if p.RemoteUser, err = remoteUser(r, opts.As); err != nil {
@@ -198,13 +275,45 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 	}
 
 	if p.Creating() {
-		p.resolveCreateRelations(r)
+		if err := p.resolveCreateRelations(r, mapper); err != nil {
+			return nil, err
+		}
+	}
+
+	// ACF fields holding attachment or post IDs.
+	if p.ACF, err = planACF(r, p, local.PostContent, localMeta, opts.Meta); err != nil {
+		return nil, err
+	}
+	var missing []string
+	if p.ACF != nil {
+		for _, id := range p.ACF.PostIDs {
+			res, err := mapper.post(id)
+			if err != nil {
+				return nil, err
+			}
+			if res.problem != "" {
+				missing = append(missing, res.problem)
+				continue
+			}
+			p.PostMap[id] = res.id
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("ACF fields link to posts the remote doesn't have; sync these first:\n  - %s", strings.Join(missing, "\n  - "))
+	}
+
+	// Gravity Forms embedded in the content.
+	if err := planForms(r, p, local.PostContent); err != nil {
+		return nil, err
 	}
 
 	// Media.
 	var extra []int
 	if p.LocalThumbnail > 0 {
 		extra = append(extra, p.LocalThumbnail)
+	}
+	if p.ACF != nil {
+		extra = append(extra, p.ACF.MediaIDs...)
 	}
 	if err := planMedia(r, p, local.PostContent, extra, opts.LocalDomain); err != nil {
 		return nil, err
@@ -256,16 +365,16 @@ func remoteUser(r Runner, as string) (string, error) {
 
 // resolveCreateRelations maps the local parent and author to the remote by
 // slug and login. Failures only produce warnings.
-func (p *Plan) resolveCreateRelations(r Runner) {
+func (p *Plan) resolveCreateRelations(r Runner, mapper *postMapper) error {
 	if parent := int(p.Local.PostParent); parent > 0 {
-		lp, err := getPost(r.Local, parent)
-		if err == nil && lp.PostName != "" {
-			if refs, err := listPosts(r.Remote, lp.PostType, lp.PostName, "any"); err == nil && len(refs) == 1 {
-				p.CreateParent = int(refs[0].ID)
-			}
+		res, err := mapper.post(parent)
+		if err != nil {
+			return err
 		}
-		if p.CreateParent == 0 {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("local parent (ID %d) has no match on the remote; the post is created without a parent", parent))
+		if res.problem == "" {
+			p.CreateParent = res.id
+		} else {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("local parent (ID %d) has no match on the remote (%s); the post is created without a parent", parent, res.problem))
 		}
 	}
 	if author := int(p.Local.PostAuthor); author > 0 {
@@ -275,6 +384,78 @@ func (p *Plan) resolveCreateRelations(r Runner) {
 			}
 		}
 	}
+	return nil
+}
+
+// planTranslations works out the remote translation group: the remote
+// post's existing group, plus the remote counterparts of the local post's
+// translations. Existing remote links are never removed or replaced, and a
+// counterpart already linked elsewhere in a conflicting way is left alone.
+func (p *Plan) planTranslations(r Runner, localTr, remoteGroup map[string]int) error {
+	lang := p.PLL.Lang
+	group := map[string]int{}
+	for l, id := range remoteGroup {
+		group[l] = id
+	}
+	self := 0
+	if p.Remote != nil {
+		self = int(p.Remote.ID)
+	}
+	group[lang] = self
+
+	for _, l2 := range sortedKeys(localTr) {
+		if l2 == lang {
+			continue
+		}
+		if _, linked := group[l2]; linked {
+			continue // the remote already has a linked translation in l2
+		}
+		lp, err := getPost(r.Local, localTr[l2])
+		if err != nil || lp.PostName == "" {
+			continue
+		}
+		refs, err := listPosts(r.Remote, lp.PostType, lp.PostName, "any", langArgs(p.site.RemotePLL)...)
+		if err != nil {
+			return fmt.Errorf("looking up the %s translation on the remote: %w", l2, err)
+		}
+		ids := make([]int, len(refs))
+		for i, ref := range refs {
+			ids[i] = int(ref.ID)
+		}
+		if ids, err = filterByLang(r.Remote, "post", ids, l2); err != nil {
+			return err
+		}
+		if len(ids) != 1 {
+			if len(ids) == 0 {
+				p.Warnings = append(p.Warnings, fmt.Sprintf("the %s translation (%q) isn't on the remote yet; it'll be linked when you sync it", l2, lp.PostName))
+			} else {
+				p.Warnings = append(p.Warnings, fmt.Sprintf("several remote %s posts have slug %q; that translation isn't linked", l2, lp.PostName))
+			}
+			continue
+		}
+		info, err := pllInfo(r.Remote, "post", ids)
+		if err != nil {
+			return err
+		}
+		candidate := map[string]int{l2: ids[0]}
+		for l, id := range info[ids[0]].Translations {
+			candidate[l] = id
+		}
+		if mergeGroup(group, candidate) {
+			p.PLL.NewLink = append(p.PLL.NewLink, l2)
+		} else {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("the remote %s translation (ID %d) is already linked to other posts; not linked", l2, ids[0]))
+		}
+	}
+
+	p.PLL.SetLang = p.Remote == nil
+	if p.PLL.SetLang || len(p.PLL.NewLink) > 0 {
+		p.PLL.Group = group
+	}
+	if len(group) > 1 && len(p.site.RemotePLL.Sync) > 0 {
+		p.Warnings = append(p.Warnings, "Polylang on the remote copies these between translations, so linked translations may change too: "+strings.Join(p.site.RemotePLL.Sync, ", "))
+	}
+	return nil
 }
 
 func (p *Plan) planMeta(localMeta []MetaEntry, opts Options) {
@@ -299,18 +480,33 @@ func (p *Plan) planMeta(localMeta []MetaEntry, opts Options) {
 			}
 			continue
 		}
-		value := json.RawMessage(ReplaceDomainJSON(string(m.Value), opts.LocalDomain, opts.RemoteDomain))
-		if rv, ok := remote[m.Key]; ok && jsonEqual(rv, value) {
+		item := MetaItem{Key: m.Key, Value: json.RawMessage(ReplaceDomainJSON(string(m.Value), opts.LocalDomain, opts.RemoteDomain))}
+		if p.ACF != nil {
+			item.Kind = p.ACF.MetaKinds[m.Key]
+		}
+		if rv, ok := remote[m.Key]; ok && jsonEqual(rv, p.finalMeta(item)) {
 			continue
 		}
-		p.Meta = append(p.Meta, MetaItem{Key: m.Key, Value: value})
-		if !strings.HasPrefix(m.Key, "_") && looksLikeIDs(m.Value) {
+		p.Meta = append(p.Meta, item)
+		if item.Kind == "" && !strings.HasPrefix(m.Key, "_") && looksLikeIDs(m.Value) {
 			numeric = append(numeric, m.Key)
 		}
 	}
 	if len(numeric) > 0 {
-		p.Warnings = append(p.Warnings, "these meta values look like post/attachment IDs, which are copied as-is and NOT remapped (ACF image/relationship fields will point at the wrong items): "+strings.Join(numeric, ", "))
+		p.Warnings = append(p.Warnings, "these meta values look like post/attachment IDs, which are copied as-is and NOT remapped: "+strings.Join(numeric, ", "))
 	}
+}
+
+// finalMeta is a meta value with ACF attachment/post IDs remapped (as far
+// as known).
+func (p *Plan) finalMeta(m MetaItem) json.RawMessage {
+	switch m.Kind {
+	case acfMedia:
+		return json.RawMessage(mapToken(string(m.Value), p.idMap()))
+	case acfPost:
+		return json.RawMessage(mapToken(string(m.Value), p.PostMap))
+	}
+	return m.Value
 }
 
 func jsonEqual(a, b json.RawMessage) bool {
@@ -375,10 +571,16 @@ func looksLikeIDs(raw json.RawMessage) bool {
 	return false
 }
 
-// FinalContent is the local content with attachment IDs remapped (as far as
-// known) and local URLs pointed at the remote.
+// FinalContent is the local content with attachment, ACF and form IDs
+// remapped (as far as known) and local URLs pointed at the remote.
 func (p *Plan) FinalContent(opts Options) string {
-	return ReplaceDomain(RemapAttachmentIDs(p.Local.PostContent, p.idMap()), opts.LocalDomain, opts.RemoteDomain)
+	idMap := p.idMap()
+	c := RemapAttachmentIDs(p.Local.PostContent, idMap)
+	if p.ACF != nil {
+		c = RemapACFContent(c, p.ACF.ContentKeys, idMap, p.PostMap)
+	}
+	c = RemapFormIDs(c, p.formMap())
+	return ReplaceDomain(c, opts.LocalDomain, opts.RemoteDomain)
 }
 
 func (p *Plan) finalExcerpt(opts Options) string {
@@ -401,6 +603,9 @@ func normalizeTemplate(t string) string {
 
 func (p *Plan) computeInSync(opts Options) bool {
 	if p.Remote == nil || len(p.Uploads()) > 0 || len(p.Imports()) > 0 || len(p.Meta) > 0 {
+		return false
+	}
+	if p.PLL != nil && p.PLL.Group != nil {
 		return false
 	}
 	if strings.TrimSpace(p.FinalContent(opts)) != strings.TrimSpace(p.Remote.PostContent) ||
@@ -428,6 +633,9 @@ type Result struct {
 	// VerifyMismatch is set when the remote content read back after the
 	// write differs from what was sent (e.g. markup stripped on save).
 	VerifyMismatch bool
+	// FinalSlug is the remote post's slug after the write, which WordPress
+	// may have changed to keep it unique.
+	FinalSlug string
 }
 
 // EditURL is the remote wp-admin edit screen for the synced post.
@@ -468,6 +676,11 @@ func Apply(r Runner, p *Plan, opts Options, backupDir string) (*Result, error) {
 			return res, fmt.Errorf("adding %s to the remote media library: %w", m.RelPath, err)
 		}
 		p.Media[i].RemoteID = id
+		if pll := p.site.RemotePLL; pll != nil && pll.Media && p.PLL != nil {
+			if _, err := r.Remote("eval", fmt.Sprintf(`pll_set_post_language(%d, "%s"); echo "ok";`, id, p.PLL.Lang), "--user="+p.RemoteUser); err != nil {
+				return res, fmt.Errorf("setting the language of %s: %w", m.RelPath, err)
+			}
+		}
 		res.Imported = append(res.Imported, m.RelPath)
 		res.Done = append(res.Done, fmt.Sprintf("added %s to the media library (ID %d)", m.RelPath, id))
 	}
@@ -504,6 +717,20 @@ func Apply(r Runner, p *Plan, opts Options, backupDir string) (*Result, error) {
 		res.Done = append(res.Done, fmt.Sprintf("created remote draft %d", id))
 	}
 
+	// Language first, so Polylang treats the following meta updates (and
+	// the slug) as belonging to the right language.
+	if p.PLL != nil && p.PLL.Group != nil {
+		if _, err := r.Remote("eval", pllSaveGroupPHP(res.RemoteID, p.PLL.Lang, p.Local.PostName, p.PLL.Group, p.PLL.SetLang), userArg); err != nil {
+			return res, fmt.Errorf("saving the Polylang language/translations: %w", err)
+		}
+		if p.PLL.SetLang {
+			res.Done = append(res.Done, "set language "+p.PLL.Lang)
+		}
+		if len(p.PLL.NewLink) > 0 {
+			res.Done = append(res.Done, "linked translations: "+strings.Join(p.PLL.NewLink, ", "))
+		}
+	}
+
 	id := itoa(res.RemoteID)
 	if t := p.mappedThumbnail(); t != 0 && t != p.RemoteThumbnail {
 		if _, err := r.Remote("post", "meta", "update", id, "_thumbnail_id", itoa(t), userArg); err != nil {
@@ -519,7 +746,7 @@ func Apply(r Runner, p *Plan, opts Options, backupDir string) (*Result, error) {
 	}
 
 	for _, m := range p.Meta {
-		if _, err := r.RemoteStdin(string(m.Value), "post", "meta", "update", id, m.Key, "--format=json", userArg); err != nil {
+		if _, err := r.RemoteStdin(string(p.finalMeta(m)), "post", "meta", "update", id, m.Key, "--format=json", userArg); err != nil {
 			return res, fmt.Errorf("writing meta %q: %w", m.Key, err)
 		}
 	}
@@ -531,6 +758,9 @@ func Apply(r Runner, p *Plan, opts Options, backupDir string) (*Result, error) {
 	if out, err := r.Remote("post", "get", id, "--field=post_content"); err != nil ||
 		strings.TrimSpace(out) != strings.TrimSpace(content) {
 		res.VerifyMismatch = true
+	}
+	if out, err := r.Remote("post", "get", id, "--field=post_name"); err == nil {
+		res.FinalSlug = lastLine(out)
 	}
 	return res, nil
 }
@@ -545,6 +775,7 @@ func WriteBackup(dir string, p *Plan) (string, error) {
 		"takenAt":  time.Now().UTC().Format(time.RFC3339),
 		"post":     p.Remote,
 		"postMeta": p.RemoteMeta,
+		"polylang": p.remotePLLInfo,
 	}, "", "  ")
 	if err != nil {
 		return "", err

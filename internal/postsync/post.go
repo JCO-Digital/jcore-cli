@@ -156,8 +156,9 @@ type postRef struct {
 	Status   string  `json:"post_status"`
 }
 
-func listPosts(run func(...string) (string, error), postType, slug, status string) ([]postRef, error) {
-	out, err := run("post", "list", "--post_type="+postType, "--name="+slug, "--post_status="+status, "--fields=ID,post_type,post_title,post_status", "--format=json")
+func listPosts(run func(...string) (string, error), postType, slug, status string, extra ...string) ([]postRef, error) {
+	args := append([]string{"post", "list", "--post_type=" + postType, "--name=" + slug, "--post_status=" + status, "--fields=ID,post_type,post_title,post_status", "--format=json"}, extra...)
+	out, err := run(args...)
 	if err != nil {
 		return nil, err
 	}
@@ -171,32 +172,73 @@ func listPosts(run func(...string) (string, error), postType, slug, status strin
 	return refs, nil
 }
 
-// resolveLocalPost finds exactly one local post by numeric ID or slug.
-func resolveLocalPost(r Runner, ident, postType string) (*Post, error) {
+// resolveLocalPost finds exactly one local post by numeric ID or slug. With
+// Polylang, lang (if set) narrows a slug shared by several languages.
+func resolveLocalPost(r Runner, ident, postType, lang string, pll *PLLState) (*Post, error) {
+	if lang != "" && pll == nil {
+		return nil, errors.New("--lang needs Polylang, which isn't active on the local site")
+	}
 	if id, err := strconv.Atoi(ident); err == nil {
 		p, err := getPost(r.Local, id)
 		if err != nil {
 			return nil, fmt.Errorf("local post %d not found: %w", id, err)
+		}
+		if lang != "" {
+			if info, err := pllInfo(r.Local, "post", []int{id}); err == nil && info[id].Lang != lang {
+				return nil, fmt.Errorf("local post %d is in language %q, not %q", id, info[id].Lang, lang)
+			}
 		}
 		return p, nil
 	}
 	if postType == "" {
 		postType = "any"
 	}
-	refs, err := listPosts(r.Local, postType, ident, "any")
+	refs, err := listPosts(r.Local, postType, ident, "any", langArgs(pll)...)
 	if err != nil {
 		return nil, fmt.Errorf("looking up local post %q: %w", ident, err)
 	}
+	if lang != "" && len(refs) > 0 {
+		ids := make([]int, len(refs))
+		for i, ref := range refs {
+			ids[i] = int(ref.ID)
+		}
+		keep, err := filterByLang(r.Local, "post", ids, lang)
+		if err != nil {
+			return nil, err
+		}
+		var filtered []postRef
+		for _, ref := range refs {
+			if containsInt(keep, int(ref.ID)) {
+				filtered = append(filtered, ref)
+			}
+		}
+		refs = filtered
+	}
 	switch len(refs) {
 	case 0:
+		if lang != "" {
+			return nil, fmt.Errorf("no local post with slug %q in language %q (type %s)", ident, lang, postType)
+		}
 		return nil, fmt.Errorf("no local post with slug %q (type %s)", ident, postType)
 	case 1:
 		return getPost(r.Local, int(refs[0].ID))
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "slug %q matches %d local posts; pass the ID or --type:\n", ident, len(refs))
+	fmt.Fprintf(&b, "slug %q matches %d local posts; pass the ID, --type or --lang:\n", ident, len(refs))
+	var langs map[int]PLLInfo
+	if pll != nil {
+		ids := make([]int, len(refs))
+		for i, ref := range refs {
+			ids[i] = int(ref.ID)
+		}
+		langs, _ = pllInfo(r.Local, "post", ids)
+	}
 	for _, p := range refs {
-		fmt.Fprintf(&b, "  %d  %s  %s (%s)\n", p.ID, p.PostType, p.Title, p.Status)
+		l := ""
+		if langs != nil && langs[int(p.ID)].Lang != "" {
+			l = " [" + langs[int(p.ID)].Lang + "]"
+		}
+		fmt.Fprintf(&b, "  %d  %s  %s (%s)%s\n", p.ID, p.PostType, p.Title, p.Status, l)
 	}
 	return nil, errors.New(strings.TrimRight(b.String(), "\n"))
 }
