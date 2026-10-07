@@ -209,3 +209,23 @@ func ComposeExecWithStdin(projectDir string, service string, cmdParts []string, 
 
 	return cmd.Run()
 }
+
+// ComposeExecOutput runs a command in a service container non-interactively
+// (-T) and returns its stdout and stderr separately, optionally feeding it
+// stdin (nil for none). Keeping stdout apart matters for callers parsing
+// machine-readable output (e.g. wp-cli --format=json), which PHP notices on
+// stderr would otherwise corrupt.
+func ComposeExecOutput(projectDir string, service string, cmdParts []string, stdin io.Reader) (string, string, error) {
+	args := []string{"compose", "exec", "-T", service}
+	args = append(args, cmdParts...)
+
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = stdin
+
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
+}
