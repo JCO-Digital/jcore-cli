@@ -1,5 +1,13 @@
 # Changelog
 
+### v4.0.0-beta.3 (2026-10-07)
+
+#### Features
+
+- polylang, acf, gf support (37869b0)
+- sync --menu flag added (5543fd1)
+- jcore sync (fab83ab)
+
 ### v4.0.0-beta.2 (2026-10-01)
 
 #### Features
