@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - main
+      - beta
       - "push-action/**"
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'v')
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -29,42 +33,58 @@ jobs:
         run: make build
 
       - name: Run foonver
+        if: github.ref_type != 'tag'
         id: foonver
-        uses: foonly/foonver@v0.14.0
+        uses: foonly/foonver@v1.2.0
         with:
           command: "auto"
           changelog: "true"
           push: "true"
+          prerelease: ${{ github.ref == 'refs/heads/beta' }}
+
+      - name: Determine Release Info
+        id: release
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.foonver.outputs.is_bumped }}" = "true" ]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+            echo "version=${{ steps.foonver.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build Release Binaries
         # Re-build now that the new tag exists, so the version is embedded correctly
-        if: steps.foonver.outputs.is_bumped == 'true'
+        if: steps.release.outputs.is_release == 'true'
         run: make release
 
       - name: Sign Binaries
-        if: steps.foonver.outputs.is_bumped == 'true'
+        if: steps.release.outputs.is_release == 'true'
         env:
           MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
         run: go run ./cmd/sign-binaries bin/jcore_*
 
       - name: Create GitHub Release
-        if: steps.foonver.outputs.is_bumped == 'true'
+        if: steps.release.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.foonver.outputs.version }}
-          name: Release ${{ steps.foonver.outputs.version }}
+          tag_name: ${{ steps.release.outputs.version }}
+          name: Release ${{ steps.release.outputs.version }}
           body: ${{ steps.foonver.outputs.release_notes }}
+          generate_release_notes: ${{ steps.foonver.outputs.release_notes == '' }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.release.outputs.version, 'beta') || github.ref == 'refs/heads/beta' }}
           files: |
             bin/jcore_*
 
       - name: Slack notification (success)
-        if: success() && steps.foonver.outputs.is_bumped == 'true'
+        if: success() && steps.release.outputs.is_release == 'true'
         uses: slackapi/slack-github-action@v2
         env:
           MSG: |-
-            ✅ jcore-cli release ${{ steps.foonver.outputs.version }} by ${{ github.actor }} succeeded.
+            ✅ jcore-cli release ${{ steps.release.outputs.version }} by ${{ github.actor }} succeeded.
 
             ${{ steps.foonver.outputs.release_notes }}
         with:

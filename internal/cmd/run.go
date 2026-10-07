@@ -152,7 +152,7 @@ func runningProjects() ([]project.DockerProject, error) {
 
 // pullCmd represents the pull command
 var pullCmd = &cobra.Command{
-	Use:   "pull [db|plugins|media|all]",
+	Use:   "pull [db|plugins|media|themes|all]",
 	Short: "Sync content from upstream",
 	Long: `Pulls data from the remote environment to the local environment.
 If no target is specified, it defaults to pulling the database and plugins.`,
@@ -174,6 +174,7 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 					targets["db"] = true
 					targets["plugins"] = true
 					targets["media"] = true
+					targets["themes"] = true
 				} else {
 					targets[arg] = true
 				}
@@ -200,16 +201,25 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 			return
 		}
 
+		legacy, _ := cmd.Flags().GetBool("legacy")
+
 		if targets["plugins"] {
 			fmt.Println("Pulling plugins...")
-			if err := project.SyncPlugins(projectDir); err != nil {
+			if err := project.SyncPlugins(projectDir, legacy); err != nil {
 				fmt.Printf("Error syncing plugins: %v\n", err)
+			}
+		}
+
+		if targets["themes"] {
+			fmt.Println("Pulling themes...")
+			if err := project.SyncThemes(projectDir, legacy); err != nil {
+				fmt.Printf("Error syncing themes: %v\n", err)
 			}
 		}
 
 		if targets["db"] {
 			fmt.Println("Pulling database...")
-			if err := project.ImportDatabase(projectDir); err != nil {
+			if err := project.ImportDatabase(projectDir, legacy); err != nil {
 				fmt.Printf("Error importing database: %v\n", err)
 			}
 		}
@@ -223,7 +233,7 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 
 		if targets["media"] {
 			fmt.Println("Pulling media...")
-			if err := project.SyncMedia(projectDir); err != nil {
+			if err := project.SyncMedia(projectDir, legacy); err != nil {
 				fmt.Printf("Error syncing media: %v\n", err)
 			}
 		}
@@ -300,4 +310,5 @@ func init() {
 	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	startCmd.Flags().BoolP("force", "f", false, "Stop any other running JCore project first")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
+	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")
 }
