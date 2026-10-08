@@ -19,84 +19,131 @@ var startCmd = &cobra.Command{
 	Long: `Starts the WordPress development environment for the current project.
 It generates the .env file and runs docker compose up.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		projectDir, err := project.FindProjectRoot()
-		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+		projectDir := currentProjectDir()
+		if projectDir == "" || !prepareStart(cmd, projectDir) {
 			return
 		}
-		if projectDir == "" {
-			fmt.Println("Error: not in a JCore project (no jcore.toml found)")
+		composeUpProject(cmd, projectDir)
+	},
+}
+
+// restartCmd represents the restart command
+var restartCmd = &cobra.Command{
+	Use:   "restart",
+	Short: "Restart the current project",
+	Long: `Restarts the WordPress development environment for the current project.
+It regenerates the project configuration like start does, then stops the
+project's containers and brings them back up. Other running projects are
+left alone.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		projectDir := currentProjectDir()
+		// Prepare before stopping, so a configuration error leaves the
+		// project running instead of taking it down.
+		if projectDir == "" || !prepareStart(cmd, projectDir) {
 			return
 		}
 
-		if !checkFolders() || !checkDocker() {
-			fmt.Println("Error: pre-flight checks failed, aborting start. Run 'jcore doctor' for details.")
-			return
-		}
-
-		fmt.Println("Finalizing project configuration...")
-		if err := project.GenerateEnvFile(projectDir); err != nil {
-			fmt.Printf("Error generating .env file: %v\n", err)
-			return
-		}
-		if err := project.FinalizeProject(projectDir); err != nil {
-			fmt.Printf("Error finalizing project: %v\n", err)
-			return
-		}
-
-		// Other projects may run alongside this one, behind the shared
-		// proxy - unless they'd collide with it.
-		if err := project.CheckStartConflicts(projectDir); err != nil {
-			fmt.Printf("Error: %v\n", err)
-			return
-		}
-		if err := ensureProxy(); err != nil {
-			fmt.Printf("Error starting the JCore proxy: %v\n", err)
-			return
-		}
-
-		forceInstall, _ := cmd.Flags().GetBool("install")
-		if err := project.InstallDependencies(projectDir, forceInstall); err != nil {
-			fmt.Printf("Error installing dependencies: %v\n", err)
-			return
-		}
-
-		// Create every folder docker-compose.yml bind-mounts that doesn't
-		// exist yet, before docker itself does — as root, leaving it
-		// unwritable by build scripts running as a normal user.
-		if err := project.EnsureComposeMountedFolders(projectDir); err != nil {
-			fmt.Printf("Error creating compose-mounted folders: %v\n", err)
-			return
-		}
-
-		detached, _ := cmd.Flags().GetBool("detached")
-		if viper.GetString("mode") == "background" {
-			detached = true
-		}
-
-		// Activate the configured theme once containers are actually up -
-		// run concurrently since `docker compose up` blocks in the
-		// foreground until stopped. In detached mode, wait for it so it
-		// doesn't get killed by the process exiting before it's done.
-		themeDone := make(chan struct{})
-		go func() {
-			project.ActivateTheme(projectDir, viper.GetString("theme"))
-			close(themeDone)
-		}()
-
-		fmt.Println("Starting Docker containers...")
-		if !detached {
-			printProjectURLs()
-		}
-		if err := docker.ComposeUp(projectDir, detached); err != nil {
+		fmt.Println("Stopping Docker containers...")
+		if err := docker.ComposeStop(projectDir); err != nil {
 			fmt.Printf("Docker failed: %v\n", err)
 			return
 		}
-		if detached {
-			<-themeDone
-			printProjectURLs()
-		}
+		composeUpProject(cmd, projectDir)
 	},
+}
+
+// currentProjectDir returns the root of the current JCore project, or ""
+// (after printing why) when not inside one.
+func currentProjectDir() string {
+	projectDir, err := project.FindProjectRoot()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return ""
+	}
+	if projectDir == "" {
+		fmt.Println("Error: not in a JCore project (no jcore.toml found)")
+	}
+	return projectDir
+}
+
+// prepareStart runs every step of `start` that comes before docker compose
+// up: pre-flight checks, project configuration, conflict checks, the shared
+// proxy, dependencies and bind-mounted folders. It reports whether they all
+// succeeded, having printed the error otherwise.
+func prepareStart(cmd *cobra.Command, projectDir string) bool {
+	if !checkFolders() || !checkDocker() {
+		fmt.Println("Error: pre-flight checks failed, aborting start. Run 'jcore doctor' for details.")
+		return false
+	}
+
+	fmt.Println("Finalizing project configuration...")
+	if err := project.GenerateEnvFile(projectDir); err != nil {
+		fmt.Printf("Error generating .env file: %v\n", err)
+		return false
+	}
+	if err := project.FinalizeProject(projectDir); err != nil {
+		fmt.Printf("Error finalizing project: %v\n", err)
+		return false
+	}
+
+	// Other projects may run alongside this one, behind the shared
+	// proxy - unless they'd collide with it.
+	if err := project.CheckStartConflicts(projectDir); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return false
+	}
+	if err := ensureProxy(); err != nil {
+		fmt.Printf("Error starting the JCore proxy: %v\n", err)
+		return false
+	}
+
+	forceInstall, _ := cmd.Flags().GetBool("install")
+	if err := project.InstallDependencies(projectDir, forceInstall); err != nil {
+		fmt.Printf("Error installing dependencies: %v\n", err)
+		return false
+	}
+
+	// Create every folder docker-compose.yml bind-mounts that doesn't
+	// exist yet, before docker itself does — as root, leaving it
+	// unwritable by build scripts running as a normal user.
+	if err := project.EnsureComposeMountedFolders(projectDir); err != nil {
+		fmt.Printf("Error creating compose-mounted folders: %v\n", err)
+		return false
+	}
+	return true
+}
+
+// composeUpProject starts the project's containers, attached unless
+// --detached or the background mode setting says otherwise, and activates
+// the configured theme once they're up.
+func composeUpProject(cmd *cobra.Command, projectDir string) {
+	detached, _ := cmd.Flags().GetBool("detached")
+	if viper.GetString("mode") == "background" {
+		detached = true
+	}
+
+	// Activate the configured theme once containers are actually up -
+	// run concurrently since `docker compose up` blocks in the
+	// foreground until stopped. In detached mode, wait for it so it
+	// doesn't get killed by the process exiting before it's done.
+	themeDone := make(chan struct{})
+	go func() {
+		project.ActivateTheme(projectDir, viper.GetString("theme"))
+		close(themeDone)
+	}()
+
+	fmt.Println("Starting Docker containers...")
+	if !detached {
+		printProjectURLs()
+	}
+	if err := docker.ComposeUp(projectDir, detached); err != nil {
+		fmt.Printf("Docker failed: %v\n", err)
+		return
+	}
+	if detached {
+		<-themeDone
+		printProjectURLs()
+	}
 }
 
 // stopCmd represents the stop command. Inside a project it stops that
@@ -340,6 +387,7 @@ var shellCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(restartCmd)
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(shellCmd)
@@ -349,6 +397,8 @@ func init() {
 	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	startCmd.Flags().BoolP("force", "f", false, "No longer needed: projects run side by side behind the shared proxy")
 	_ = startCmd.Flags().MarkDeprecated("force", "projects now run side by side behind the shared proxy")
+	restartCmd.Flags().Bool("detached", false, "Run containers in background")
+	restartCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	stopCmd.Flags().BoolP("all", "a", false, "Stop every running JCore project")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
 	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")

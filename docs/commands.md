@@ -120,6 +120,19 @@ Stops the current project. With `--all`/`-a`, stops every running JCore
 project. Run outside a project without `--all`, it asks which running
 project to stop. The shared proxy keeps running (see `proxy stop`).
 
+## `restart`
+
+Restarts the current project. It runs every step `start` takes before
+bringing containers up (pre-flight checks, `.env` and config generation,
+clash checks, the proxy, dependencies), so configuration changes are picked
+up, and only then stops the project's containers and runs
+`docker compose up` again. If any of those steps fail, the project is left
+running as it was. Other running projects are left alone.
+
+Accepts the same `--detached` and `--install`/`-i` flags as `start`, and
+like `start` stays in the foreground unless `mode` is `background`. A
+foreground `start` in another terminal ends when its containers stop.
+
 ## `proxy [start|stop|status|logs]`
 
 Manages the shared proxy (Traefik) that lets several projects run at once.
