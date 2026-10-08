@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/JCO-Digital/jcore/internal/constants"
+	"github.com/JCO-Digital/jcore/internal/proxy"
+	"github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +36,8 @@ var doctorCmd = &cobra.Command{
 		if !checkDocker() {
 			pass = false
 		}
+
+		checkProxy()
 
 		if pass {
 			fmt.Println("\nEverything seems fine.")
@@ -167,8 +171,54 @@ func checkDocker() bool {
 		return false
 	}
 
-	fmt.Println("  [ OK ] Docker is running and Compose is available.")
+	// The proxy override relies on compose's `!reset` tag.
+	out, err := exec.Command("docker", "compose", "version", "--short").Output()
+	if err != nil {
+		fmt.Println("  [FAIL] Couldn't determine the Docker Compose version.")
+		return false
+	}
+	composeVersion := strings.TrimPrefix(strings.TrimSpace(string(out)), "v")
+	current, err := version.NewVersion(composeVersion)
+	if err != nil || current.LessThan(minComposeVersion) {
+		fmt.Printf("  [FAIL] Docker Compose %s is too old, %s or newer is required.\n", composeVersion, minComposeVersion)
+		return false
+	}
+
+	fmt.Printf("  [ OK ] Docker is running and Compose %s is available.\n", composeVersion)
 	return true
+}
+
+// minComposeVersion is the oldest Docker Compose supporting the `!reset`
+// tag the proxy override uses to drop a project's host ports.
+var minComposeVersion = version.Must(version.NewVersion("2.24.0"))
+
+// checkProxy reports the shared proxy's state, and whatever would keep it
+// from starting. Neither is an error: `jcore start` starts the proxy, and
+// offers to stop a project started by an older jcore holding its ports.
+func checkProxy() {
+	fmt.Println("\nChecking the JCore proxy:")
+	running, err := proxy.Running()
+	if err != nil {
+		fmt.Printf("  [WARN] Couldn't check the proxy: %v\n", err)
+		return
+	}
+	if running {
+		fmt.Printf("  [ OK ] The proxy is running (dashboard %s).\n", proxy.DashboardURL)
+		return
+	}
+
+	holders, err := proxy.PortHolders()
+	if err != nil {
+		fmt.Printf("  [WARN] Couldn't check ports 80/443: %v\n", err)
+		return
+	}
+	if len(holders) == 0 {
+		fmt.Println("  [ OK ] The proxy isn't running; ports 80/443 are free for \"jcore start\" to start it.")
+		return
+	}
+	for _, h := range holders {
+		fmt.Printf("  [WARN] The proxy isn't running and %s.\n", strings.Replace(h.String(), ":", " is taken by", 1))
+	}
 }
 
 func init() {

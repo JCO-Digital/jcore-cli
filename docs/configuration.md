@@ -45,6 +45,14 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `wpDebugLog`       | boolean | `false`                                   | Enable `WP_DEBUG_LOG` in WordPress.                                                                   |
 | `wpImage`          | string  | `"jcodigi/wordpress:latest"`              | Docker image to use for WordPress.                                                                    |
 | `wpVersion`        | string  | `"latest"`                                | WordPress version to install.                                                                         |
+| `xdebugPort`       | number  | `9003`                                    | Port Xdebug connects back to the IDE on. Give projects you debug at the same time different ports.     |
+
+### Xdebug with several projects
+
+Every project's wordpress container gets `PHP_IDE_CONFIG=serverName=<localDomain>`,
+so PhpStorm can map paths per project on a single listener. For IDEs that
+listen on one port per project (e.g. VS Code), give each project you debug
+at the same time its own `xdebugPort`.
 
 ## Branch-Specific Settings
 

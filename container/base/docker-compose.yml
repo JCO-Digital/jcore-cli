@@ -29,14 +29,12 @@ services:
     networks:
       - default
 
-  # Adminer running on port 1080
+  # Adminer, served by the JCore proxy at http://adminer.${LOCAL_DOMAIN}
   adminer:
     depends_on:
       db:
         condition: service_started
     image: adminer:latest
-    ports:
-      - 1080:8080
     networks:
       - default
 
@@ -75,13 +73,14 @@ services:
     image: "memcached:1.6.21"
     command: ["-m", "64m"]
 
+  # Mail catcher (Mailpit), served by the JCore proxy at
+  # http://mail.${LOCAL_DOMAIN}. The service keeps its old "mailhog" name,
+  # which the WordPress image uses as its SMTP host.
   mailhog:
-    image: "mailhog/mailhog:latest"
-    ports:
-      - "1025:1025"
-      - "8025:8025"
+    image: "axllent/mailpit:v1"
 
-  # Nginx server configuration
+  # Nginx server configuration. Reached through the shared JCore proxy,
+  # which owns host ports 80/443 (see .jcore/compose.proxy.yml).
   web:
     depends_on:
       db:
@@ -99,9 +98,6 @@ services:
       - ./.jcore/ssl:/etc/ssl
       - ./wp-content:/var/www/html/wp-content
       - ./.config/nginx:/etc/nginx/conf.d/
-    ports:
-      - "80:80"
-      - "443:443"
     networks:
       default:
       jcore:

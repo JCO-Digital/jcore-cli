@@ -77,6 +77,7 @@ var Settings = []SettingDef{
 	{Key: "wpDebugLog", Type: TypeBool, Default: false, Category: "WordPress", Description: "Enable WP_DEBUG_LOG."},
 	{Key: "wpDebugDisplay", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG_DISPLAY."},
 	{Key: "mediaPullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importmedia) for pulling media."},
+	{Key: "xdebugPort", Type: TypeInt, Default: 9003, Category: "WordPress", Description: "Port Xdebug connects back to the IDE on. Give concurrently debugged projects different ports."},
 	{Key: "themePullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importthemes) for pulling themes."},
 
 	// Database

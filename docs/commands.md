@@ -71,11 +71,28 @@ Starts the WordPress environment for the current project.
   writable, and confirming the Docker daemon is reachable) — if either
   fails, it aborts with a clear error instead of letting a raw
   docker/compose error surface later.
-- If any JCore project (this one or another) is already running, it warns
-  and does nothing unless `--force`/`-f` is passed, in which case every
-  other running project is stopped first (most JCore dev setups can only
-  run one project at a time, due to shared host ports).
-- Runs `docker compose up`.
+- Several projects can run at the same time, behind the shared proxy (see
+  `proxy`). `start` refuses only if this project would collide with
+  another one:
+  - another checkout with the same directory name exists elsewhere (both
+    would share the same containers and database volume), or
+  - a running project already serves one of this project's domains
+    (`localDomain` / `domains`).
+- Generates `.jcore/compose.proxy.yml`, a compose override that drops the
+  project's host ports and puts it behind the proxy, and points compose at
+  it with `COMPOSE_FILE` in `.env` (so plain `docker compose` commands in
+  the project directory include it too). It also adds a small `loopback`
+  service that routes WordPress's requests to its own site (wp-cron, REST,
+  multisite subsites) to nginx.
+- Starts the proxy if it isn't running. If an older jcore's project still
+  holds ports 80/443, it offers to stop that project first.
+- Defines `AUTOMATIC_UPDATER_DISABLED` in `.jcore/wordpress/wp-config.php`,
+  since wp-cron now really runs locally and a production database brings
+  its plugin auto-update settings along.
+- Runs `docker compose up`, and prints the site, Adminer
+  (`http://adminer.<localDomain>`) and mail (`http://mail.<localDomain>`)
+  URLs.
+- `--force`/`-f` is deprecated and does nothing.
 - If `mode` is `foreground` (default), it stays in the foreground.
 - Before starting, it also installs host-side dependencies: a Makefile's
   `install` target if one exists, otherwise npm/pnpm (from `package.json`)
@@ -99,9 +116,31 @@ Starts the WordPress environment for the current project.
 
 ## `stop`
 
-Stops every currently running JCore project on the machine (not just the
-current one, and not limited to being run from inside a project) — runs
-`docker compose stop` for each.
+Stops the current project. With `--all`/`-a`, stops every running JCore
+project. Run outside a project without `--all`, it asks which running
+project to stop. The shared proxy keeps running (see `proxy stop`).
+
+## `proxy [start|stop|status|logs]`
+
+Manages the shared proxy (Traefik) that lets several projects run at once.
+It owns host ports 80/443 and routes each request to the right project by
+domain: `https://<domain>` and `https://*.<domain>` are passed through
+(TLS included) to the project's own nginx, and
+`http://adminer.<localDomain>` / `http://mail.<localDomain>` to its Adminer
+and mail catcher. Plain `http://` site requests are redirected to https.
+Its dashboard is at `http://traefik.localhost`.
+
+`start` starts it automatically; it then keeps running, also across
+reboots, until `jcore proxy stop`. Its compose file is written to
+`~/.config/jcore/proxy/`, and it joins projects over the shared
+`jcore-proxy` Docker network.
+
+- `jcore proxy start`: Starts the proxy (offering to stop an older jcore's
+  project holding ports 80/443).
+- `jcore proxy stop`: Stops it. Projects keep running but are unreachable
+  until it's started again.
+- `jcore proxy status`: Shows whether it's running.
+- `jcore proxy logs`: Follows its logs.
 
 ## `attach`
 
@@ -367,6 +406,9 @@ Checks the system for potential issues.
 
 - Verifies that necessary folders exist and have correct permissions.
 - Checks if required external commands (like `docker`, `git`) are installed and available.
+- Checks that Docker Compose is 2.24 or newer (needed by the proxy override).
+- Reports whether the shared proxy is running, and what holds ports 80/443
+  if it isn't.
 
 ## `migrate`
 
@@ -384,7 +426,8 @@ Migrates a legacy JCore project to the current format.
 
 ## `status`
 
-Shows which JCore projects are currently running.
+Shows whether the shared proxy is running, and each running JCore project
+with its site, Adminer and mail URLs.
 
 ## `clean [all|docker]`
 

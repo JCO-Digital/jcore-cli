@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/internal/docker"
-	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,28 +34,6 @@ It generates the .env file and runs docker compose up.`,
 			return
 		}
 
-		running, err := runningProjects()
-		if err != nil {
-			fmt.Printf("Error checking running projects: %v\n", err)
-			return
-		}
-		if len(running) > 0 {
-			force, _ := cmd.Flags().GetBool("force")
-			if !force {
-				for _, p := range running {
-					logging.Warn("Project %s is running!", p.Name)
-				}
-				return
-			}
-			for _, p := range running {
-				fmt.Printf("Stopping %s.\n", p.Name)
-				if err := docker.ComposeStop(p.Path); err != nil {
-					fmt.Printf("Docker failed: %v\n", err)
-					return
-				}
-			}
-		}
-
 		fmt.Println("Finalizing project configuration...")
 		if err := project.GenerateEnvFile(projectDir); err != nil {
 			fmt.Printf("Error generating .env file: %v\n", err)
@@ -63,6 +41,17 @@ It generates the .env file and runs docker compose up.`,
 		}
 		if err := project.FinalizeProject(projectDir); err != nil {
 			fmt.Printf("Error finalizing project: %v\n", err)
+			return
+		}
+
+		// Other projects may run alongside this one, behind the shared
+		// proxy - unless they'd collide with it.
+		if err := project.CheckStartConflicts(projectDir); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		if err := ensureProxy(); err != nil {
+			fmt.Printf("Error starting the JCore proxy: %v\n", err)
 			return
 		}
 
@@ -96,25 +85,43 @@ It generates the .env file and runs docker compose up.`,
 		}()
 
 		fmt.Println("Starting Docker containers...")
+		if !detached {
+			printProjectURLs()
+		}
 		if err := docker.ComposeUp(projectDir, detached); err != nil {
 			fmt.Printf("Docker failed: %v\n", err)
 			return
 		}
 		if detached {
 			<-themeDone
+			printProjectURLs()
 		}
 	},
 }
 
-// stopCmd represents the stop command. Unlike most other commands, it isn't
-// scoped to the current project: it stops every currently running JCore
-// project on the machine, mirroring the legacy TypeScript CLI's plain
-// `stop` (most JCore dev setups can only run one project at a time anyway,
-// due to shared host ports).
+// stopCmd represents the stop command. Inside a project it stops that
+// project; --all stops every running project. Outside a project it asks
+// which one to stop. The shared proxy keeps running either way (see
+// `jcore proxy stop`).
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop every running JCore project",
+	Short: "Stop the current project (or --all)",
+	Long: `Stops the current project. With --all, stops every running JCore project.
+Outside a project, asks which running project to stop.
+The shared proxy keeps running; stop it with "jcore proxy stop".`,
 	Run: func(cmd *cobra.Command, args []string) {
+		all, _ := cmd.Flags().GetBool("all")
+
+		if !all {
+			projectDir, err := project.FindProjectRoot()
+			if err == nil && projectDir != "" {
+				if err := docker.ComposeStop(projectDir); err != nil {
+					fmt.Printf("Docker failed: %v\n", err)
+				}
+				return
+			}
+		}
+
 		running, err := runningProjects()
 		if err != nil {
 			fmt.Printf("Error checking running projects: %v\n", err)
@@ -125,6 +132,14 @@ var stopCmd = &cobra.Command{
 			return
 		}
 
+		if !all {
+			running, err = pickProjectsToStop(running)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+		}
+
 		for _, p := range running {
 			fmt.Printf("Stopping %s.\n", p.Name)
 			if err := docker.ComposeStop(p.Path); err != nil {
@@ -132,6 +147,30 @@ var stopCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// pickProjectsToStop asks which of the running projects to stop.
+func pickProjectsToStop(running []project.DockerProject) ([]project.DockerProject, error) {
+	const allOption = "All running projects"
+	options := []string{allOption}
+	for _, p := range running {
+		options = append(options, p.Name)
+	}
+
+	choice := ""
+	prompt := &survey.Select{Message: "Which project do you want to stop?", Options: options}
+	if err := survey.AskOne(prompt, &choice); err != nil {
+		return nil, err
+	}
+	if choice == allOption {
+		return running, nil
+	}
+	for _, p := range running {
+		if p.Name == choice {
+			return []project.DockerProject{p}, nil
+		}
+	}
+	return nil, nil
 }
 
 // runningProjects returns every currently running JCore project.
@@ -308,7 +347,9 @@ func init() {
 
 	startCmd.Flags().Bool("detached", false, "Run containers in background")
 	startCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
-	startCmd.Flags().BoolP("force", "f", false, "Stop any other running JCore project first")
+	startCmd.Flags().BoolP("force", "f", false, "No longer needed: projects run side by side behind the shared proxy")
+	_ = startCmd.Flags().MarkDeprecated("force", "projects now run side by side behind the shared proxy")
+	stopCmd.Flags().BoolP("all", "a", false, "Stop every running JCore project")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
 	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")
 }

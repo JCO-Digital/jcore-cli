@@ -24,9 +24,9 @@ type dockerComposeListing struct {
 	ConfigFiles string `json:"ConfigFiles"`
 }
 
-// ListDockerProjects returns all JCore projects known to docker compose,
-// i.e. compose projects whose directory contains a .jcore folder.
-func ListDockerProjects() ([]DockerProject, error) {
+// listComposeProjects returns every project known to docker compose,
+// JCore or not, with the directory of its (first) compose file.
+func listComposeProjects() ([]DockerProject, error) {
 	out, err := exec.Command("docker", "compose", "ls", "-a", "--format", "json").Output()
 	if err != nil {
 		return nil, err
@@ -43,17 +43,30 @@ func ListDockerProjects() ([]DockerProject, error) {
 
 	var projects []DockerProject
 	for _, p := range raw {
-		path := strings.TrimSuffix(strings.Split(p.ConfigFiles, ",")[0], "/docker-compose.yml")
-
-		if _, err := os.Stat(filepath.Join(path, ".jcore")); err != nil {
-			continue
-		}
-
 		projects = append(projects, DockerProject{
 			Name:    p.Name,
-			Path:    path,
+			Path:    filepath.Dir(strings.Split(p.ConfigFiles, ",")[0]),
 			Running: strings.Contains(p.Status, "running"),
 		})
+	}
+
+	return projects, nil
+}
+
+// ListDockerProjects returns all JCore projects known to docker compose,
+// i.e. compose projects whose directory contains a .jcore folder.
+func ListDockerProjects() ([]DockerProject, error) {
+	all, err := listComposeProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	var projects []DockerProject
+	for _, p := range all {
+		if _, err := os.Stat(filepath.Join(p.Path, ".jcore")); err != nil {
+			continue
+		}
+		projects = append(projects, p)
 	}
 
 	return projects, nil
