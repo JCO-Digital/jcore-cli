@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.0-beta.4 (2026-10-08)
+
+#### Features
+
+- support running multiple projects concurrently (852991c)
+
 ### v4.0.0-beta.3 (2026-10-07)
 
 #### Features
