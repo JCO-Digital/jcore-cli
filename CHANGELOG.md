@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.0-beta.5 (2026-10-08)
+
+#### Features
+
+- add project restart command (ff9446d)
+
 ### v4.0.0-beta.4 (2026-10-08)
 
 #### Features
