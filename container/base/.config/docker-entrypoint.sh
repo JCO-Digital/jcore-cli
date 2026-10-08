@@ -62,6 +62,10 @@ wp config set --path="$WEBROOT" --type=constant WP_DEBUG_DISPLAY $WP_DEBUG_DISPL
 wp config set --path="$WEBROOT" --type=constant WP_ENVIRONMENT_TYPE "local"
 wp config set --path="$WEBROOT" --type=constant WP_DEVELOPMENT_MODE "all"
 wp config set --path="$WEBROOT" --type=constant JCORE_IS_LOCAL true --raw
+# wp-cron really runs locally (the loopback service routes WordPress's
+# requests to its own site), so keep it from auto-updating plugins whose
+# auto_update_plugins setting came along with a production database.
+wp config set --path="$WEBROOT" --type=constant AUTOMATIC_UPDATER_DISABLED true --raw
 
 # Add multisite configuration constants
 if [[ $MULTISITE == true ]]; then

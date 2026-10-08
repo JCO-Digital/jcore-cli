@@ -316,15 +316,7 @@ func UpdateTablePrefix(projectDir string, dbPrefix string) error {
 // ApplyDomainReplacements performs search-replace for domains and configured replace rules.
 func ApplyDomainReplacements(projectDir string) error {
 	remoteDomain := viper.GetString("remoteDomain")
-	localDomain := viper.GetString("localDomain")
-	if localDomain == "" {
-		projectName := viper.GetString("projectName")
-		if projectName != "" {
-			localDomain = Slugify(projectName) + ".localhost"
-		} else {
-			localDomain = "localhost"
-		}
-	}
+	localDomain := LocalDomain()
 
 	replaceRules := viper.GetStringSlice("replace")
 	if remoteDomain != "" && localDomain != "" {
