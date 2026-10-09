@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.0-beta.7 (2026-10-09)
+
+#### Features
+
+- sync: choose remote posts by ID or match (bdd23b7)
+
 ### v4.0.0-beta.6 (2026-10-09)
 
 #### Features
