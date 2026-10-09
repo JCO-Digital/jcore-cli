@@ -141,6 +141,9 @@ func composeUpProject(cmd *cobra.Command, projectDir string) {
 		return
 	}
 	if detached {
+		if viper.GetString("theme") != "" {
+			fmt.Println("Waiting for WordPress to finish starting...")
+		}
 		<-themeDone
 		printProjectURLs()
 	}
