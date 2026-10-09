@@ -135,6 +135,28 @@ func TestPolylangRemoteWithoutLanguageAborts(t *testing.T) {
 	}
 }
 
+func TestPolylangRemoteIDLanguage(t *testing.T) {
+	f := pllFake()
+	f.responses[pllKey("R", "post", "301")] = `{"301":{"lang":"en","tr":{"en":301},"translated":true}}`
+	f.responses["R post get 300 --format=json"] = `{"ID":300,"post_type":"page","post_name":"about","post_status":"publish"}`
+	f.responses[pllKey("R", "post", "300")] = `{"300":{"lang":"fi","tr":{"fi":300},"translated":true}}`
+	opts := testOpts("about")
+
+	opts.RemoteID = 301
+	p, err := Prepare(f, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Remote == nil || p.Remote.ID != 301 || p.remotePLLInfo == nil || p.remotePLLInfo.Lang != "en" {
+		t.Fatalf("remote = %+v, pll = %+v", p.Remote, p.remotePLLInfo)
+	}
+
+	opts.RemoteID = 300
+	if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), `in language "fi", but the local post is in "en"`) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestPolylangMissingOnRemoteAborts(t *testing.T) {
 	f := pllFake()
 	f.responses["R "+pllDetectKey] = "null\n"

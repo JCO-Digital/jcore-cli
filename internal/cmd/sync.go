@@ -31,7 +31,8 @@ page template) to the remote configured by remoteHost/remotePath, including any
 Media the post references is uploaded and added to the remote media library if
 missing, attachment IDs are remapped, and localDomain URLs are rewritten to
 remoteDomain. The remote post is matched by post type and slug; if there is
-none, it is created as a draft.
+none, it is created as a draft, and if there are several, you pick which one to
+update. --remote-id <id> updates that remote post instead, whatever its slug.
 
 Nothing on the remote is deleted or overwritten without confirmation: existing
 remote files are never replaced, and the remote post is backed up to
@@ -61,7 +62,8 @@ local menu are removed only after a separate confirmation.`,
 		as, _ := cmd.Flags().GetString("as")
 		menu, _ := cmd.Flags().GetString("menu")
 		lang, _ := cmd.Flags().GetString("lang")
-		if err := validateSyncArgs(args, menu, postType, lang, withMeta); err != nil {
+		remoteID, _ := cmd.Flags().GetInt("remote-id")
+		if err := validateSyncArgs(args, menu, postType, lang, withMeta, remoteID); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
@@ -75,6 +77,7 @@ local menu are removed only after a separate confirmation.`,
 			PostType:     postType,
 			Lang:         lang,
 			Meta:         withMeta,
+			RemoteID:     remoteID,
 			As:           as,
 			LocalDomain:  viper.GetString("localDomain"),
 			RemoteDomain: viper.GetString("remoteDomain"),
@@ -90,6 +93,7 @@ local menu are removed only after a separate confirmation.`,
 		if info, err := os.Stat(filepath.Join(projectDir, ".jcore", "sql", "db.sql")); err == nil {
 			opts.LastPull = info.ModTime()
 		}
+		opts.ChooseRemote = chooseRemotePost
 
 		if withMeta {
 			fmt.Println(styleSyncDanger.Render("WARNING: --meta copies ALL custom post meta (ACF fields etc.) to the remote."))
@@ -177,7 +181,7 @@ local menu are removed only after a separate confirmation.`,
 			fmt.Println(styleSyncDanger.Render("WARNING: the content read back from the remote differs from what was sent."))
 			fmt.Println(styleSyncWarn.Render("WordPress may have filtered markup on save. Check the post in the editor."))
 		}
-		if res.FinalSlug != "" && res.FinalSlug != plan.Local.PostName {
+		if res.FinalSlug != "" && res.FinalSlug != plan.Local.PostName && (plan.Creating() || res.FinalSlug != plan.Remote.PostName) {
 			fmt.Println(styleSyncWarn.Render(fmt.Sprintf("Note: WordPress changed the remote slug to %q (local is %q), probably because it was already taken.", res.FinalSlug, plan.Local.PostName)))
 		}
 		if res.Created {
@@ -192,16 +196,34 @@ local menu are removed only after a separate confirmation.`,
 
 // validateSyncArgs checks that exactly one of a post or --menu was given,
 // and that post-only flags aren't combined with --menu.
-func validateSyncArgs(args []string, menu, postType, lang string, withMeta bool) error {
+func validateSyncArgs(args []string, menu, postType, lang string, withMeta bool, remoteID int) error {
 	switch {
 	case menu != "" && len(args) > 0:
 		return fmt.Errorf("give either a post or --menu, not both")
 	case menu == "" && len(args) == 0:
 		return fmt.Errorf("give a post ID or slug, or --menu <name>")
-	case menu != "" && (postType != "" || lang != "" || withMeta):
-		return fmt.Errorf("--type, --lang and --meta only apply to posts, not --menu")
+	case menu != "" && (postType != "" || lang != "" || withMeta || remoteID != 0):
+		return fmt.Errorf("--type, --lang, --meta and --remote-id only apply to posts, not --menu")
+	case remoteID < 0:
+		return fmt.Errorf("--remote-id must be a post ID")
 	}
 	return nil
+}
+
+// chooseRemotePost asks which of several remote posts sharing the local
+// post's slug should be updated.
+func chooseRemotePost(local *postsync.Post, candidates []postsync.RemoteCandidate) (int, error) {
+	options := make([]string, len(candidates))
+	for i, c := range candidates {
+		options[i] = fmt.Sprintf("ID %d  %q  (%s, modified %s UTC)", c.ID, c.Title, c.Status, c.Modified)
+	}
+	fmt.Println(styleSyncWarn.Render(fmt.Sprintf("%d remote %s posts have slug %q.", len(candidates), local.PostType, local.PostName)))
+	idx := 0
+	prompt := &survey.Select{Message: "Which remote post should be updated?", Options: options}
+	if err := survey.AskOne(prompt, &idx); err != nil {
+		return 0, fmt.Errorf("no remote post chosen: %w", err)
+	}
+	return candidates[idx].ID, nil
 }
 
 func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remoteHost string, dryRun bool) {
@@ -434,5 +456,6 @@ func init() {
 	syncCmd.Flags().Bool("dry-run", false, "show what would be synced without changing anything")
 	syncCmd.Flags().String("lang", "", "Polylang language narrowing a slug shared by several languages (e.g. fi)")
 	syncCmd.Flags().String("menu", "", "sync a classic navigation menu (slug, name or ID) instead of a post")
+	syncCmd.Flags().Int("remote-id", 0, "remote post ID to update, instead of matching one by slug")
 	syncCmd.Flags().String("as", "", "remote user login to perform the write as (default: first administrator)")
 }

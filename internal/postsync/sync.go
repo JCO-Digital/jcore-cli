@@ -28,6 +28,21 @@ type Options struct {
 	// (zero if unknown). A remote post modified after it may contain
 	// changes the local copy doesn't have.
 	LastPull time.Time
+	// ChooseRemote picks which remote post to update when several match
+	// the local post's type and slug (and language), returning its ID. An
+	// error aborts the sync. If nil, several matches abort the sync.
+	ChooseRemote func(local *Post, candidates []RemoteCandidate) (int, error)
+	// RemoteID, if set, is the remote post to update, instead of matching
+	// one by type and slug.
+	RemoteID int
+}
+
+// RemoteCandidate is one of several remote posts matching the local post.
+type RemoteCandidate struct {
+	ID       int
+	Title    string
+	Status   string
+	Modified string // post_modified_gmt
 }
 
 // MetaItem is a custom meta value --meta will write to the remote.
@@ -195,64 +210,26 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 		}
 	}
 
-	// Remote counterpart, matched by type + slug (+ language).
+	// Remote counterpart: the one given by ID, or matched by type + slug
+	// (+ language).
 	if _, err := r.Remote("post-type", "get", local.PostType, "--field=name"); err != nil {
 		return nil, fmt.Errorf("post type %q doesn't exist on the remote", local.PostType)
 	}
-	matches, err := listPosts(r.Remote, local.PostType, local.PostName, "any", langArgs(site.RemotePLL)...)
-	if err != nil {
-		return nil, fmt.Errorf("looking up the remote post: %w", err)
-	}
 	var remoteInfo map[int]PLLInfo
-	if p.PLL != nil && len(matches) > 0 {
-		ids := make([]int, len(matches))
-		for i, m := range matches {
-			ids[i] = int(m.ID)
-		}
-		if remoteInfo, err = pllInfo(r.Remote, "post", ids); err != nil {
-			return nil, fmt.Errorf("reading remote Polylang languages: %w", err)
-		}
-		var same []postRef
-		var noLang []string
-		for _, m := range matches {
-			switch remoteInfo[int(m.ID)].Lang {
-			case p.PLL.Lang:
-				same = append(same, m)
-			case "":
-				noLang = append(noLang, itoa(int(m.ID)))
-			}
-		}
-		if len(same) == 0 && len(noLang) > 0 {
-			return nil, fmt.Errorf("remote %s %s has slug %q but no Polylang language; set its language in wp-admin first (refusing to guess)", local.PostType, strings.Join(noLang, ", "), local.PostName)
-		}
-		matches = same
+	if opts.RemoteID != 0 {
+		p.Remote, remoteInfo, err = p.targetRemote(r, opts.RemoteID)
+	} else {
+		p.Remote, remoteInfo, err = p.matchRemote(r, opts)
 	}
-	switch len(matches) {
-	case 0:
-		trashed, _ := listPosts(r.Remote, local.PostType, local.PostName, "trash", langArgs(site.RemotePLL)...)
-		if len(trashed) > 0 {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("a trashed remote %s with slug %q exists (ID %d); it's left alone and a new post is created", local.PostType, local.PostName, trashed[0].ID))
-		}
-	case 1:
-		remote, err := getPost(r.Remote, int(matches[0].ID))
-		if err != nil {
-			return nil, fmt.Errorf("reading remote post %d: %w", matches[0].ID, err)
-		}
-		p.Remote = remote
-		if p.RemoteMeta, err = getMeta(r.Remote, int(remote.ID)); err != nil {
+	if err != nil {
+		return nil, err
+	}
+	if p.Remote != nil {
+		if p.RemoteMeta, err = getMeta(r.Remote, int(p.Remote.ID)); err != nil {
 			return nil, fmt.Errorf("reading remote post meta: %w", err)
 		}
 		p.RemoteThumbnail = metaInt(p.RemoteMeta, "_thumbnail_id")
 		p.RemoteTemplate = metaString(p.RemoteMeta, "_wp_page_template")
-	default:
-		ids := []string{}
-		for _, m := range matches {
-			ids = append(ids, itoa(int(m.ID)))
-		}
-		return nil, fmt.Errorf("%d remote %s posts have slug %q (IDs %s); refusing to guess which one to overwrite", len(matches), local.PostType, local.PostName, strings.Join(ids, ", "))
-	}
-
-	if p.Remote != nil {
 		p.checkDrift(opts.LastPull)
 	}
 
@@ -332,6 +309,116 @@ func Prepare(r Runner, opts Options) (*Plan, error) {
 
 	p.InSync = p.computeInSync(opts)
 	return p, nil
+}
+
+// matchRemote finds the remote post with the local post's type and slug
+// (and language), asking opts.ChooseRemote if several match. It returns nil
+// if there is none, so the post is created.
+func (p *Plan) matchRemote(r Runner, opts Options) (*Post, map[int]PLLInfo, error) {
+	local := p.Local
+	matches, err := listPosts(r.Remote, local.PostType, local.PostName, "any", langArgs(p.site.RemotePLL)...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("looking up the remote post: %w", err)
+	}
+	var remoteInfo map[int]PLLInfo
+	if p.PLL != nil && len(matches) > 0 {
+		ids := make([]int, len(matches))
+		for i, m := range matches {
+			ids[i] = int(m.ID)
+		}
+		if remoteInfo, err = pllInfo(r.Remote, "post", ids); err != nil {
+			return nil, nil, fmt.Errorf("reading remote Polylang languages: %w", err)
+		}
+		var same []postRef
+		var noLang []string
+		for _, m := range matches {
+			switch remoteInfo[int(m.ID)].Lang {
+			case p.PLL.Lang:
+				same = append(same, m)
+			case "":
+				noLang = append(noLang, itoa(int(m.ID)))
+			}
+		}
+		if len(same) == 0 && len(noLang) > 0 {
+			return nil, nil, fmt.Errorf("remote %s %s has slug %q but no Polylang language; set its language in wp-admin first (refusing to guess)", local.PostType, strings.Join(noLang, ", "), local.PostName)
+		}
+		matches = same
+	}
+	if len(matches) == 0 {
+		trashed, _ := listPosts(r.Remote, local.PostType, local.PostName, "trash", langArgs(p.site.RemotePLL)...)
+		if len(trashed) > 0 {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("a trashed remote %s with slug %q exists (ID %d); it's left alone and a new post is created", local.PostType, local.PostName, trashed[0].ID))
+		}
+		return nil, remoteInfo, nil
+	}
+	remoteID := int(matches[0].ID)
+	if len(matches) > 1 {
+		if remoteID, err = chooseRemote(opts, local, matches); err != nil {
+			return nil, nil, err
+		}
+		p.Warnings = append(p.Warnings, fmt.Sprintf("%d remote %s posts have slug %q; updating the one you chose (ID %d)", len(matches), local.PostType, local.PostName, remoteID))
+	}
+	remote, err := getPost(r.Remote, remoteID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("reading remote post %d: %w", remoteID, err)
+	}
+	return remote, remoteInfo, nil
+}
+
+// targetRemote reads the remote post given by --remote-id, checking it can
+// stand in for the local post: same type, not trashed and, with Polylang,
+// the same language. Its slug may differ; it's kept as is.
+func (p *Plan) targetRemote(r Runner, id int) (*Post, map[int]PLLInfo, error) {
+	local := p.Local
+	remote, err := getPost(r.Remote, id)
+	if err != nil {
+		return nil, nil, fmt.Errorf("remote post %d not found: %w", id, err)
+	}
+	if remote.PostType != local.PostType {
+		return nil, nil, fmt.Errorf("remote post %d is a %s, but the local post is a %s", id, remote.PostType, local.PostType)
+	}
+	if remote.PostStatus == "auto-draft" || remote.PostStatus == "trash" {
+		return nil, nil, fmt.Errorf("remote post %d is %s; restore it in wp-admin first", id, remote.PostStatus)
+	}
+	var remoteInfo map[int]PLLInfo
+	if p.PLL != nil {
+		if remoteInfo, err = pllInfo(r.Remote, "post", []int{id}); err != nil {
+			return nil, nil, fmt.Errorf("reading the remote post's Polylang language: %w", err)
+		}
+		switch l := remoteInfo[id].Lang; l {
+		case p.PLL.Lang:
+		case "":
+			return nil, nil, fmt.Errorf("remote post %d has no Polylang language; set it to %s in wp-admin first", id, p.PLL.Lang)
+		default:
+			return nil, nil, fmt.Errorf("remote post %d is in language %q, but the local post is in %q", id, l, p.PLL.Lang)
+		}
+	}
+	if remote.PostName != local.PostName {
+		p.Warnings = append(p.Warnings, fmt.Sprintf("remote post %d has slug %q, not %q; its slug is kept", id, remote.PostName, local.PostName))
+	}
+	return remote, remoteInfo, nil
+}
+
+// chooseRemote asks opts.ChooseRemote which of several matching remote
+// posts to update.
+func chooseRemote(opts Options, local *Post, matches []postRef) (int, error) {
+	ids := make([]string, len(matches))
+	candidates := make([]RemoteCandidate, len(matches))
+	for i, m := range matches {
+		ids[i] = itoa(int(m.ID))
+		candidates[i] = RemoteCandidate{ID: int(m.ID), Title: m.Title, Status: m.Status, Modified: m.Modified}
+	}
+	if opts.ChooseRemote == nil {
+		return 0, fmt.Errorf("%d remote %s posts have slug %q (IDs %s); refusing to guess which one to overwrite", len(matches), local.PostType, local.PostName, strings.Join(ids, ", "))
+	}
+	id, err := opts.ChooseRemote(local, candidates)
+	if err != nil {
+		return 0, err
+	}
+	if !slices.ContainsFunc(candidates, func(c RemoteCandidate) bool { return c.ID == id }) {
+		return 0, fmt.Errorf("remote post %d isn't one of the matches (IDs %s)", id, strings.Join(ids, ", "))
+	}
+	return id, nil
 }
 
 func (p *Plan) checkDrift(lastPull time.Time) {

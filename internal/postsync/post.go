@@ -154,10 +154,11 @@ type postRef struct {
 	PostType string  `json:"post_type"`
 	Title    string  `json:"post_title"`
 	Status   string  `json:"post_status"`
+	Modified string  `json:"post_modified_gmt"`
 }
 
 func listPosts(run func(...string) (string, error), postType, slug, status string, extra ...string) ([]postRef, error) {
-	args := append([]string{"post", "list", "--post_type=" + postType, "--name=" + slug, "--post_status=" + status, "--fields=ID,post_type,post_title,post_status", "--format=json"}, extra...)
+	args := append([]string{"post", "list", "--post_type=" + postType, "--name=" + slug, "--post_status=" + status, "--fields=ID,post_type,post_title,post_status,post_modified_gmt", "--format=json"}, extra...)
 	out, err := run(args...)
 	if err != nil {
 		return nil, err

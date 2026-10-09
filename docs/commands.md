@@ -189,7 +189,7 @@ any `[branch-<name>]` override for the current git branch).
 - Syncs content, title, excerpt, featured image and page template. The post's
   status is never changed on update.
 - The remote post is matched by post type + slug. If none exists, it's created
-  as a **draft**. If several match, the command aborts.
+  as a **draft**. If several match, you're asked which one to update.
 - Referenced media is uploaded (`rsync --ignore-existing`, so existing remote
   files are never overwritten) and registered in the remote media library
   (`wp media import --skip-copy`, so URLs stay the same). Attachment IDs in
@@ -208,6 +208,9 @@ any `[branch-<name>]` override for the current git branch).
   - `--type <post_type>`: narrow a slug lookup.
   - `--lang <slug>`: narrow a slug that several Polylang languages share
     (e.g. `--lang en`).
+  - `--remote-id <id>`: update this remote post instead of matching one by
+    slug. It must have the same post type (and Polylang language) and not be
+    trashed. If its slug differs, it's kept.
   - `--dry-run`: show the plan without changing anything.
   - `--meta`: also copy custom post meta (ACF etc.). Prints a warning and asks
     for extra confirmation. IDs in ACF image, file, gallery, post-object,

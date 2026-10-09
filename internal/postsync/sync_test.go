@@ -246,6 +246,74 @@ func TestMultipleRemoteMatchesAbort(t *testing.T) {
 	}
 }
 
+func TestMultipleRemoteMatchesChoose(t *testing.T) {
+	f := baseFake()
+	f.responses["R post list --post_type=page --name=about --post_status=any"] = `[{"ID":1,"post_title":"About"},{"ID":2,"post_title":"About (old)"}]`
+	f.responses["R post get 2 --format=json"] = `{"ID":2,"post_type":"page","post_name":"about","post_title":"About (old)","post_status":"draft","post_content":"old","post_modified_gmt":"2025-03-01 10:00:00"}`
+	f.responses["R post meta list 2"] = `[]`
+	opts := testOpts("about")
+	var got []RemoteCandidate
+	opts.ChooseRemote = func(_ *Post, c []RemoteCandidate) (int, error) {
+		got = c
+		return 2, nil
+	}
+	p, err := Prepare(f, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].ID != 1 || got[1].Title != "About (old)" {
+		t.Fatalf("candidates = %+v", got)
+	}
+	if p.Remote == nil || p.Remote.ID != 2 {
+		t.Fatalf("remote = %+v", p.Remote)
+	}
+
+	opts.ChooseRemote = func(*Post, []RemoteCandidate) (int, error) { return 3, nil }
+	if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), "isn't one of the matches") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRemoteIDTargetsPostWithOtherSlug(t *testing.T) {
+	f := baseFake()
+	f.responses["R post get 9 --format=json"] = `{"ID":9,"post_type":"page","post_name":"about-us","post_title":"About us","post_status":"publish","post_content":"old","post_modified_gmt":"2025-03-01 10:00:00"}`
+	f.responses["R post meta list 9"] = `[]`
+	opts := testOpts("about")
+	opts.RemoteID = 9
+	p, err := Prepare(f, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Remote == nil || p.Remote.ID != 9 {
+		t.Fatalf("remote = %+v", p.Remote)
+	}
+	if !strings.Contains(strings.Join(p.Warnings, "\n"), `slug "about-us", not "about"`) {
+		t.Fatalf("warnings: %v", p.Warnings)
+	}
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, "R post list --post_type=page --name=about") {
+			t.Fatalf("matched by slug despite --remote-id: %s", c)
+		}
+	}
+}
+
+func TestRemoteIDRejectsUnsuitablePost(t *testing.T) {
+	cases := map[string]string{
+		`{"ID":9,"post_type":"post","post_name":"about","post_status":"publish"}`:    "is a post, but the local post is a page",
+		`{"ID":9,"post_type":"page","post_name":"about","post_status":"trash"}`:      "is trash",
+		`{"ID":9,"post_type":"page","post_name":"about","post_status":"auto-draft"}`: "is auto-draft",
+	}
+	for post, want := range cases {
+		f := baseFake()
+		f.responses["R post get 9 --format=json"] = post
+		opts := testOpts("about")
+		opts.RemoteID = 9
+		if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want %q", post, err, want)
+		}
+	}
+}
+
 func TestDifferentRemoteFileAborts(t *testing.T) {
 	f := baseFake()
 	f.files["2025/03/a.jpg"] = FileDiffers
