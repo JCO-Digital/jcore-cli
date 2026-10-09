@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.0-beta.6 (2026-10-09)
+
+#### Features
+
+- speed up detached theme activation (bd10c7c)
+
 ### v4.0.0-beta.5 (2026-10-08)
 
 #### Features
