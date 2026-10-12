@@ -5,11 +5,10 @@ wpImage = "jcodigi/wordpress:latest"
 wpVersion = "latest"
 pluginLocal = ["loco-translate", "pattern-manager"]
 pluginExclude = [
-	"mainwp-child",
 	"minimal-coming-soon-maintenance-mode",
 	"coming-soon",
 ]
-dbExclude = ["relevanssi"]
+dbExclude = ["relevanssi", "relevanssi_log", "redirection_logs", "redirection_404"]
 remoteDomain = "localhost"
 localDomain = "localhost"
 wpDebug = true

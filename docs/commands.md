@@ -5,6 +5,7 @@ This document describes the available commands in JCore CLI.
 ## Global flags
 
 Every command accepts:
+
 - `--verbose`/`-v`: print more output (e.g. which config files were loaded).
 - `--debug`/`-d`: print everything.
 - `--quiet`/`-q`: print only errors.
@@ -16,11 +17,22 @@ With none of these passed, the effective level comes from the persisted
 `logLevel` setting (default `2`/info). A flag always wins over that
 setting for the current invocation only.
 
+### wp-cli warnings
+
+Warnings, notices and deprecations from wp-cli (locally or over SSH) are
+shown once, cut to a single line, and repeats are counted in a summary at
+the end of the command. Errors are always shown in full. `--verbose` shows
+warnings untruncated (still de-duplicated); `--debug` shows everything
+unfiltered; `--quiet` hides warnings. The complete output of every jcore
+command that ran wp-cli is written to `.jcore/logs/`, keeping the last 10.
+
 ## `init [name]`
+
 Creates a new JCore project in a new directory (a sibling of the current
 one), named after the project (slugified — `projectName` itself keeps the
 name as given). Prompts interactively for anything not already given via
 the `[name]` argument or `--template`/`--branch`:
+
 - Project name, if `[name]` wasn't given.
 - `--template`/`-t`: which embedded template to scaffold, from the
   template catalog (`jcore3`, `jcore2`, `jcore1`, `blank`). If given
@@ -49,7 +61,7 @@ the `[name]` argument or `--template`/`--branch`:
   `wp-content/plugins/lohko` (see `jcore create block` below).
 - Initializes a git repository, writes `jcore.toml` with `projectName`
   (and `branch`/`theme`, if set), and commits the initial scaffold (`git
-  add -A && git commit`). Also seeds `localDomain` (defaulting to
+add -A && git commit`). Also seeds `localDomain` (defaulting to
   `<slugified-project-name>.localhost`) and `domains` (defaulting to just
   that `localDomain`) if neither is already set — these back the local TLS
   cert and the `wordpress`/`web` containers' hostname(s). Left alone on a
@@ -60,17 +72,36 @@ the `[name]` argument or `--template`/`--branch`:
   that per-environment output isn't part of the project's own history.
 
 ## `start`
+
 Starts the WordPress environment for the current project.
+
 - First runs the same folder/Docker pre-flight checks as `jcore doctor`
   (creating any missing `.jcore`/global folders, checking they're
   writable, and confirming the Docker daemon is reachable) — if either
   fails, it aborts with a clear error instead of letting a raw
   docker/compose error surface later.
-- If any JCore project (this one or another) is already running, it warns
-  and does nothing unless `--force`/`-f` is passed, in which case every
-  other running project is stopped first (most JCore dev setups can only
-  run one project at a time, due to shared host ports).
-- Runs `docker compose up`.
+- Several projects can run at the same time, behind the shared proxy (see
+  `proxy`). `start` refuses only if this project would collide with
+  another one:
+  - another checkout with the same directory name exists elsewhere (both
+    would share the same containers and database volume), or
+  - a running project already serves one of this project's domains
+    (`localDomain` / `domains`).
+- Generates `.jcore/compose.proxy.yml`, a compose override that drops the
+  project's host ports and puts it behind the proxy, and points compose at
+  it with `COMPOSE_FILE` in `.env` (so plain `docker compose` commands in
+  the project directory include it too). It also adds a small `loopback`
+  service that routes WordPress's requests to its own site (wp-cron, REST,
+  multisite subsites) to nginx.
+- Starts the proxy if it isn't running. If an older jcore's project still
+  holds ports 80/443, it offers to stop that project first.
+- Defines `AUTOMATIC_UPDATER_DISABLED` in `.jcore/wordpress/wp-config.php`,
+  since wp-cron now really runs locally and a production database brings
+  its plugin auto-update settings along.
+- Runs `docker compose up`, and prints the site, Adminer
+  (`http://adminer.<localDomain>`) and mail (`http://mail.<localDomain>`)
+  URLs.
+- `--force`/`-f` is deprecated and does nothing.
 - If `mode` is `foreground` (default), it stays in the foreground.
 - Before starting, it also installs host-side dependencies: a Makefile's
   `install` target if one exists, otherwise npm/pnpm (from `package.json`)
@@ -93,30 +124,181 @@ Starts the WordPress environment for the current project.
   activate it yourself with `jcore run "wp theme activate <slug>"`.
 
 ## `stop`
-Stops every currently running JCore project on the machine (not just the
-current one, and not limited to being run from inside a project) — runs
-`docker compose stop` for each.
+
+Stops the current project. With `--all`/`-a`, stops every running JCore
+project. Run outside a project without `--all`, it asks which running
+project to stop. The shared proxy keeps running (see `proxy stop`).
+
+## `restart`
+
+Restarts the current project. It runs every step `start` takes before
+bringing containers up (pre-flight checks, `.env` and config generation,
+clash checks, the proxy, dependencies), so configuration changes are picked
+up, and only then stops the project's containers and runs
+`docker compose up` again. If any of those steps fail, the project is left
+running as it was. Other running projects are left alone.
+
+Accepts the same `--detached` and `--install`/`-i` flags as `start`, and
+like `start` stays in the foreground unless `mode` is `background`. A
+foreground `start` in another terminal ends when its containers stop.
+
+## `proxy [start|stop|status|logs]`
+
+Manages the shared proxy (Traefik) that lets several projects run at once.
+It owns host ports 80/443 and routes each request to the right project by
+domain: `https://<domain>` and `https://*.<domain>` are passed through
+(TLS included) to the project's own nginx, and
+`http://adminer.<localDomain>` / `http://mail.<localDomain>` to its Adminer
+and mail catcher. Plain `http://` site requests are redirected to https.
+Its dashboard is at `http://traefik.localhost`.
+
+`start` starts it automatically; it then keeps running, also across
+reboots, until `jcore proxy stop`. Its compose file is written to
+`~/.config/jcore/proxy/`, and it joins projects over the shared
+`jcore-proxy` Docker network.
+
+- `jcore proxy start`: Starts the proxy (offering to stop an older jcore's
+  project holding ports 80/443).
+- `jcore proxy stop`: Stops it. Projects keep running but are unreachable
+  until it's started again.
+- `jcore proxy status`: Shows whether it's running.
+- `jcore proxy logs`: Follows its logs.
 
 ## `attach`
+
 Attaches to the logs of the running containers.
+
 - Runs `docker compose logs -f`.
 
 ## `shell`
+
 Opens a bash shell inside the `wordpress` container.
+
 - Runs `docker compose exec wordpress /bin/bash`.
 
 ## `run <command>`
+
 Runs a specific command inside the `wordpress` container.
+
 - Example: `jcore run "wp plugin list"`
 
-## `pull [plugins|db|media|all]`
+## `pull [plugins|db|media|themes|all]`
+
 Pulls data from the remote environment to the local environment.
+
 - Defaults to `plugins` and `db` if no target is specified.
-- Executes import scripts inside the `wordpress` container.
+- Database, plugin, media, and theme pulls run natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container, and syncs plugins, uploads, and themes via host `rsync`.
+- When pulling media or themes, interactively prompts with a checklist to select which folders to sync.
+- Can take a `--legacy` flag to fall back to the legacy in-container import scripts (`.config/scripts/import*`).
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 
+## `sync <id|slug>`
+Pushes **one** local post to the remote (`remoteHost`/`remotePath`, including
+any `[branch-<name>]` override for the current git branch).
+- Syncs content, title, excerpt, featured image and page template. The post's
+  status is never changed on update.
+- The remote post is matched by post type + slug. If none exists, it's created
+  as a **draft**. If several match, you're asked which one to update.
+- Referenced media is uploaded (`rsync --ignore-existing`, so existing remote
+  files are never overwritten) and registered in the remote media library
+  (`wp media import --skip-copy`, so URLs stay the same). Attachment IDs in
+  blocks and `wp-image-N` classes are remapped, and `localDomain` URLs are
+  rewritten to `remoteDomain`. If the remote has a *different* file at the same
+  path, the command aborts.
+- Always shows a summary and asks for confirmation. If the remote post was
+  modified after the local one, or after the last `jcore pull db`, you have to
+  type the slug to overwrite it.
+- Before an update, the remote post and its meta are saved to
+  `.jcore/sync-backups/`. Afterwards the content is read back and compared with
+  what was sent.
+- Runs entirely inside the `wordpress` container, using the jcore SSH key
+  (`~/.config/jcore/ssh`) and wp-cli on the remote. Multisite isn't supported.
+- Flags:
+  - `--type <post_type>`: narrow a slug lookup.
+  - `--lang <slug>`: narrow a slug that several Polylang languages share
+    (e.g. `--lang en`).
+  - `--remote-id <id>`: update this remote post instead of matching one by
+    slug. It must have the same post type (and Polylang language) and not be
+    trashed. If its slug differs, it's kept.
+  - `--dry-run`: show the plan without changing anything.
+  - `--meta`: also copy custom post meta (ACF etc.). Prints a warning and asks
+    for extra confirmation. IDs in ACF image, file, gallery, post-object,
+    relationship and page-link fields are remapped. Other IDs stored in meta
+    are **not**.
+  - `--as <login>`: remote user to write as (default: the first administrator).
+    Writing as a real user keeps WordPress from stripping markup.
+  - `--menu <slug|name|id>`: sync a classic navigation menu instead of a post
+    (see below).
+
+#### Polylang
+When Polylang (free or Pro) is active, it's used through its PHP API with
+`wp eval`.
+- The remote post is matched by type, slug **and language**. If the local post
+  has a language, the command aborts when:
+  - Polylang isn't active on the remote,
+  - that language isn't set up there, or
+  - a remote post with the slug has no language.
+- A new post is given the local post's language, and its slug is saved again
+  afterwards so Polylang Pro's shared slugs apply. If WordPress still changes
+  the slug, you're told.
+- The post is linked to the remote versions of its local translations, matched
+  by slug and language. The remote's existing translation groups are merged,
+  never unlinked. If a translation is already linked to other posts in a
+  conflicting way, it's left alone with a warning. Translations that aren't on
+  the remote yet are linked once you sync them.
+- With Polylang media translation enabled, an existing attachment in the same
+  language is preferred, and new attachments get the post's language.
+- If the remote's Polylang settings copy data between translations (taxonomies,
+  meta, featured image…), the summary warns that linked translations may
+  change as well.
+
+#### ACF
+- Image, file and gallery values inside ACF block `data` are uploaded and
+  remapped like other media. Post-object, relationship and page-link values
+  are mapped to the remote post by slug, and by language under Polylang. A
+  linked post that's missing on the remote aborts the sync, with the
+  `jcore sync <id>` to run first.
+- With `--meta`, the same remapping applies to ACF fields in post meta.
+- Taxonomy and user fields are copied as-is (a warning lists them).
+
+#### Gravity Forms
+- `gravityforms/form` blocks and `[gravityform id="…"]` shortcodes are remapped
+  to the remote form with the exact same title. If the form is missing on the
+  remote, or several have that title, the sync aborts. Import missing forms
+  with Forms → Import/Export first.
+
+### `sync --menu <slug|name|id>`
+Pushes **one** classic menu (`register_nav_menus` style) to the remote.
+- The remote menu is matched by slug, falling back to name. If there is none,
+  it's created.
+- Items linking to pages or posts are mapped to the remote by post type + slug,
+  and term links by taxonomy + slug. Custom link URLs are rewritten to
+  `remoteDomain`. If any linked page or term is missing on the remote, the
+  command aborts before changing anything and lists them (for pages, it prints
+  the `jcore sync <id>` command to run first).
+- Items that match an existing remote item are updated in place, and only the
+  fields that differ are changed. New items are added, nested under the right
+  parents.
+- Remote items that aren't in the local menu are listed in red and removed only
+  if you confirm a second prompt (default No).
+- Theme locations the local menu uses are assigned on the remote only if
+  they're free. A location that already shows another menu is left alone.
+- Before an existing menu is changed, it's saved to `.jcore/sync-backups/`,
+  along with every remote menu's locations. If a remote item was modified
+  after your last `jcore pull db`, you have to type the menu slug to continue.
+- With Polylang, linked pages and terms are matched in the same language. Theme
+  locations are assigned per language through Polylang's own settings, only
+  where the slot is free, and the backup includes Polylang's location map.
+- Not synced: custom meta on menu items (e.g. mega-menu or ACF fields; you get
+  a warning if there is any). Block-theme `wp_navigation` menus aren't
+  supported.
+- Works with `--dry-run` and `--as`. `--type`, `--lang` and `--meta` don't
+  apply.
+
 ## `clone <repository> [name]`
+
 Clones an existing JCore project from a Git repository.
+
 - If only a name is given, it uses the `projectDefault` setting to construct the Git URL.
 - Initializes submodules, then switches the `wp-content/themes/jcore2` theme
   submodule (if present) to the cloned project's own `branch` setting.
@@ -126,11 +308,15 @@ Clones an existing JCore project from a Git repository.
   `install` setting — see `start`).
 
 ## `update`
+
 Updates the current project files from the template.
+
 - You can specify specific targets to update.
 
 ## `update self`
+
 Updates the JCore CLI binary itself to the latest GitHub release.
+
 - Downloads the release asset matching the current OS/arch, verifies it against
   its detached Ed25519 signature (`<asset>.minisig`), and replaces the running
   executable in place. Aborts without touching the binary if verification fails.
@@ -139,7 +325,7 @@ Updates the JCore CLI binary itself to the latest GitHub release.
 - Every command run does a cheap, non-blocking check for a newer release (at
   most once every 24h): if one is due, a detached background process performs
   it and records the result, so it never adds latency to the command you
-  actually ran. If a newer version was found, the *next* invocation prints a
+  actually ran. If a newer version was found, the _next_ invocation prints a
   one-line notice suggesting `jcore update self`.
 - Set `JCORE_NO_UPDATE_CHECK=1` to disable this check entirely (e.g. in CI).
 - On every successful run (whether it actually updated the binary or found
@@ -148,10 +334,11 @@ Updates the JCore CLI binary itself to the latest GitHub release.
   to the same paths `make install-completions` uses. This is best-effort and
   never fails the update itself. Note that zsh only picks these up
   automatically if that directory is already on `$fpath` (e.g. via `make
-  install-completions`, which the project doesn't set up automatically) —
+install-completions`, which the project doesn't set up automatically) —
   bash (with the bash-completion framework) and fish work out of the box.
 
 ## `config`
+
 Manages configuration settings. Settings live in one of three TOML files:
 global (`~/.config/jcore/config.toml`), project (`<project>/jcore.toml`), or
 local (`<project>/.localConfig.toml`, meant for gitignored per-checkout
@@ -160,12 +347,14 @@ global-only and can't be set at project scope.
 
 Any of these files can also contain a `[branch-<name>]` table to override
 settings only while that git branch is checked out, e.g.:
+
 ```toml
 remoteHost = "prod.example.com"
 
 [branch-staging]
 remoteHost = "staging.example.com"
 ```
+
 This applies everywhere settings are read — the actual running commands,
 `jcore config list`, and `jcore config edit` — not just for display. The
 `config set`/`unset` CLI is hand-edit-only for branch tables (it always
@@ -192,9 +381,9 @@ the rule below.
   bool setting accepts `true`/`yes`/`on`/`y`/`t`/`1` (case-insensitive) as
   true and anything else as false — it never errors on an unrecognized
   value.
-    - Special pseudo-setters:
-        - `wpe <name>`: Sets up WP Engine remote settings.
-        - `php <version>`: Sets the WordPress PHP image version.
+  - Special pseudo-setters:
+    - `wpe <name>`: Sets up WP Engine remote settings.
+    - `php <version>`: Sets the WordPress PHP image version.
 - `jcore config unset <key>`: Removes a configuration setting from the
   targeted scope's file.
 - `jcore config edit`: Opens a full-screen interactive editor listing every
@@ -230,19 +419,28 @@ remote` (or `local`, or via `config edit`), or pass the global
 `--letmebreakthings` flag to proceed anyway.
 
 ## `checksum`
+
 Manages file checksums to track changes in core files.
+
 - `jcore checksum list`: Lists files and their checksum status (OK, Changed, Missing).
 - `jcore checksum set <file1> <file2> ...`: Sets the current checksum for the specified files.
 
 ## `doctor`
+
 Checks the system for potential issues.
+
 - Verifies that necessary folders exist and have correct permissions.
 - Checks if required external commands (like `docker`, `git`) are installed and available.
+- Checks that Docker Compose is 2.24 or newer (needed by the proxy override).
+- Reports whether the shared proxy is running, and what holds ports 80/443
+  if it isn't.
 
 ## `migrate`
+
 Migrates a legacy JCore project to the current format.
 
 ## `create`
+
 - `jcore create block`: If Lohko isn't installed yet, offers to install it
   (downloaded fresh from GitHub into `wp-content/plugins/lohko`) and lets
   you pick which of its bundled example blocks to keep — any left
@@ -252,9 +450,12 @@ Migrates a legacy JCore project to the current format.
 - `jcore create user`: Prompts to create a new WordPress user in the running environment.
 
 ## `status`
-Shows which JCore projects are currently running.
+
+Shows whether the shared proxy is running, and each running JCore project
+with its site, Adminer and mail URLs.
 
 ## `clean [all|docker]`
+
 - `jcore clean`: Cleans containers and volumes for the current project.
 - `jcore clean all`: Cleans all non-running JCore projects and prunes Docker.
 - `jcore clean docker`: Prunes Docker containers, images, volumes, and networks.

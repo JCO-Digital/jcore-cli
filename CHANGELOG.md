@@ -1,5 +1,76 @@
 # Changelog
 
+### v4.0.0-beta.8 (2026-10-12)
+
+#### Features
+
+- wpout: de-duplicate and truncate wp-cli warnings (7a7a0bd)
+- db: show progress while fetching the remote database (40f9a40)
+- templates: exclude Redirection log tables from DB pulls by default (a8ce13a)
+- db: show import progress and speed up large DB pulls (b3ba8d5)
+
+#### Maintenance
+
+- container: remove mainwp-child from excluded plugins (3fadf9a)
+
+### v4.0.0-beta.7 (2026-10-09)
+
+#### Features
+
+- sync: choose remote posts by ID or match (bdd23b7)
+
+### v4.0.0-beta.6 (2026-10-09)
+
+#### Features
+
+- speed up detached theme activation (bd10c7c)
+
+### v4.0.0-beta.5 (2026-10-08)
+
+#### Features
+
+- add project restart command (ff9446d)
+
+### v4.0.0-beta.4 (2026-10-08)
+
+#### Features
+
+- support running multiple projects concurrently (852991c)
+
+### v4.0.0-beta.3 (2026-10-07)
+
+#### Features
+
+- polylang, acf, gf support (37869b0)
+- sync --menu flag added (5543fd1)
+- jcore sync (fab83ab)
+
+### v4.0.0-beta.2 (2026-10-01)
+
+#### Features
+
+- update: add support for beta release checks (0e70e79)
+
+### v4.0.0-beta.1 (2026-10-01)
+
+#### Features
+
+- pull: add theme pulling capabilities with interactive rsync (4e1d169)
+- project: execute custom scripts natively during sync and import tasks (eedc819)
+- project: support native host rsync for media synchronization (b077c23)
+- project: implement native host-side plugin pulling with rsync (50521aa)
+- project: add native database pulling and legacy fallback support (ceffbe2)
+
+#### Continuous Integration
+
+- github: update release workflow and foonver config (349f212)
+- github: add support for beta branch releases (3ab9ccb)
+- github: update foonver action to v1.1.0 (3363343)
+
+#### Maintenance
+
+- update configuration and remove obsolete script (054e55b)
+
 ## v3.23.0 (2026-10-01)
 
 #### Features

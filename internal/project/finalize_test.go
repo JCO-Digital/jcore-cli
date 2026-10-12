@@ -117,3 +117,42 @@ func TestFinalizeProjectPreservesUserModifiedSiteConf(t *testing.T) {
 		t.Errorf("expected checksum to remain stale for a user-modified file")
 	}
 }
+
+func TestAddWPConfigConstant(t *testing.T) {
+	config := "<?php\ndefine( 'DB_NAME', 'wordpress' );\n\n/* That's all, stop editing! Happy publishing. */\nrequire_once ABSPATH . 'wp-settings.php';\n"
+
+	updated, ok := addWPConfigConstant([]byte(config), "AUTOMATIC_UPDATER_DISABLED", "true")
+	if !ok {
+		t.Fatal("constant not added")
+	}
+	want := "<?php\ndefine( 'DB_NAME', 'wordpress' );\n\ndefine( 'AUTOMATIC_UPDATER_DISABLED', true );\n/* That's all, stop editing! Happy publishing. */\nrequire_once ABSPATH . 'wp-settings.php';\n"
+	if string(updated) != want {
+		t.Errorf("updated =\n%s\nwant\n%s", updated, want)
+	}
+
+	if _, ok := addWPConfigConstant(updated, "AUTOMATIC_UPDATER_DISABLED", "true"); ok {
+		t.Error("constant added twice")
+	}
+	if _, ok := addWPConfigConstant([]byte("<?php\n// no anchor\n"), "AUTOMATIC_UPDATER_DISABLED", "true"); ok {
+		t.Error("constant added without an anchor")
+	}
+}
+
+func TestFinalizeProjectAppendsXdebugPortToOldPhpIni(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("xdebugPort", 9010)
+
+	dir := setupFinalizeFixture(t)
+	if err := FinalizeProject(dir); err != nil {
+		t.Fatalf("FinalizeProject error = %v", err)
+	}
+
+	rendered, err := os.ReadFile(filepath.Join(dir, ".jcore", "php.ini"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rendered), "xdebug.client_port=9010") {
+		t.Errorf("rendered php.ini has no client_port:\n%s", rendered)
+	}
+}

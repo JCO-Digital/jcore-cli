@@ -76,16 +76,7 @@ func GenerateEnvFile(projectDir string) error {
 		envMap["WP_IMAGE"] = "jcodigi/wordpress:latest"
 	}
 	if envMap["LOCAL_DOMAIN"] == "" {
-		// Fallback for a project whose jcore.toml predates `init` seeding
-		// this itself — ".localhost" matches the convention used
-		// everywhere else (legacy CLI project creation, legacy-config
-		// migration).
-		projectName := viper.GetString("projectName")
-		if projectName != "" {
-			envMap["LOCAL_DOMAIN"] = Slugify(projectName) + ".localhost"
-		} else {
-			envMap["LOCAL_DOMAIN"] = "localhost"
-		}
+		envMap["LOCAL_DOMAIN"] = LocalDomain()
 	}
 	if envMap["DOMAINS"] == "" {
 		envMap["DOMAINS"] = envMap["LOCAL_DOMAIN"]
@@ -104,7 +95,24 @@ func GenerateEnvFile(projectDir string) error {
 	}
 	envMap["REPLACE"] = formatEnvValue(replaceRows)
 
-	// 5. Write to .env file
+	// 5. Put the project behind the shared proxy: generate the compose
+	// override and point compose at it. COMPOSE_FILE is read by compose
+	// itself from .env, so every `docker compose` call in the project
+	// directory - jcore's and manual ones - includes the override.
+	hasOverride, err := WriteProxyOverride(projectDir)
+	if err != nil {
+		return fmt.Errorf("generating %s: %w", ProxyOverrideRelPath, err)
+	}
+	if hasOverride {
+		envMap["COMPOSE_FILE"] = "docker-compose.yml:" + ProxyOverrideRelPath
+	}
+
+	// Lets PhpStorm tell concurrently debugged projects apart. Set here
+	// rather than in the override's `environment:`, so a project's own
+	// PHP_IDE_CONFIG in docker-compose.yml still takes precedence.
+	envMap["PHP_IDE_CONFIG"] = "serverName=" + envMap["LOCAL_DOMAIN"]
+
+	// 6. Write to .env file
 	var env strings.Builder
 	for key, value := range envMap {
 		env.WriteString(fmt.Sprintf("%s=\"%s\"\n", key, value))

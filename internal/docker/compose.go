@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/JCO-Digital/jcore/internal/wpout"
+	"golang.org/x/term"
 )
 
 // ComposeUp runs docker compose up
@@ -157,6 +160,32 @@ func ComposeExec(projectDir string, service string, cmdParts []string) error {
 	return cmd.Run()
 }
 
+// ComposeExecFiltered runs a non-interactive command (wp-cli, or a script
+// calling it) in a service container with its stderr passed through
+// wpout's warning filter, and its full output written to the command log.
+// It runs with -T so stdout and stderr stay separate streams; when jcore's
+// own stdout is a terminal, SHELL_PIPE=0 tells wp-cli to keep its
+// terminal formatting (tables, colours) despite the pipe.
+func ComposeExecFiltered(projectDir string, service string, cmdParts []string) error {
+	args := []string{"compose", "exec", "-T"}
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		args = append(args, "-e", "SHELL_PIPE=0")
+	}
+	args = append(args, service)
+	args = append(args, cmdParts...)
+
+	wpout.LogCommand(cmdParts)
+	stderr := wpout.Stderr()
+	defer stderr.Close()
+
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	cmd.Stdout = io.MultiWriter(os.Stdout, wpout.Log())
+	cmd.Stderr = stderr
+
+	return cmd.Run()
+}
+
 // ComposeExecCaptured runs a command in a service container and returns its
 // combined stdout+stderr instead of streaming it to the terminal, for a
 // caller that wants to inspect or suppress the output itself (e.g. a silent
@@ -208,4 +237,24 @@ func ComposeExecWithStdin(projectDir string, service string, cmdParts []string, 
 	cmd.Stdin = stdin
 
 	return cmd.Run()
+}
+
+// ComposeExecOutput runs a command in a service container non-interactively
+// (-T) and returns its stdout and stderr separately, optionally feeding it
+// stdin (nil for none). Keeping stdout apart matters for callers parsing
+// machine-readable output (e.g. wp-cli --format=json), which PHP notices on
+// stderr would otherwise corrupt.
+func ComposeExecOutput(projectDir string, service string, cmdParts []string, stdin io.Reader) (string, string, error) {
+	args := []string{"compose", "exec", "-T", service}
+	args = append(args, cmdParts...)
+
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = stdin
+
+	err := cmd.Run()
+	return stdout.String(), stderr.String(), err
 }

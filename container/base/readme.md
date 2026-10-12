@@ -7,7 +7,7 @@ A robust, containerized WordPress development environment by JCO Digital. This s
 - **Automated Setup**: Automatic WordPress core download and installation.
 - **SSL/TLS**: Built-in certificate generation for local HTTPS.
 - **Database Management**: MariaDB with Adminer for easy database access.
-- **Mail Trapping**: Mailhog to catch all outgoing emails during development.
+- **Mail Trapping**: Mailpit to catch all outgoing emails during development.
 - **Performance**: Integrated Memcached support.
 - **Tooling**: Includes WP-CLI, Composer, and SSH agent forwarding.
 - **Custom Scripts**: Pre-configured scripts for importing databases, media, and plugins.
@@ -42,12 +42,17 @@ Ensure you have the following installed on your host machine:
 
 ## Service Overview
 
-- **Web (Nginx)**: Handles requests on ports `80` (HTTP) and `443` (HTTPS).
+Several projects can run at the same time: a shared JCore proxy (Traefik,
+started automatically by `jcore start`) owns host ports `80`/`443` and routes
+each request to the right project by its domain.
+
+- **Web (Nginx)**: Serves `https://LOCAL_DOMAIN` (and `*.LOCAL_DOMAIN` for multisite) through the proxy, with its own TLS certificate.
 - **WordPress (PHP-FPM)**: The main PHP container (running as user 1000).
 - **Database (MariaDB)**: Persistent database storage.
-- **Adminer**: Database management UI available at `http://localhost:1080`.
-- **Mailhog**: Email testing tool. UI available at `http://localhost:8025`.
+- **Adminer**: Database management UI at `http://adminer.LOCAL_DOMAIN`.
+- **Mailhog (Mailpit)**: Email testing tool. UI at `http://mail.LOCAL_DOMAIN`.
 - **Memcached**: Object caching service.
+- **Loopback**: Forwards WordPress's requests to its own site (wp-cron, REST, multisite subsites) to Nginx.
 
 ## Configuration
 

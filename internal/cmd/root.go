@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/JCO-Digital/jcore/container"
 	"github.com/JCO-Digital/jcore/internal/config"
 	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/JCO-Digital/jcore/internal/update"
+	"github.com/JCO-Digital/jcore/internal/wpout"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -23,6 +25,9 @@ var rootCmd = &cobra.Command{
 	Long: `JCore CLI is a tool designed to manage WordPress development environments.
 It simplifies the process of setting up, running, and maintaining WordPress projects using Docker.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		projectRoot, _ := project.FindProjectRoot()
+		wpout.Begin(projectRoot, strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()))
+
 		if err := refusePluginInstallComposer(cmd); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -94,6 +99,7 @@ func isUpdateNoticeExempt(cmd *cobra.Command) bool {
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
+	wpout.Finish()
 	if err != nil {
 		os.Exit(1)
 	}

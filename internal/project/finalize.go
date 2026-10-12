@@ -1,6 +1,8 @@
 package project
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -17,7 +19,65 @@ func FinalizeProject(projectDir string) error {
 		return err
 	}
 
-	return renderPhpIni(projectDir, data)
+	if err := renderPhpIni(projectDir, data); err != nil {
+		return err
+	}
+
+	return disableAutomaticUpdates(projectDir)
+}
+
+// wpConfigRelPath is the generated wp-config.php, bind-mounted into the
+// wordpress container's webroot.
+const wpConfigRelPath = ".jcore/wordpress/wp-config.php"
+
+// disableAutomaticUpdates defines AUTOMATIC_UPDATER_DISABLED in an existing
+// wp-config.php that doesn't define it yet. wp-cron really runs locally
+// (the loopback service routes WordPress's requests to its own site), and
+// a production database brings its auto_update_plugins setting along, so
+// without this WordPress would start updating plugins on its own. Done
+// here on the host, before the containers start, since the entrypoint only
+// sets it for projects whose docker-entrypoint.sh is up to date.
+func disableAutomaticUpdates(projectDir string) error {
+	path := filepath.Join(projectDir, wpConfigRelPath)
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil // Not installed yet; the entrypoint creates it.
+	} else if err != nil {
+		return err
+	}
+
+	updated, ok := addWPConfigConstant(content, "AUTOMATIC_UPDATER_DISABLED", "true")
+	if !ok {
+		return nil
+	}
+	return os.WriteFile(path, updated, 0644)
+}
+
+// wpConfigAnchors are the lines wp-config.php constants go right before,
+// in order of preference (the first is what wp-cli's `config set` uses).
+var wpConfigAnchors = []string{
+	"/* That's all, stop editing!",
+	"require_once ABSPATH . 'wp-settings.php';",
+}
+
+// addWPConfigConstant inserts define(name, rawValue) into wp-config.php
+// content. It reports false if name is already mentioned, or there's no
+// known anchor to insert it before.
+func addWPConfigConstant(content []byte, name, rawValue string) ([]byte, bool) {
+	if bytes.Contains(content, []byte("'"+name+"'")) || bytes.Contains(content, []byte(`"`+name+`"`)) {
+		return nil, false
+	}
+	for _, anchor := range wpConfigAnchors {
+		i := bytes.Index(content, []byte(anchor))
+		if i < 0 {
+			continue
+		}
+		define := fmt.Sprintf("define( '%s', %s );\n", name, rawValue)
+		updated := append([]byte{}, content[:i]...)
+		updated = append(updated, define...)
+		return append(updated, content[i:]...), true
+	}
+	return nil, false
 }
 
 // renderSiteConf re-renders .config/nginx/site.conf in place. The stored
@@ -67,6 +127,12 @@ func renderPhpIni(projectDir string, data TemplateData) error {
 	rendered, err := renderTemplate("php.ini", content, data)
 	if err != nil {
 		return err
+	}
+
+	// A php.ini scaffolded before xdebugPort existed has no client_port
+	// line to render it into; append one (the last value wins).
+	if !bytes.Contains(content, []byte("xdebug.client_port")) {
+		rendered = append(rendered, fmt.Sprintf("\n[xdebug]\nxdebug.client_port=%d\n", data.XdebugPort)...)
 	}
 
 	destDir := filepath.Join(projectDir, ".jcore")

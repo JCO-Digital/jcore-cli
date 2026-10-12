@@ -10,8 +10,13 @@ import (
 
 // Overridable by tests.
 var (
-	activateThemePollInterval = 5 * time.Second
-	activateThemeTimeout      = 10 * time.Minute
+	// The readiness probe is a cheap shell loop, so it can poll often -
+	// every second it sleeps past php-fpm coming up is a second `jcore
+	// start --detached` takes to return. wp-cli retries boot WordPress, so
+	// they back off further.
+	activateThemeProbeInterval = 1 * time.Second
+	activateThemePollInterval  = 5 * time.Second
+	activateThemeTimeout       = 10 * time.Minute
 	// Upper bound for a single `docker compose exec` while polling. Without
 	// it a hung exec (e.g. wp-cli waiting on a database that's still
 	// initialising) blocks the whole loop past the overall deadline.
@@ -49,7 +54,7 @@ func ActivateTheme(projectDir, themeSlug string) {
 			warn()
 			return
 		}
-		time.Sleep(activateThemePollInterval)
+		time.Sleep(activateThemeProbeInterval)
 	}
 
 	for {
@@ -98,7 +103,9 @@ const (
 
 // activateThemeOnce makes one attempt at getting themeSlug active.
 func activateThemeOnce(projectDir, themeSlug string) themeResult {
-	out, err := docker.ComposeExecCapturedTimeout(projectDir, "wordpress", []string{"wp", "theme", "list", "--fields=name,status", "--format=csv"}, activateThemeWPTimeout)
+	// Listing themes needs neither plugins nor the active theme loaded, and
+	// skipping them roughly halves wp-cli's boot time on every start.
+	out, err := docker.ComposeExecCapturedTimeout(projectDir, "wordpress", []string{"wp", "theme", "list", "--fields=name,status", "--format=csv", "--skip-plugins", "--skip-themes"}, activateThemeWPTimeout)
 	if err != nil {
 		return themeRetry
 	}

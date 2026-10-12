@@ -3,7 +3,7 @@ if [ -f "$SQLPATH/update.sql" ]; then
   echo "Update table prefix"
   wp config set --path="$WEBROOT" --skip-plugins --skip-themes --type=variable table_prefix $DB_PREFIX
 
-  echo "Import DB"
+  echo "Import DB ($(ls -sh "$SQLPATH/update.sql" | cut -d' ' -f1)), this can take a while for large dumps"
   wp db import --path="$WEBROOT" --skip-plugins --skip-themes "$SQLPATH/update.sql"
   if [ -f "$SQLPATH/db.sql" ]; then
     mv "$SQLPATH/db.sql" "$SQLPATH/db.old.sql"

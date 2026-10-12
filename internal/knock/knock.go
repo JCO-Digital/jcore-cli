@@ -24,7 +24,7 @@ type KnockPort struct {
 const (
 	DefaultDialTimeout        = 100 * time.Millisecond
 	DefaultDelayBetweenKnocks = 100 * time.Millisecond
-	DefaultPostKnockDelay     = 300 * time.Millisecond
+	DefaultPostKnockDelay     = 1000 * time.Millisecond
 	DefaultTimeoutSeconds     = 60
 )
 

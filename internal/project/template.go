@@ -11,6 +11,10 @@ import (
 // template to be rendered at scaffold/update time, rather than copied verbatim.
 const TemplateExt = ".tmpl"
 
+// DefaultXdebugPort is Xdebug's own default client port, used unless the
+// xdebugPort setting overrides it.
+const DefaultXdebugPort = 9003
+
 // TemplateData holds the values available to project skeleton templates.
 type TemplateData struct {
 	ProjectName  string
@@ -20,6 +24,7 @@ type TemplateData struct {
 	RemoteHost   string
 	RemotePath   string
 	XdebugMode   string
+	XdebugPort   int
 	YdinVersion  string
 }
 
@@ -33,6 +38,11 @@ func CurrentTemplateData() TemplateData {
 	templateName := viper.GetString("template")
 	if templateName == "" {
 		templateName = "jcore3"
+	}
+
+	xdebugPort := viper.GetInt("xdebugPort")
+	if xdebugPort <= 0 {
+		xdebugPort = DefaultXdebugPort
 	}
 
 	branch := viper.GetString("branch")
@@ -57,6 +67,7 @@ func CurrentTemplateData() TemplateData {
 		RemoteHost:   viper.GetString("remoteHost"),
 		RemotePath:   viper.GetString("remotePath"),
 		XdebugMode:   xdebugMode,
+		XdebugPort:   xdebugPort,
 		YdinVersion:  ydinVersion,
 	}
 }

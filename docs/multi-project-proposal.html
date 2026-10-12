@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JCore — Running Multiple Projects Concurrently</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --surface-2: #f0f0ec;
+    --text: #1d1d1b;
+    --muted: #66665f;
+    --border: #dcdcd5;
+    --accent: #2f6fdb;
+    --accent-soft: #e5eefc;
+    --shared: #1f8a5b;
+    --shared-soft: #e3f4ec;
+    --private: #6b6b78;
+    --private-soft: #ececf0;
+    --warn: #b7791f;
+    --warn-soft: #fbf1df;
+    --danger: #c0392b;
+    --code-bg: #f3f3ef;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615;
+      --surface: #1f1f1d;
+      --surface-2: #272725;
+      --text: #ecece8;
+      --muted: #a2a29a;
+      --border: #3a3a36;
+      --accent: #6ea0f5;
+      --accent-soft: #1d2a40;
+      --shared: #4cc28c;
+      --shared-soft: #17302a;
+      --private: #a6a6b4;
+      --private-soft: #2a2a30;
+      --warn: #e3a64a;
+      --warn-soft: #36291a;
+      --danger: #ef6b5c;
+      --code-bg: #1a1a18;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 21px; margin: 56px 0 14px; letter-spacing: -0.005em; }
+  h3 { font-size: 16px; margin: 28px 0 10px; }
+  p { margin: 0 0 12px; }
+  .lede { color: var(--muted); font-size: 16px; max-width: 760px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 14px; }
+  code, pre { font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace; font-size: 13px; }
+  :not(pre) > code { background: var(--code-bg); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; overflow-x: auto; line-height: 1.5; margin: 0 0 14px;
+  }
+  pre .c { color: var(--muted); }
+  pre .k { color: var(--accent); }
+  pre .s { color: var(--shared); }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 0; }
+  nav.toc a {
+    color: var(--text); text-decoration: none; font-size: 13px;
+    border: 1px solid var(--border); background: var(--surface); padding: 4px 11px; border-radius: 999px;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+
+  /* Decisions grid */
+  .decisions { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .decision { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .decision .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+  .decision .value { font-weight: 600; font-size: 14.5px; line-height: 1.4; }
+  .decision .note { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.45; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.cmd { white-space: nowrap; font-weight: 600; }
+  .before { color: var(--muted); }
+
+  /* Diagram */
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .diagram svg { display: block; width: 100%; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--muted); padding: 0 8px 4px; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 2px solid; }
+  .legend .lg-proxy::before { background: var(--accent-soft); border-color: var(--accent); }
+  .legend .lg-shared::before { background: var(--shared-soft); border-color: var(--shared); }
+  .legend .lg-private::before { background: var(--private-soft); border-color: var(--private); }
+
+  svg text { fill: var(--text); font-family: ui-sans-serif, system-ui, sans-serif; }
+  svg .muted { fill: var(--muted); }
+  svg .box-proxy { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  svg .box-shared { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.6; }
+  svg .box-private { fill: var(--private-soft); stroke: var(--private); stroke-width: 1.4; }
+  svg .box-frame { fill: none; stroke: var(--border); stroke-width: 1.5; }
+  svg .box-net { fill: none; stroke: var(--private); stroke-width: 1.2; stroke-dasharray: 5 4; }
+  svg .band { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.4; stroke-dasharray: 6 4; }
+  svg .box-plain { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.4; }
+  svg .line { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  svg .line-shared { stroke: var(--shared); stroke-width: 1.5; fill: none; }
+  svg .line-accent { stroke: var(--accent); stroke-width: 2; fill: none; }
+  svg .line-dash { stroke: var(--muted); stroke-width: 1.3; fill: none; stroke-dasharray: 4 4; }
+  svg .line-warn { stroke: var(--warn); stroke-width: 1.6; fill: none; stroke-dasharray: 5 3; }
+  svg .warn-text { fill: var(--warn); }
+
+  /* Flows */
+  .flows { display: grid; gap: 12px; }
+  .flow { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .flow-title { font-weight: 600; margin-bottom: 10px; font-size: 14px; }
+  .flow-title code { font-weight: 500; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .step { border-radius: 8px; padding: 6px 10px; font-size: 13px; line-height: 1.35; border: 1.5px solid; }
+  .step small { display: block; color: var(--muted); font-size: 11.5px; }
+  .step.proxy { background: var(--accent-soft); border-color: var(--accent); }
+  .step.shared { background: var(--shared-soft); border-color: var(--shared); }
+  .step.private { background: var(--private-soft); border-color: var(--private); }
+  .step.plain { background: var(--surface-2); border-color: var(--border); }
+  .arrow { color: var(--muted); font-size: 16px; padding: 0 2px; }
+
+  /* Callouts */
+  .callout { border-left: 4px solid var(--warn); background: var(--warn-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 14px 18px; margin-bottom: 12px; }
+  .callout.danger { border-color: var(--danger); }
+  .callout strong { display: block; margin-bottom: 4px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* Blockers */
+  .blockers { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .blocker { background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--danger); border-radius: var(--radius); padding: 14px 16px; font-size: 14px; }
+  .blocker .where { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+
+  /* Risks */
+  ul.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  ul.checks li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px 10px 40px; position: relative; font-size: 14px; }
+  ul.checks li::before { content: "?"; position: absolute; left: 12px; top: 10px; width: 18px; height: 18px; border-radius: 50%; background: var(--warn-soft); color: var(--warn); border: 1.5px solid var(--warn); font-size: 11px; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+
+  ul.checks.done li::before { content: "✓"; background: var(--shared-soft); color: var(--shared); border-color: var(--shared); }
+  .decision.changed { border-color: var(--warn); }
+  .decision.changed .label { color: var(--warn); }
+
+  /* Timeline */
+  ol.timeline { list-style: none; padding: 0; margin: 0; counter-reset: step; position: relative; }
+  ol.timeline::before { content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+  ol.timeline li { counter-increment: step; position: relative; padding: 0 0 18px 48px; }
+  ol.timeline li::before {
+    content: counter(step); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 14px;
+  }
+  ol.timeline li strong { display: block; padding-top: 4px; }
+  ol.timeline li span { color: var(--muted); font-size: 14px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Running Multiple JCore Projects Concurrently</h1>
+  <p class="lede">One shared Traefik proxy owns ports 80/443 and routes each request by hostname to the right project, so several
+    <code>https://&lt;slug&gt;.localhost</code> sites (and their <code>*.&lt;slug&gt;.localhost</code> multisite subsites) can run side by side.</p>
+  <p class="meta">Proposal · branch <code>feat/make-jcore-multi-project</code> · companion to <code>docs/multi-project-proposal.md</code></p>
+  <nav class="toc">
+    <a href="#decisions">Decisions</a>
+    <a href="#today">Why one at a time</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#flows">Request flows</a>
+    <a href="#override">Compose override</a>
+    <a href="#dns">Multisite loopback</a>
+    <a href="#commands">Commands</a>
+    <a href="#pitfalls">Pitfalls</a>
+    <a href="#risks">Verified</a>
+    <a href="#rollout">Rollout</a>
+  </nav>
+</header>
+
+<section id="decisions">
+  <h2>Decisions</h2>
+  <div class="decisions">
+    <div class="decision"><div class="label">Proxy</div><div class="value">Traefik v3, TLS passthrough</div><div class="note">Finds projects through Docker labels; the CLI never edits proxy config.</div></div>
+    <div class="decision"><div class="label">Platform</div><div class="value">Linux + rootful Docker Engine</div><div class="note">Domains are all <code>*.localhost</code>, so no host DNS setup.</div></div>
+    <div class="decision"><div class="label">Proxy lifecycle</div><div class="value">Auto-started, never auto-stopped</div><div class="note"><code>restart: unless-stopped</code>; only <code>jcore proxy stop</code> takes it down.</div></div>
+    <div class="decision"><div class="label">jcore stop</div><div class="value">Current project · <code>--all</code></div><div class="note">Outside a project it shows a picker.</div></div>
+    <div class="decision"><div class="label">jcore start</div><div class="value">Attached by default</div><div class="note">Unchanged; <code>--detached</code> as today.</div></div>
+    <div class="decision"><div class="label">Wiring existing projects</div><div class="value">Generated compose override</div><div class="note"><code>.jcore/compose.proxy.yml</code> via <code>COMPOSE_FILE</code>; works with customized compose files.</div></div>
+    <div class="decision"><div class="label">Conflicts</div><div class="value">Detect &amp; explain</div><div class="note">Ports 80/443 held, domain clash, same-name checkouts. No automatic legacy mode.</div></div>
+    <div class="decision"><div class="label">Tool URLs</div><div class="value">adminer. / mail.&lt;slug&gt;.localhost</div><div class="note">Plain HTTP on :80. Plus the Traefik dashboard at <code>traefik.localhost</code>.</div></div>
+    <div class="decision"><div class="label">Mail</div><div class="value">MailHog → Mailpit</div><div class="note">Image swap only; the service stays named <code>mailhog</code>.</div></div>
+    <div class="decision changed"><div class="label">Multisite loopback · changed</div><div class="value"><code>loopback</code> sidecar (socat)</div><div class="note">Shares wordpress's network namespace and forwards its 127.0.0.1:80/443 to <code>web</code>. Replaces CoreDNS, see below.</div></div>
+    <div class="decision changed"><div class="label">WP auto-updates · added</div><div class="value">Disabled locally</div><div class="note">wp-cron now really runs, so <code>AUTOMATIC_UPDATER_DISABLED</code> is set before containers start.</div></div>
+    <div class="decision"><div class="label">Xdebug</div><div class="value">serverName + <code>xdebugPort</code></div><div class="note"><code>PHP_IDE_CONFIG=serverName=&lt;slug&gt;</code> always; port defaults to 9003.</div></div>
+    <div class="decision"><div class="label">Resources</div><div class="value">Left to developers</div><div class="note">Use <code>jcore status</code> and <code>stop</code>.</div></div>
+  </div>
+</section>
+
+<section id="today">
+  <h2>Why only one project can run today</h2>
+  <p>Networks, database volumes and TLS certs are already separate per project. Only the host ports and two commands assume a single project.</p>
+  <div class="blockers">
+    <div class="blocker"><code>web</code> publishes host ports <strong>80</strong> and <strong>443</strong><div class="where">container/base/docker-compose.yml</div></div>
+    <div class="blocker"><code>adminer</code> → <strong>1080</strong>, <code>mailhog</code> → <strong>1025 / 8025</strong><div class="where">container/base/docker-compose.yml</div></div>
+    <div class="blocker"><code>jcore start</code> refuses while another project runs<div class="where">internal/cmd/run.go · startCmd</div></div>
+    <div class="blocker"><code>jcore stop</code> stops <em>every</em> running project<div class="where">internal/cmd/run.go · stopCmd</div></div>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Target architecture</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 960 630" role="img" aria-label="Architecture: browser to Traefik proxy, shared network, two projects with private networks">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color: var(--muted)"></path>
+        </marker>
+        <marker id="arr-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" style="fill: var(--accent)"></path>
+        </marker>
+        <marker id="arr-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" style="fill: var(--warn)"></path>
+        </marker>
+      </defs>
+
+      <!-- Browser -->
+      <rect class="box-plain" x="270" y="14" width="420" height="56" rx="9"></rect>
+      <text x="480" y="38" text-anchor="middle" font-weight="600" font-size="14">Browser on host</text>
+      <text x="480" y="57" text-anchor="middle" class="muted" font-size="12">acme.localhost · sub.foo.localhost · adminer.acme.localhost</text>
+
+      <path class="line-accent" d="M480 70 L480 104" marker-end="url(#arr-accent)"></path>
+      <text x="490" y="92" class="muted" font-size="11.5">:80 / :443</text>
+
+      <!-- Traefik -->
+      <rect class="box-proxy" x="270" y="108" width="420" height="72" rx="10"></rect>
+      <text x="480" y="134" text-anchor="middle" font-weight="700" font-size="15">jcore-proxy · Traefik v3</text>
+      <text x="480" y="154" text-anchor="middle" class="muted" font-size="12">TCP routers by SNI (TLS passthrough) · HTTP routers for tools</text>
+      <text x="480" y="170" text-anchor="middle" class="muted" font-size="12">catch-all :80 → https redirect · dashboard at traefik.localhost</text>
+
+      <!-- docker.sock -->
+      <rect class="box-plain" x="760" y="122" width="170" height="44" rx="8"></rect>
+      <text x="845" y="141" text-anchor="middle" font-size="12.5" font-weight="600">/var/run/docker.sock</text>
+      <text x="845" y="157" text-anchor="middle" class="muted" font-size="11">read-only</text>
+      <path class="line-dash" d="M690 144 L758 144"></path>
+      <text x="724" y="137" text-anchor="middle" class="muted" font-size="10.5">labels</text>
+
+      <rect class="box-plain" x="30" y="122" width="190" height="44" rx="8"></rect>
+      <text x="125" y="141" text-anchor="middle" font-size="12.5" font-weight="600">~/.config/jcore/proxy/</text>
+      <text x="125" y="157" text-anchor="middle" class="muted" font-size="11">embedded compose stack</text>
+      <path class="line-dash" d="M220 144 L268 144"></path>
+
+      <path class="line-accent" d="M480 180 L480 214" marker-end="url(#arr-accent)"></path>
+
+      <!-- Shared network band -->
+      <rect class="band" x="20" y="218" width="920" height="34" rx="8"></rect>
+      <text x="480" y="240" text-anchor="middle" font-size="13" font-weight="600" style="fill: var(--shared)">network: jcore-proxy (external, shared) — only HTTP-facing services join</text>
+
+      <!-- ========== Project acme ========== -->
+      <rect class="box-frame" x="20" y="272" width="450" height="346" rx="12"></rect>
+
+      <path class="line-shared" d="M105 312 L105 252"></path>
+      <path class="line-shared" d="M250 312 L250 252"></path>
+      <path class="line-shared" d="M390 312 L390 252"></path>
+      <rect class="box-shared" x="40" y="312" width="130" height="54" rx="8"></rect>
+      <text x="105" y="335" text-anchor="middle" font-weight="600" font-size="13">web</text>
+      <text x="105" y="353" text-anchor="middle" class="muted" font-size="11">nginx · own TLS cert</text>
+      <rect class="box-shared" x="185" y="312" width="130" height="54" rx="8"></rect>
+      <text x="250" y="335" text-anchor="middle" font-weight="600" font-size="13">adminer</text>
+      <text x="250" y="353" text-anchor="middle" class="muted" font-size="11">adminer.acme.localhost</text>
+      <rect class="box-shared" x="330" y="312" width="120" height="54" rx="8"></rect>
+      <text x="390" y="335" text-anchor="middle" font-weight="600" font-size="13">mailhog</text>
+      <text x="390" y="353" text-anchor="middle" class="muted" font-size="11">Mailpit · mail.acme…</text>
+
+      <rect class="box-net" x="34" y="384" width="422" height="196" rx="10"></rect>
+
+      <path class="line" d="M96 366 L96 444" marker-end="url(#arr)"></path>
+      <text x="102" y="432" class="muted" font-size="10.5">fastcgi :9000</text>
+      <path class="line-warn" d="M401 446 C 401 405, 175 410, 150 370" marker-end="url(#arr-warn)"></path>
+      <text x="292" y="432" text-anchor="middle" class="warn-text" font-size="11">127.0.0.1:443 → web</text>
+
+      <rect class="box-private" x="48" y="446" width="96" height="54" rx="8"></rect>
+      <text x="96" y="469" text-anchor="middle" font-weight="600" font-size="13">wordpress</text>
+      <text x="96" y="487" text-anchor="middle" class="muted" font-size="11">php-fpm</text>
+      <rect class="box-private" x="154" y="446" width="86" height="54" rx="8"></rect>
+      <text x="197" y="469" text-anchor="middle" font-weight="600" font-size="13">db</text>
+      <text x="197" y="487" text-anchor="middle" class="muted" font-size="11">MariaDB</text>
+      <rect class="box-private" x="250" y="446" width="96" height="54" rx="8"></rect>
+      <text x="298" y="478" text-anchor="middle" font-weight="600" font-size="13">memcached</text>
+      <rect class="box-private" x="356" y="446" width="90" height="54" rx="8"></rect>
+      <text x="401" y="469" text-anchor="middle" font-weight="600" font-size="13">loopback</text>
+      <text x="401" y="487" text-anchor="middle" class="muted" font-size="11">socat</text>
+
+      <text x="48" y="530" class="muted" font-size="12">acme_default · private network</text>
+      <text x="48" y="550" class="muted" font-size="11.5">wordpress, db, memcached are never attached to jcore-proxy</text>
+
+      <text x="36" y="604" font-weight="700" font-size="14">acme</text>
+      <text x="80" y="604" class="muted" font-size="12">~/projects/acme · acme.localhost, *.acme.localhost</text>
+
+      <!-- ========== Project foo ========== -->
+      <rect class="box-frame" x="490" y="272" width="450" height="346" rx="12"></rect>
+
+      <path class="line-shared" d="M575 312 L575 252"></path>
+      <path class="line-shared" d="M720 312 L720 252"></path>
+      <path class="line-shared" d="M860 312 L860 252"></path>
+      <rect class="box-shared" x="510" y="312" width="130" height="54" rx="8"></rect>
+      <text x="575" y="335" text-anchor="middle" font-weight="600" font-size="13">web</text>
+      <text x="575" y="353" text-anchor="middle" class="muted" font-size="11">nginx · own TLS cert</text>
+      <rect class="box-shared" x="655" y="312" width="130" height="54" rx="8"></rect>
+      <text x="720" y="335" text-anchor="middle" font-weight="600" font-size="13">adminer</text>
+      <text x="720" y="353" text-anchor="middle" class="muted" font-size="11">adminer.foo.localhost</text>
+      <rect class="box-shared" x="800" y="312" width="120" height="54" rx="8"></rect>
+      <text x="860" y="335" text-anchor="middle" font-weight="600" font-size="13">mailhog</text>
+      <text x="860" y="353" text-anchor="middle" class="muted" font-size="11">Mailpit · mail.foo…</text>
+
+      <rect class="box-net" x="504" y="384" width="422" height="196" rx="10"></rect>
+
+      <path class="line" d="M566 366 L566 444" marker-end="url(#arr)"></path>
+      <text x="572" y="432" class="muted" font-size="10.5">fastcgi :9000</text>
+      <path class="line-warn" d="M871 446 C 871 405, 645 410, 620 370" marker-end="url(#arr-warn)"></path>
+      <text x="762" y="432" text-anchor="middle" class="warn-text" font-size="11">127.0.0.1:443 → web</text>
+
+      <rect class="box-private" x="518" y="446" width="96" height="54" rx="8"></rect>
+      <text x="566" y="469" text-anchor="middle" font-weight="600" font-size="13">wordpress</text>
+      <text x="566" y="487" text-anchor="middle" class="muted" font-size="11">php-fpm</text>
+      <rect class="box-private" x="624" y="446" width="86" height="54" rx="8"></rect>
+      <text x="667" y="469" text-anchor="middle" font-weight="600" font-size="13">db</text>
+      <text x="667" y="487" text-anchor="middle" class="muted" font-size="11">MariaDB</text>
+      <rect class="box-private" x="720" y="446" width="96" height="54" rx="8"></rect>
+      <text x="768" y="478" text-anchor="middle" font-weight="600" font-size="13">memcached</text>
+      <rect class="box-private" x="826" y="446" width="90" height="54" rx="8"></rect>
+      <text x="871" y="469" text-anchor="middle" font-weight="600" font-size="13">loopback</text>
+      <text x="871" y="487" text-anchor="middle" class="muted" font-size="11">socat</text>
+
+      <text x="518" y="530" class="muted" font-size="12">foo_default · private network</text>
+      <text x="518" y="550" class="muted" font-size="11.5">wordpress, db, memcached are never attached to jcore-proxy</text>
+
+      <text x="506" y="604" font-weight="700" font-size="14">foo</text>
+      <text x="542" y="604" class="muted" font-size="12">~/projects/foo · foo.localhost, *.foo.localhost</text>
+    </svg>
+    <div class="legend">
+      <span class="lg-proxy">Shared proxy</span>
+      <span class="lg-shared">On the shared <code>jcore-proxy</code> network (serves only)</span>
+      <span class="lg-private">Project-private network only</span>
+    </div>
+  </div>
+</section>
+
+<section id="flows">
+  <h2>Request flows</h2>
+  <div class="flows">
+    <div class="flow">
+      <div class="flow-title">Site over HTTPS — <code>https://acme.localhost</code> or <code>https://sub.acme.localhost</code></div>
+      <div class="chain">
+        <div class="step plain">Browser<small>*.localhost → 127.0.0.1</small></div><span class="arrow">→</span>
+        <div class="step proxy">Traefik :443<small>reads SNI, no decryption</small></div><span class="arrow">→</span>
+        <div class="step shared">acme · web<small>TLS ends here (jcoCA cert)</small></div><span class="arrow">→</span>
+        <div class="step private">acme · wordpress<small>php-fpm :9000</small></div>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-title">Plain HTTP — <code>http://acme.localhost</code></div>
+      <div class="chain">
+        <div class="step plain">Browser</div><span class="arrow">→</span>
+        <div class="step proxy">Traefik :80<small>catch-all router, priority 1</small></div><span class="arrow">→</span>
+        <div class="step plain">301 → https://acme.localhost</div>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-title">Dev tools — <code>http://adminer.acme.localhost</code> / <code>http://mail.acme.localhost</code></div>
+      <div class="chain">
+        <div class="step plain">Browser</div><span class="arrow">→</span>
+        <div class="step proxy">Traefik :80<small>Host() router beats the redirect</small></div><span class="arrow">→</span>
+        <div class="step shared">acme · adminer :8080<small>or mailhog :8025</small></div><span class="arrow">→</span>
+        <div class="step private">acme · db<small>via the private network</small></div>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-title">Loopback from inside WordPress — wp-cron, REST, site health calling <code>https://sub.acme.localhost</code></div>
+      <div class="chain">
+        <div class="step private">acme · wordpress<small>curl: *.localhost → 127.0.0.1</small></div><span class="arrow">→</span>
+        <div class="step private">acme · loopback<small>socat in wordpress's netns</small></div><span class="arrow">→</span>
+        <div class="step shared">acme · web :443<small>same SNI, cert verified · proxy not involved</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="override">
+  <h2>CLI-generated compose override</h2>
+  <p><code>jcore start</code> regenerates <code>.jcore/compose.proxy.yml</code> alongside <code>.env</code>, and adds
+    <code>COMPOSE_FILE="docker-compose.yml:.jcore/compose.proxy.yml"</code> to <code>.env</code>. Compose reads that line itself, so every existing
+    <code>docker compose</code> call in <code>internal/docker</code> — and plain <code>docker compose</code> run by hand — picks up the override with no code changes.</p>
+  <div class="two-col">
+    <pre><span class="c"># .jcore/compose.proxy.yml — generated by jcore</span>
+<span class="k">services:</span>
+  <span class="k">web:</span>
+    ports: !reset []
+    networks:
+      jcore-proxy: {}
+    labels:
+      traefik.enable: "true"
+      traefik.tcp.routers.acme.entrypoints: websecure
+      traefik.tcp.routers.acme.rule: <span class="s">"HostSNI(`acme.localhost`)
+        || HostSNIRegexp(`^.+\\.acme\\.localhost$$`)"</span>
+      traefik.tcp.routers.acme.tls.passthrough: "true"
+      traefik.tcp.services.acme.loadbalancer.server.port: "443"
+      fi.jco.jcore.project: acme
+      fi.jco.jcore.domains: acme.localhost
+      fi.jco.jcore.path: /home/me/projects/acme</pre>
+    <pre>  <span class="k">adminer:</span>
+    ports: !reset []
+    networks: { default: {}, jcore-proxy: {} }
+    labels:
+      traefik.http.routers.acme-adminer.rule: <span class="s">Host(`adminer.acme.localhost`)</span>
+      <span class="c"># … port 8080, entrypoint web</span>
+  <span class="k">mailhog:</span>
+    <span class="c"># same pattern → mail.acme.localhost, port 8025</span>
+  <span class="k">loopback:</span>
+    image: alpine/socat:1.8.1.3
+    network_mode: "service:wordpress"
+    entrypoint: ["sh", "-c"]
+    command: [<span class="s">"for p in 80 443; do (socat
+      TCP6-LISTEN:$$p,fork,reuseaddr,ipv6only=0 TCP:web:$$p
+      || socat TCP4-LISTEN:…) &amp; done; wait"</span>]
+    restart: unless-stopped
+<span class="k">networks:</span>
+  jcore-proxy: { external: true }</pre>
+  </div>
+  <div class="callout">
+    <strong>Requires Docker Compose ≥ 2.24</strong>
+    <p><code>!reset</code> was added in 2.24. <code>jcore doctor</code> gets a version check. The override only touches services the project's compose file defines; <code>loopback</code> is a complete service, added whenever the project has <code>wordpress</code> and <code>web</code>.</p>
+  </div>
+</section>
+
+<section id="dns">
+  <h2>Multisite loopback: <code>loopback</code> sidecar</h2>
+  <div class="callout">
+    <strong>Changed during implementation</strong>
+    <p>The agreed design was a CoreDNS sidecar plus a <code>resolv.conf</code> rewrite. Testing showed it can't work: curl, and so PHP's curl extension and the WordPress HTTP API,
+      resolves every <code>*.localhost</code> name to 127.0.0.1 itself, without asking DNS (RFC 6761). For the same reason, the existing <code>${LOCAL_DOMAIN}</code> network alias never worked for curl either, so wp-cron's loopback request never reached nginx.</p>
+  </div>
+  <p>Since curl always connects to 127.0.0.1 inside the wordpress container, the fix is to make the right thing listen there. A tiny <code>alpine/socat</code> service shares the wordpress
+    container's network namespace (<code>network_mode: service:wordpress</code>) and forwards its 127.0.0.1:80/443 (and <code>::1</code>) to <code>web</code>.</p>
+  <div class="two-col">
+    <ul class="checks done">
+      <li>TLS isn't touched. curl still sends the original SNI and verifies <code>web</code>'s <code>*.acme.localhost</code> cert.</li>
+      <li>Covers WP HTTP API, wp-cron, REST loopback, site health and wp-cli.</li>
+      <li>No image, entrypoint or sudo changes. Existing projects get it without <code>jcore update</code>.</li>
+      <li>Outbound traffic is unaffected.</li>
+    </ul>
+    <div class="callout">
+      <strong>Consequence: wp-cron now really runs locally</strong>
+      <p>Production's <code>auto_update_plugins</code> option comes along with a database pull. During testing, <code>balticsea</code> auto-updated WooCommerce within a minute of starting.
+        jcore now defines <code>AUTOMATIC_UPDATER_DISABLED</code> in <code>.jcore/wordpress/wp-config.php</code> before the containers start (and the entrypoint does for fresh installs).
+        Other cron jobs, for example ones calling external APIs, will now run locally too.</p>
+    </div>
+  </div>
+</section>
+
+<section id="commands">
+  <h2>Command semantics</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Today</th><th>Proposed</th></tr></thead>
+    <tbody>
+      <tr><td class="cmd">jcore start</td><td class="before">Refuses if any project runs; <code>--force</code> stops them</td><td>Ensures the proxy is up, runs the clash checks, starts <em>this</em> project. Attached by default as today. <code>--force</code> removed or deprecated.</td></tr>
+      <tr><td class="cmd">jcore stop</td><td class="before">Stops all projects</td><td>Stops the current project. <code>--all</code> stops every project (proxy keeps running). Outside a project: TUI picker.</td></tr>
+      <tr><td class="cmd">jcore status</td><td class="before">"Project X is running"</td><td>Table of project / domains / state / path from <code>fi.jco.jcore.*</code> labels, plus proxy state and tool URLs.</td></tr>
+      <tr><td class="cmd">jcore proxy</td><td class="before">—</td><td><code>start</code> · <code>stop</code> · <code>status</code> · <code>logs</code></td></tr>
+      <tr><td class="cmd">jcore doctor</td><td class="before">—</td><td>Compose ≥ 2.24; :80/:443 held by something other than the proxy; proxy running.</td></tr>
+    </tbody>
+  </table>
+  <h3>Checks <code>jcore start</code> runs first</h3>
+  <table>
+    <thead><tr><th>Check</th><th>Detected by</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>Ports 80/443 already taken</td><td>Inspecting the host ports before starting the proxy</td><td>A container (e.g. a project started by an older CLI) → name it and offer to stop it. A host process → error with a hint.</td></tr>
+      <tr><td>Same-name checkout</td><td><code>docker compose ls -a</code>: same project name, different config path</td><td>Refuse. The compose project name stays the directory name, so existing DB volumes are never orphaned.</td></tr>
+      <tr><td>Domain clash</td><td>A running <code>web</code> with an overlapping <code>fi.jco.jcore.domains</code> label</td><td>Refuse and name the other project.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="pitfalls">
+  <h2>Pitfalls the design avoids</h2>
+  <div class="callout danger">
+    <strong>Never attach wordpress, db or memcached to the shared network</strong>
+    <p>Compose registers each service name as a DNS alias on every network the service joins. If two projects' <code>wordpress</code> containers sat on <code>jcore-proxy</code>,
+      project A's nginx resolving <code>fastcgi_pass wordpress:9000</code> could reach project B's PHP-FPM. Only <code>web</code>, <code>adminer</code> and <code>mailhog</code> join the shared network, and they only serve there. This is also why mail and Adminer stay per-project.</p>
+  </div>
+  <div class="callout">
+    <strong>Don't change the compose project name</strong>
+    <p>Volumes are named <code>&lt;dir&gt;_db</code>. Setting <code>name:</code> from the slug would silently orphan every existing database, so clashes are detected instead.</p>
+  </div>
+  <div class="callout">
+    <strong>Tool hostnames vs multisite</strong>
+    <p><code>adminer.&lt;slug&gt;.localhost</code> and <code>mail.&lt;slug&gt;.localhost</code> are served over plain HTTP on :80. Over HTTPS the multisite wildcard passthrough sends them to WordPress, so those two subsite names are reserved.</p>
+  </div>
+</section>
+
+<section id="risks">
+  <h2>Verified during implementation</h2>
+  <ul class="checks done">
+    <li>All ten projects in <code>~/projects</code> merge cleanly with the override (<code>docker compose config</code>), including customized compose files. <code>fsl</code>'s own DB host port 5506 is left alone.</li>
+    <li><code>balticsea</code>, <code>carsam</code>, <code>prehealth</code> and <code>soilfood-multisite</code> ran side by side. Every site, subsite, Adminer and mail URL routed correctly, with each project's own cert served through passthrough.</li>
+    <li>Each project's nginx resolves <code>wordpress</code> to its own container. No cross-project leakage.</li>
+    <li><code>wp_remote_get('https://se.soilfood.localhost/wp-json/')</code> from inside WordPress returns 200 with certificate verification.</li>
+    <li>Traefik v3.7 accepts <code>noop@internal</code>. <code>http://</code> site requests get redirected to https.</li>
+    <li>Same-name checkouts, domain clashes and ports held by an old-style project are all detected and explained.</li>
+  </ul>
+  <ul class="checks" style="margin-top: 8px">
+    <li>Still open: Xdebug with <code>start_with_request=yes</code>. Several projects reaching one IDE listener on the same port attach to the same session unless their <code>xdebugPort</code>s differ.</li>
+  </ul>
+</section>
+
+<section id="rollout">
+  <h2>Suggested rollout</h2>
+  <ol class="timeline">
+    <li><strong>internal/proxy</strong><span>Embedded Traefik stack, <code>Ensure()</code> with port-conflict detection, <code>jcore proxy …</code> commands.</span></li>
+    <li><strong>Override generation</strong><span>Including the <code>loopback</code> sidecar, <code>COMPOSE_FILE</code> in <code>.env</code>, base compose changes (drop host ports, Mailpit), disabling WordPress auto-updates.</span></li>
+    <li><strong>Command semantics</strong><span><code>start</code> / <code>stop</code> / <code>status</code> / <code>doctor</code>, clash checks, label-based project listing.</span></li>
+    <li><strong>Xdebug</strong><span><code>xdebugPort</code> setting and <code>PHP_IDE_CONFIG</code>.</span></li>
+    <li><strong>Docs &amp; changelog</strong><span><code>docs/commands.md</code>, <code>docs/configuration.md</code>, CHANGELOG — call out the <code>stop</code> change and the new tool URLs.</span></li>
+  </ol>
+</section>
+
+</main>
+</body>
+</html>
