@@ -1,5 +1,18 @@
 # Changelog
 
+### v4.0.0-beta.8 (2026-10-12)
+
+#### Features
+
+- wpout: de-duplicate and truncate wp-cli warnings (7a7a0bd)
+- db: show progress while fetching the remote database (40f9a40)
+- templates: exclude Redirection log tables from DB pulls by default (a8ce13a)
+- db: show import progress and speed up large DB pulls (b3ba8d5)
+
+#### Maintenance
+
+- container: remove mainwp-child from excluded plugins (3fadf9a)
+
 ### v4.0.0-beta.7 (2026-10-09)
 
 #### Features
