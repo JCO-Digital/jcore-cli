@@ -25,7 +25,7 @@ func ComposeUp(projectDir string, detached bool) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	return cmd.Run()
+	return WithCredentialHint(cmd.Run())
 }
 
 // ComposePull runs docker compose pull
@@ -35,7 +35,7 @@ func ComposePull(projectDir string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	return WithCredentialHint(cmd.Run())
 }
 
 // ComposeStop runs docker compose stop

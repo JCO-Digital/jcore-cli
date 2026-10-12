@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/JCO-Digital/jcore/internal/docker"
 )
 
 const (
@@ -215,7 +217,7 @@ func Ensure() error {
 	}
 
 	fmt.Println("Starting the JCore proxy...")
-	return compose("up", "-d", "--remove-orphans")
+	return docker.WithCredentialHint(compose("up", "-d", "--remove-orphans"))
 }
 
 // Stop takes the proxy down. Projects keep running but become unreachable

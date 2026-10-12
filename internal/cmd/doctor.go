@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/JCO-Digital/jcore/internal/constants"
+	"github.com/JCO-Digital/jcore/internal/docker"
 	"github.com/JCO-Digital/jcore/internal/proxy"
 	"github.com/hashicorp/go-version"
 	"github.com/spf13/cobra"
@@ -34,6 +35,10 @@ var doctorCmd = &cobra.Command{
 		}
 
 		if !checkDocker() {
+			pass = false
+		}
+
+		if !checkDockerCredentials() {
 			pass = false
 		}
 
@@ -185,6 +190,18 @@ func checkDocker() bool {
 	}
 
 	fmt.Printf("  [ OK ] Docker is running and Compose %s is available.\n", composeVersion)
+	return true
+}
+
+// checkDockerCredentials checks the credential helper Docker runs before
+// every image pull, which a config left over from Docker Desktop on WSL
+// commonly breaks.
+func checkDockerCredentials() bool {
+	if err := docker.CheckCredentialHelper(); err != nil {
+		fmt.Println("  [FAIL] " + strings.ReplaceAll(err.Error(), "\n", "\n         "))
+		return false
+	}
+	fmt.Println("  [ OK ] Docker can look up registry credentials.")
 	return true
 }
 
