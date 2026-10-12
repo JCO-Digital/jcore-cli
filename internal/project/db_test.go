@@ -195,3 +195,36 @@ WP_DB_NAME="custom_db"
 		t.Errorf("from viper: got (%s, %s, %s), want (viper_user, viper_password, viper_db)", u, p, n)
 	}
 }
+
+func TestFormatBytes(t *testing.T) {
+	cases := map[int64]string{
+		0:               "0 B",
+		1023:            "1023 B",
+		1024:            "1.0 KB",
+		1536:            "1.5 KB",
+		2362232013:      "2.2 GB",
+		5 * 1024 * 1024: "5.0 MB",
+	}
+	for in, want := range cases {
+		if got := formatBytes(in); got != want {
+			t.Errorf("formatBytes(%d) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestProgressReaderPassesThroughData(t *testing.T) {
+	src := bytes.Repeat([]byte("x"), 10000)
+	var out bytes.Buffer
+	p := newProgressReader(bytes.NewReader(src), int64(len(src)), &out)
+	var dst bytes.Buffer
+	if _, err := dst.ReadFrom(p); err != nil {
+		t.Fatal(err)
+	}
+	p.finish()
+	if !bytes.Equal(dst.Bytes(), src) {
+		t.Error("progressReader altered the stream")
+	}
+	if !bytes.Contains(out.Bytes(), []byte("100.0%")) {
+		t.Errorf("final progress line missing 100%%: %q", out.String())
+	}
+}

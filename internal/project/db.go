@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/JCO-Digital/jcore/internal/docker"
 	"github.com/JCO-Digital/jcore/internal/logging"
@@ -276,6 +277,16 @@ func ImportSQLDump(projectDir string, sqlFilePath string) error {
 	}
 	defer file.Close()
 
+	var stdin io.Reader = file
+	if info, err := file.Stat(); err == nil && info.Size() > 0 {
+		fmt.Printf("Importing %s...\n", formatBytes(info.Size()))
+		if isTerminalOutput(os.Stderr) {
+			progress := newProgressReader(file, info.Size(), os.Stderr)
+			defer progress.finish()
+			stdin = progress
+		}
+	}
+
 	mariadbArgs := []string{
 		"sh", "-c",
 		`if command -v mariadb >/dev/null 2>&1; then exec mariadb "$@"; else exec mysql "$@"; fi`,
@@ -286,7 +297,68 @@ func ImportSQLDump(projectDir string, sqlFilePath string) error {
 		dbName,
 	}
 
-	return docker.ComposeExecWithStdin(projectDir, "db", mariadbArgs, file)
+	return docker.ComposeExecWithStdin(projectDir, "db", mariadbArgs, stdin)
+}
+
+// progressReader wraps the SQL dump and redraws a single progress line on
+// out as bytes are read, so a multi-GB import doesn't look like a hang.
+type progressReader struct {
+	r        io.Reader
+	out      io.Writer
+	total    int64
+	read     int64
+	start    time.Time
+	lastDraw time.Time
+}
+
+func newProgressReader(r io.Reader, total int64, out io.Writer) *progressReader {
+	return &progressReader{r: r, out: out, total: total, start: time.Now()}
+}
+
+func (p *progressReader) Read(buf []byte) (int, error) {
+	n, err := p.r.Read(buf)
+	p.read += int64(n)
+	if time.Since(p.lastDraw) >= 500*time.Millisecond {
+		p.draw()
+	}
+	return n, err
+}
+
+func (p *progressReader) draw() {
+	p.lastDraw = time.Now()
+	elapsed := time.Since(p.start).Round(time.Second)
+	fmt.Fprintf(p.out, "\r\033[K  %5.1f%%  %s / %s  (%s)",
+		float64(p.read)*100/float64(p.total), formatBytes(p.read), formatBytes(p.total), elapsed)
+}
+
+// finish draws the final state and ends the progress line.
+func (p *progressReader) finish() {
+	p.draw()
+	fmt.Fprintln(p.out)
+}
+
+// formatBytes renders a byte count with a binary unit suffix (e.g. "2.2 GB").
+func formatBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+// isTerminalOutput reports whether f is attached to a terminal, so carriage
+// return redraws aren't written into redirected logs.
+func isTerminalOutput(f *os.File) bool {
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
 // RotateSQLFiles rotates update.sql to db.sql, and existing db.sql to db.old.sql.

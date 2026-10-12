@@ -19,6 +19,12 @@ services:
   # MariaDB container
   db:
     image: "mariadb:11.2"
+    # Local dev DB: trade crash durability for much faster bulk imports.
+    command:
+      - --innodb-buffer-pool-size=1G
+      - --innodb-flush-log-at-trx-commit=2
+      - --innodb-log-file-size=512M
+      - --max-allowed-packet=256M
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: ${WP_DB_NAME}

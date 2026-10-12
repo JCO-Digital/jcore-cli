@@ -7,7 +7,7 @@ pluginExclude = [
 	"minimal-coming-soon-maintenance-mode",
 	"coming-soon",
 ]
-dbExclude = ["relevanssi"]
+dbExclude = ["relevanssi", "relevanssi_log"]
 remoteDomain = "localhost"
 localDomain = "localhost"
 wpDebug = true
