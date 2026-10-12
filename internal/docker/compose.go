@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/JCO-Digital/jcore/internal/wpout"
+	"golang.org/x/term"
 )
 
 // ComposeUp runs docker compose up
@@ -153,6 +156,32 @@ func ComposeExec(projectDir string, service string, cmdParts []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
+}
+
+// ComposeExecFiltered runs a non-interactive command (wp-cli, or a script
+// calling it) in a service container with its stderr passed through
+// wpout's warning filter, and its full output written to the command log.
+// It runs with -T so stdout and stderr stay separate streams; when jcore's
+// own stdout is a terminal, SHELL_PIPE=0 tells wp-cli to keep its
+// terminal formatting (tables, colours) despite the pipe.
+func ComposeExecFiltered(projectDir string, service string, cmdParts []string) error {
+	args := []string{"compose", "exec", "-T"}
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		args = append(args, "-e", "SHELL_PIPE=0")
+	}
+	args = append(args, service)
+	args = append(args, cmdParts...)
+
+	wpout.LogCommand(cmdParts)
+	stderr := wpout.Stderr()
+	defer stderr.Close()
+
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	cmd.Stdout = io.MultiWriter(os.Stdout, wpout.Log())
+	cmd.Stderr = stderr
 
 	return cmd.Run()
 }

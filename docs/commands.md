@@ -17,6 +17,15 @@ With none of these passed, the effective level comes from the persisted
 `logLevel` setting (default `2`/info). A flag always wins over that
 setting for the current invocation only.
 
+### wp-cli warnings
+
+Warnings, notices and deprecations from wp-cli (locally or over SSH) are
+shown once, cut to a single line, and repeats are counted in a summary at
+the end of the command. Errors are always shown in full. `--verbose` shows
+warnings untruncated (still de-duplicated); `--debug` shows everything
+unfiltered; `--quiet` hides warnings. The complete output of every jcore
+command that ran wp-cli is written to `.jcore/logs/`, keeping the last 10.
+
 ## `init [name]`
 
 Creates a new JCore project in a new directory (a sibling of the current

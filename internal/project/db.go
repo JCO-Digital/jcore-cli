@@ -15,6 +15,7 @@ import (
 
 	"github.com/JCO-Digital/jcore/internal/docker"
 	"github.com/JCO-Digital/jcore/internal/logging"
+	"github.com/JCO-Digital/jcore/internal/wpout"
 	"github.com/spf13/viper"
 )
 
@@ -31,7 +32,7 @@ func ImportDatabase(projectDir string, legacy bool) error {
 // ImportDatabaseLegacy runs the container's importdb script inside the wordpress container.
 func ImportDatabaseLegacy(projectDir string) error {
 	KnockIfNeeded()
-	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importdb"})
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importdb"})
 }
 
 // ImportDatabaseNative orchestrates the host-driven database migration:
@@ -250,9 +251,13 @@ func FetchRemoteDatabase(remoteHost, remotePath string, excludeArg string, destP
 	}
 	defer destFile.Close()
 
+	wpout.LogCommand(append([]string{"ssh"}, sshArgs...))
+	stderr := wpout.Stderr()
+	defer stderr.Close()
+
 	cmd := exec.Command("ssh", sshArgs...)
 	cmd.Stdout = destFile
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = stderr
 
 	var progress *progressWriter
 	if isTerminalOutput(os.Stderr) {
@@ -429,7 +434,7 @@ func UpdateTablePrefix(projectDir string, dbPrefix string) error {
 	if dbPrefix == "" {
 		dbPrefix = "wp_"
 	}
-	return docker.ComposeExec(projectDir, "wordpress", []string{
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{
 		"wp", "config", "set", "--path=/var/www/html", "--skip-plugins", "--skip-themes", "--type=variable", "table_prefix", dbPrefix,
 	})
 }
@@ -456,7 +461,7 @@ func ApplyDomainReplacements(projectDir string) error {
 				continue
 			}
 			fmt.Printf("Replacing %s with %s...\n", from, to)
-			err := docker.ComposeExec(projectDir, "wordpress", []string{
+			err := docker.ComposeExecFiltered(projectDir, "wordpress", []string{
 				"wp", "search-replace", "--network", "--path=/var/www/html", "--skip-plugins", "--skip-themes",
 				from, to, "--recurse-objects", "--report-changed-only", "--skip-columns=guid",
 			})

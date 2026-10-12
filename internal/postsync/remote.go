@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/JCO-Digital/jcore/internal/docker"
+	"github.com/JCO-Digital/jcore/internal/wpout"
 )
 
 // FileState is how an uploads-relative file on the local site compares to
@@ -140,8 +141,10 @@ func (d *DockerRunner) exec(parts []string, stdin string) (string, error) {
 	if stdin != "" {
 		in = strings.NewReader(stdin)
 	}
+	wpout.LogCommand(parts)
 	stdout, stderr, err := docker.ComposeExecOutput(d.ProjectDir, containerService, parts, in)
 	if err != nil {
+		_, _ = wpout.Log().Write([]byte(stderr))
 		msg := strings.TrimSpace(stderr)
 		if msg == "" {
 			msg = strings.TrimSpace(stdout)
@@ -150,6 +153,12 @@ func (d *DockerRunner) exec(parts []string, stdin string) (string, error) {
 			return stdout, err
 		}
 		return stdout, fmt.Errorf("%w: %s", err, msg)
+	}
+	// stdout is data for the caller; stderr warnings go through the filter.
+	if stderr != "" {
+		w := wpout.Stderr()
+		_, _ = io.WriteString(w, stderr)
+		_ = w.Close()
 	}
 	return stdout, nil
 }

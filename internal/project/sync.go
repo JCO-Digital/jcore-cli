@@ -30,7 +30,7 @@ func SyncPlugins(projectDir string, legacy bool) error {
 // SyncPluginsLegacy runs the container's importplugins script inside the wordpress container.
 func SyncPluginsLegacy(projectDir string) error {
 	KnockIfNeeded()
-	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importplugins"})
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importplugins"})
 }
 
 // SyncPluginsNative syncs plugins from the remote host to the local wp-content/plugins directory using rsync.
@@ -176,7 +176,7 @@ func SyncMedia(projectDir string, legacy bool) error {
 // SyncMediaLegacy runs the container's importmedia script inside the wordpress container.
 func SyncMediaLegacy(projectDir string) error {
 	KnockIfNeeded()
-	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importmedia"})
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importmedia"})
 }
 
 // SyncMediaNative syncs uploads from the remote host to wp-content/uploads using rsync,
@@ -396,7 +396,7 @@ func isTerminal() bool {
 // InstallLocalPlugins runs the container's installplugins script, which
 // installs and activates every plugin listed in pluginLocal.
 func InstallLocalPlugins(projectDir string) error {
-	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/installplugins"})
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/installplugins"})
 }
 
 // SyncThemes runs theme synchronization, either natively from the host via rsync
@@ -412,7 +412,7 @@ func SyncThemes(projectDir string, legacy bool) error {
 // SyncThemesLegacy runs the container's importthemes script inside the wordpress container.
 func SyncThemesLegacy(projectDir string) error {
 	KnockIfNeeded()
-	return docker.ComposeExec(projectDir, "wordpress", []string{"/project/.config/scripts/importthemes"})
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importthemes"})
 }
 
 // SyncThemesNative syncs themes from the remote host to wp-content/themes using rsync,

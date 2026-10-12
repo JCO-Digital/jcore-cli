@@ -79,7 +79,7 @@ var createUserCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Creating user %s...\n", answers.Username)
-		err = docker.ComposeExec(projectDir, "wordpress", wpCmd)
+		err = docker.ComposeExecFiltered(projectDir, "wordpress", wpCmd)
 		if err != nil {
 			fmt.Printf("Error creating user: %v\n", err)
 		} else {

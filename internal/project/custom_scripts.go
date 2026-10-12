@@ -24,7 +24,7 @@ func RunCustomScript(projectDir, scriptName string) error {
 
 	fmt.Printf("Running custom script inside container: custom-scripts/%s\n", scriptName)
 	cmd := fmt.Sprintf("export PROJECT_PATH=/project; if [ -f /project/.env ]; then set -a; . /project/.env; set +a; fi; bash /project/custom-scripts/%s", scriptName)
-	if err := docker.ComposeExec(projectDir, "wordpress", []string{"bash", "-c", cmd}); err != nil {
+	if err := docker.ComposeExecFiltered(projectDir, "wordpress", []string{"bash", "-c", cmd}); err != nil {
 		return fmt.Errorf("custom script custom-scripts/%s failed: %w", scriptName, err)
 	}
 	return nil
