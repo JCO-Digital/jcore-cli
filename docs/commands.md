@@ -309,6 +309,11 @@ Clones an existing JCore project from a Git repository.
 
 ## `update`
 
+Shows the available update subcommands (`project` and `self`). It doesn't
+update anything on its own.
+
+## `update project`
+
 Updates the current project files from the template.
 
 - You can specify specific targets to update.

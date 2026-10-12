@@ -82,7 +82,7 @@ func addWPConfigConstant(content []byte, name, rawValue string) ([]byte, bool) {
 
 // renderSiteConf re-renders .config/nginx/site.conf in place. The stored
 // checksum is only refreshed if the file was unmodified beforehand, so a
-// manually customized site.conf keeps being flagged as modified by "jcore update".
+// manually customized site.conf keeps being flagged as modified by "jcore update project".
 func renderSiteConf(projectDir string, data TemplateData) error {
 	path := filepath.Join(projectDir, siteConfRelPath)
 
@@ -115,7 +115,7 @@ func renderSiteConf(projectDir string, data TemplateData) error {
 
 // renderPhpIni renders php.ini's on-disk content (which may have been
 // customized) to .jcore/php.ini, the file actually mounted into the container.
-// The source php.ini is left untouched so "jcore update" keeps tracking it.
+// The source php.ini is left untouched so "jcore update project" keeps tracking it.
 func renderPhpIni(projectDir string, data TemplateData) error {
 	content, err := os.ReadFile(filepath.Join(projectDir, "php.ini"))
 	if os.IsNotExist(err) {

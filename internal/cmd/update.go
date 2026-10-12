@@ -13,9 +13,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// updateCmd represents the update command
+// updateCmd groups the update subcommands. On its own it only shows the
+// available options, so it's never ambiguous what is being updated.
 var updateCmd = &cobra.Command{
-	Use:   "update [files...]",
+	Use:   "update",
+	Short: "Update the current project or the jcore CLI itself",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		_ = cmd.Help()
+	},
+}
+
+// updateProjectCmd represents the update project command
+var updateProjectCmd = &cobra.Command{
+	Use:   "project [files...]",
 	Short: "Update project files from templates",
 	Long: `Updates the current project files from the embedded templates.
 It respects manually modified files by checking their checksums.
@@ -158,6 +169,7 @@ this platform, verifies its signature, and replaces the running executable.`,
 
 func init() {
 	rootCmd.AddCommand(updateCmd)
+	updateCmd.AddCommand(updateProjectCmd)
 	updateCmd.AddCommand(updateSelfCmd)
 
 	updateSelfCmd.Flags().BoolVarP(&selfUpdateForce, "force", "f", false, "Reinstall even if already on the latest version, skip confirmation")

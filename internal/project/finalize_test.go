@@ -108,7 +108,7 @@ func TestFinalizeProjectPreservesUserModifiedSiteConf(t *testing.T) {
 	}
 
 	// The checksum should NOT have been refreshed, so the file still shows as
-	// modified for "jcore update" purposes.
+	// modified for "jcore update project" purposes.
 	match, err := CompareChecksum(dir, siteConfRelPath, false)
 	if err != nil {
 		t.Fatalf("CompareChecksum failed: %v", err)
