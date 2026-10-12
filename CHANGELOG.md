@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.0.1 (2026-10-12)
+
+#### Bug Fixes
+
+- docker: diagnose broken credential helpers (308fbc9)
+
 ## v4.0.0 (2026-10-12)
 
 #### Features
