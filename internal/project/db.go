@@ -254,7 +254,17 @@ func FetchRemoteDatabase(remoteHost, remotePath string, excludeArg string, destP
 	cmd.Stdout = destFile
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	var progress *progressWriter
+	if isTerminalOutput(os.Stderr) {
+		progress = newProgressWriter(destFile, os.Stderr)
+		cmd.Stdout = progress
+	}
+
+	err = cmd.Run()
+	if progress != nil {
+		progress.finish()
+	}
+	if err != nil {
 		_ = os.Remove(destPath)
 		return fmt.Errorf("ssh export failed: %w", err)
 	}
@@ -300,41 +310,80 @@ func ImportSQLDump(projectDir string, sqlFilePath string) error {
 	return docker.ComposeExecWithStdin(projectDir, "db", mariadbArgs, stdin)
 }
 
-// progressReader wraps the SQL dump and redraws a single progress line on
-// out as bytes are read, so a multi-GB import doesn't look like a hang.
-type progressReader struct {
-	r        io.Reader
+// progress redraws a single status line on out as bytes are transferred,
+// so multi-GB fetches and imports don't look like a hang. A total of 0 means
+// the size is unknown (e.g. a streamed remote export), so no percentage is
+// shown.
+type progress struct {
 	out      io.Writer
 	total    int64
-	read     int64
+	done     int64
 	start    time.Time
 	lastDraw time.Time
 }
 
+func newProgress(out io.Writer, total int64) *progress {
+	return &progress{out: out, total: total, start: time.Now()}
+}
+
+func (p *progress) add(n int) {
+	p.done += int64(n)
+	if time.Since(p.lastDraw) >= 500*time.Millisecond {
+		p.draw()
+	}
+}
+
+func (p *progress) draw() {
+	p.lastDraw = time.Now()
+	elapsed := time.Since(p.start)
+	rate := ""
+	if secs := elapsed.Seconds(); secs >= 1 {
+		rate = fmt.Sprintf("  %s/s", formatBytes(int64(float64(p.done)/secs)))
+	}
+	if p.total > 0 {
+		fmt.Fprintf(p.out, "\r\033[K  %5.1f%%  %s / %s%s  (%s)",
+			float64(p.done)*100/float64(p.total), formatBytes(p.done), formatBytes(p.total), rate, elapsed.Round(time.Second))
+	} else {
+		fmt.Fprintf(p.out, "\r\033[K  %s%s  (%s)", formatBytes(p.done), rate, elapsed.Round(time.Second))
+	}
+}
+
+// finish draws the final state and ends the progress line.
+func (p *progress) finish() {
+	p.draw()
+	fmt.Fprintln(p.out)
+}
+
+// progressReader reports bytes read from r.
+type progressReader struct {
+	*progress
+	r io.Reader
+}
+
 func newProgressReader(r io.Reader, total int64, out io.Writer) *progressReader {
-	return &progressReader{r: r, out: out, total: total, start: time.Now()}
+	return &progressReader{progress: newProgress(out, total), r: r}
 }
 
 func (p *progressReader) Read(buf []byte) (int, error) {
 	n, err := p.r.Read(buf)
-	p.read += int64(n)
-	if time.Since(p.lastDraw) >= 500*time.Millisecond {
-		p.draw()
-	}
+	p.add(n)
 	return n, err
 }
 
-func (p *progressReader) draw() {
-	p.lastDraw = time.Now()
-	elapsed := time.Since(p.start).Round(time.Second)
-	fmt.Fprintf(p.out, "\r\033[K  %5.1f%%  %s / %s  (%s)",
-		float64(p.read)*100/float64(p.total), formatBytes(p.read), formatBytes(p.total), elapsed)
+// progressWriter reports bytes written to w.
+type progressWriter struct {
+	*progress
+	w io.Writer
 }
 
-// finish draws the final state and ends the progress line.
-func (p *progressReader) finish() {
-	p.draw()
-	fmt.Fprintln(p.out)
+func newProgressWriter(w io.Writer, out io.Writer) *progressWriter {
+	return &progressWriter{progress: newProgress(out, 0), w: w}
+}
+
+func (p *progressWriter) Write(buf []byte) (int, error) {
+	n, err := p.w.Write(buf)
+	p.add(n)
+	return n, err
 }
 
 // formatBytes renders a byte count with a binary unit suffix (e.g. "2.2 GB").

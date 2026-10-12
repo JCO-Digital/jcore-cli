@@ -228,3 +228,18 @@ func TestProgressReaderPassesThroughData(t *testing.T) {
 		t.Errorf("final progress line missing 100%%: %q", out.String())
 	}
 }
+
+func TestProgressWriterUnknownTotal(t *testing.T) {
+	var dst, out bytes.Buffer
+	p := newProgressWriter(&dst, &out)
+	if _, err := p.Write(bytes.Repeat([]byte("x"), 2048)); err != nil {
+		t.Fatal(err)
+	}
+	p.finish()
+	if dst.Len() != 2048 {
+		t.Errorf("wrote %d bytes, want 2048", dst.Len())
+	}
+	if !bytes.Contains(out.Bytes(), []byte("2.0 KB")) || bytes.Contains(out.Bytes(), []byte("%")) {
+		t.Errorf("unexpected progress line for unknown total: %q", out.String())
+	}
+}
