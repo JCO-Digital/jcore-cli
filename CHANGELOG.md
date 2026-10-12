@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.1.0 (2026-10-12)
+
+#### Features
+
+- cmd: add update project subcommand (66e835c)
+
 ### v4.0.1 (2026-10-12)
 
 #### Bug Fixes
