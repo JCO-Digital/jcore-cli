@@ -222,8 +222,9 @@ any `[branch-<name>]` override for the current git branch).
 - Before an update, the remote post and its meta are saved to
   `.jcore/sync-backups/`. Afterwards the content is read back and compared with
   what was sent.
-- Runs entirely inside the `wordpress` container, using the jcore SSH key
-  (`~/.config/jcore/ssh`) and wp-cli on the remote. Multisite isn't supported.
+- Like `jcore pull`, connects to the remote with the host's `ssh` and `rsync`
+  (your SSH config and agent) and runs wp-cli there; the local site is read
+  through wp-cli in the `wordpress` container. Multisite isn't supported.
 - Flags:
   - `--type <post_type>`: narrow a slug lookup.
   - `--lang <slug>`: narrow a slug that several Polylang languages share
