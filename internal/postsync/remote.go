@@ -2,15 +2,19 @@
 // configured remote (remoteHost/remotePath), uploading any media it
 // references and rewriting local attachment IDs and *.localhost URLs.
 //
-// Everything runs inside the local "wordpress" container, exactly like
-// `jcore pull`: that's where the jcore SSH key (~/.config/jcore/ssh, mounted
-// as ~/.ssh), wp-cli and rsync live. The host never runs ssh itself.
+// Local wp-cli runs inside the "wordpress" container, while ssh and rsync to
+// the remote run on the host, exactly like `jcore pull`: they use the host's
+// ssh config and agent, so a container started before the agent last
+// restarted can't break them with a stale socket mount.
 package postsync
 
 import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/JCO-Digital/jcore/internal/docker"
@@ -64,18 +68,16 @@ type Runner interface {
 	Upload(rel string) error
 }
 
-const (
-	containerService = "wordpress"
-	localWebroot     = "/var/www/html"
-)
+const containerService = "wordpress"
 
 // sshOptions are passed to every ssh invocation. BatchMode makes a missing
 // key or passphrase fail instead of hanging on a prompt nobody can see
-// (stdin is not a terminal here); accept-new trusts a host seen for the
-// first time but still refuses one whose key has changed.
-var sshOptions = []string{"-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new"}
+// (stdin is fed by us, not the terminal); accept-new trusts a host seen for
+// the first time but still refuses one whose key has changed.
+var sshOptions = []string{"-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=10"}
 
-// DockerRunner is the real Runner, executing through `docker compose exec`.
+// DockerRunner is the real Runner: local wp-cli goes through
+// `docker compose exec`, remote wp-cli and rsync run on the host.
 type DockerRunner struct {
 	ProjectDir string
 	Host       string // [user@]host, without port
@@ -136,13 +138,34 @@ func (d *DockerRunner) sshCommand() []string {
 	return cmd
 }
 
-func (d *DockerRunner) exec(parts []string, stdin string) (string, error) {
-	var in io.Reader
-	if stdin != "" {
-		in = strings.NewReader(stdin)
+func stdinReader(stdin string) io.Reader {
+	if stdin == "" {
+		return nil
 	}
+	return strings.NewReader(stdin)
+}
+
+// execContainer runs parts inside the wordpress container.
+func (d *DockerRunner) execContainer(parts []string) (string, error) {
 	wpout.LogCommand(parts)
-	stdout, stderr, err := docker.ComposeExecOutput(d.ProjectDir, containerService, parts, in)
+	stdout, stderr, err := docker.ComposeExecOutput(d.ProjectDir, containerService, parts, nil)
+	return finishExec(stdout, stderr, err)
+}
+
+// execHost runs parts on the host, in the project directory.
+func (d *DockerRunner) execHost(parts []string, stdin string) (string, error) {
+	wpout.LogCommand(parts)
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Dir = d.ProjectDir
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	cmd.Stdin = stdinReader(stdin)
+	err := cmd.Run()
+	return finishExec(stdout.String(), stderr.String(), err)
+}
+
+func finishExec(stdout, stderr string, err error) (string, error) {
 	if err != nil {
 		_, _ = wpout.Log().Write([]byte(stderr))
 		msg := strings.TrimSpace(stderr)
@@ -164,7 +187,7 @@ func (d *DockerRunner) exec(parts []string, stdin string) (string, error) {
 }
 
 func (d *DockerRunner) Local(args ...string) (string, error) {
-	return d.exec(append([]string{"wp"}, args...), "")
+	return d.execContainer(append([]string{"wp"}, args...))
 }
 
 func (d *DockerRunner) remoteParts(args []string) []string {
@@ -176,7 +199,7 @@ func (d *DockerRunner) remoteParts(args []string) []string {
 }
 
 func (d *DockerRunner) Remote(args ...string) (string, error) {
-	return d.exec(d.remoteParts(args), "")
+	return d.execHost(d.remoteParts(args), "")
 }
 
 func (d *DockerRunner) RemoteStdin(stdin string, args ...string) (string, error) {
@@ -185,26 +208,33 @@ func (d *DockerRunner) RemoteStdin(stdin string, args ...string) (string, error)
 		// content, but guard anyway with a single newline.
 		stdin = "\n"
 	}
-	return d.exec(d.remoteParts(args), stdin)
+	return d.execHost(d.remoteParts(args), stdin)
+}
+
+func (d *DockerRunner) localUploads() string {
+	return filepath.Join(d.ProjectDir, "wp-content", "uploads")
 }
 
 func (d *DockerRunner) rsyncParts(rel string, extra ...string) []string {
 	parts := []string{"rsync", "-a", "--relative", "-e", strings.Join(d.sshCommand(), " ")}
 	parts = append(parts, extra...)
 	return append(parts,
-		localWebroot+"/wp-content/uploads/./"+rel,
+		d.localUploads()+"/./"+rel,
 		d.Host+":"+d.Path+"/wp-content/uploads/",
 	)
 }
 
 func (d *DockerRunner) FileStatus(rel string) (FileState, error) {
-	if _, err := d.exec([]string{"test", "-f", localWebroot + "/wp-content/uploads/" + rel}, ""); err != nil {
+	if info, err := os.Stat(filepath.Join(d.localUploads(), rel)); err != nil || !info.Mode().IsRegular() {
 		return FileMissingLocal, nil
+	}
+	if err := requireRsync(); err != nil {
+		return 0, err
 	}
 	// A dry run with checksums itemizes what *would* be transferred:
 	// "<f+++++++++" for a new file, "<f..." for one whose content differs,
 	// and nothing (or a ".f" attribute-only line) for an identical one.
-	out, err := d.exec(d.rsyncParts(rel, "--dry-run", "--checksum", "--itemize-changes"), "")
+	out, err := d.execHost(d.rsyncParts(rel, "--dry-run", "--checksum", "--itemize-changes"), "")
 	if err != nil {
 		return 0, err
 	}
@@ -231,6 +261,16 @@ func (d *DockerRunner) Upload(rel string) error {
 	if rel == "" || strings.Contains(rel, "..") {
 		return errors.New("refusing to upload suspicious path " + rel)
 	}
-	_, err := d.exec(d.rsyncParts(rel, "--ignore-existing"), "")
+	if err := requireRsync(); err != nil {
+		return err
+	}
+	_, err := d.execHost(d.rsyncParts(rel, "--ignore-existing"), "")
 	return err
+}
+
+func requireRsync() error {
+	if _, err := exec.LookPath("rsync"); err != nil {
+		return fmt.Errorf("rsync not found on host: %w (install rsync to upload media)", err)
+	}
+	return nil
 }
