@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.1.1-beta.2 (2026-10-19)
+
+#### Features
+
+- sync: support pulling posts and menus from remote (6ad1658)
+
 ### v4.1.1-beta.1 (2026-10-13)
 
 #### Bug Fixes
