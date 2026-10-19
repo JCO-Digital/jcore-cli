@@ -65,12 +65,12 @@ func TestReplaceDomain(t *testing.T) {
 	}
 }
 
-func TestCollectLocalRefs(t *testing.T) {
+func TestCollectSiteRefs(t *testing.T) {
 	content := `<img src="https://site.localhost/wp-content/uploads/2025/03/a-1024x768.jpg" srcset="https://site.localhost/wp-content/uploads/2025/03/a.jpg 2000w, https://site.localhost/wp-content/uploads/2025/03/a-300x200.jpg 300w"/>
 {"url":"https:\/\/site.localhost\/wp-content\/uploads\/2025\/03\/my%20file.pdf"}
 <a href="https://site.localhost/contact/?x=1">c</a> <a href="https://site.localhost">home</a>
 <a href="https://cdn.example.com/wp-content/uploads/z.jpg">ext</a> https://site.localhost.evil.com/wp-content/uploads/no.jpg`
-	got := CollectLocalRefs(content, "site.localhost")
+	got := CollectSiteRefs(content, "site.localhost")
 	wantU := []string{"2025/03/a-1024x768.jpg", "2025/03/a.jpg", "2025/03/a-300x200.jpg", "2025/03/my file.pdf"}
 	wantL := []string{"/contact/", "/"}
 	if !reflect.DeepEqual(got.Uploads, wantU) {

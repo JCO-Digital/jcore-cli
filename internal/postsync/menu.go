@@ -70,46 +70,50 @@ type MenuItem struct {
 	Modified string `json:"-"` // post_modified_gmt
 }
 
-// MenuOp is what happens to one local menu item on the remote.
+// MenuOp is what happens to one source menu item on the target.
 type MenuOp struct {
-	Local          MenuItem
-	RemoteObjectID int    // resolved remote post/term ID (post_type, taxonomy)
-	URL            string // custom links: URL rewritten to the remote domain
-	RemoteID       int    // paired remote item; 0 = add
+	Source         MenuItem
+	TargetObjectID int    // resolved target post/term ID (post_type, taxonomy)
+	URL            string // custom links: URL rewritten to the target domain
+	TargetID       int    // paired target item; 0 = add
 	Changes        []string
 }
 
 // MenuPlan is everything a menu sync would do, worked out without changing anything.
 type MenuPlan struct {
-	SiteURL     string
-	RemoteUser  string
-	Local       MenuRef
-	Remote      *MenuRef  // nil: the menu will be created
-	RemoteMenus []MenuRef // every remote menu, with its locations (for the backup)
-	RemoteItems []MenuItem
-	Ops         []MenuOp // local position order
-	Removals    []MenuItem
-	Locations   []string // local locations to assign on the remote
+	Pull          bool // the source is the remote and the target the local site
+	SourceSiteURL string
+	TargetSiteURL string
+	TargetUser    string
+	Source        MenuRef
+	Target        *MenuRef  // nil: the menu will be created
+	TargetMenus   []MenuRef // every target menu, with its locations (for the backup)
+	TargetItems   []MenuItem
+	Ops           []MenuOp // source position order
+	Removals      []MenuItem
+	Locations     []string // source locations to assign on the target
 	// PLLLocations are Polylang per-language locations to assign on the
-	// remote (location → languages), used instead of Locations when the
-	// local site runs Polylang.
+	// target (location → languages), used instead of Locations when the
+	// source site runs Polylang.
 	PLLLocations map[string][]string
-	pllNavMenus  map[string]map[string]int // remote, for the backup
+	pllNavMenus  map[string]map[string]int // target, for the backup
 	Drift        []string
 	Warnings     []string
 	InSync       bool
+
+	f *flow
 }
 
-// Creating reports whether the plan creates a new remote menu.
-func (p *MenuPlan) Creating() bool { return p.Remote == nil }
+// Creating reports whether the plan creates a new target menu.
+func (p *MenuPlan) Creating() bool { return p.Target == nil }
 
 // Pending reports whether there's anything to add or change, apart from removals.
 func (p *MenuPlan) Pending() bool {
-	if p.Remote == nil || len(p.Locations) > 0 || len(p.PLLLocations) > 0 {
+	if p.Target == nil || len(p.Locations) > 0 || len(p.PLLLocations) > 0 {
 		return true
 	}
 	for _, op := range p.Ops {
-		if op.RemoteID == 0 || len(op.Changes) > 0 {
+		if op.TargetID == 0 || len(op.Changes) > 0 {
 			return true
 		}
 	}
@@ -191,86 +195,87 @@ func findMenu(menus []MenuRef, ident string) []MenuRef {
 
 // PrepareMenu inspects both sites and returns the menu sync plan. It never writes.
 func PrepareMenu(r Runner, opts Options, ident string) (*MenuPlan, error) {
-	site, err := preflight(r, opts)
+	f, err := preflight(r, opts)
 	if err != nil {
 		return nil, err
 	}
-	p := &MenuPlan{SiteURL: site.URL, Warnings: site.Warnings}
+	src, dst := f.src, f.dst
+	p := &MenuPlan{Pull: f.pull, SourceSiteURL: src.url, TargetSiteURL: dst.url, Warnings: f.warnings, f: f}
 
-	// Local menu.
-	localMenus, err := listMenus(r.Local)
+	// Source menu.
+	sourceMenus, err := listMenus(src.run)
 	if err != nil {
-		return nil, fmt.Errorf("listing local menus: %w", err)
+		return nil, fmt.Errorf("listing %s menus: %w", src.name, err)
 	}
-	matches := findMenu(localMenus, ident)
+	matches := findMenu(sourceMenus, ident)
 	if len(matches) != 1 {
 		var b strings.Builder
 		if len(matches) == 0 {
-			fmt.Fprintf(&b, "no local menu matches %q", ident)
+			fmt.Fprintf(&b, "no %s menu matches %q", src.name, ident)
 		} else {
-			fmt.Fprintf(&b, "%q matches %d local menus; pass the ID", ident, len(matches))
+			fmt.Fprintf(&b, "%q matches %d %s menus; pass the ID", ident, len(matches), src.name)
 		}
-		b.WriteString(". Local menus:")
-		for _, m := range localMenus {
+		fmt.Fprintf(&b, ". %s menus:", src.title)
+		for _, m := range sourceMenus {
 			fmt.Fprintf(&b, "\n  %d  %s (%s)", m.TermID, m.Name, m.Slug)
 		}
 		return nil, errors.New(b.String())
 	}
-	p.Local = matches[0]
-	localItems, err := listMenuItems(r.Local, int(p.Local.TermID))
+	p.Source = matches[0]
+	sourceItems, err := listMenuItems(src.run, int(p.Source.TermID))
 	if err != nil {
-		return nil, fmt.Errorf("reading local menu items: %w", err)
+		return nil, fmt.Errorf("reading %s menu items: %w", src.name, err)
 	}
-	if len(localItems) == 0 {
-		return nil, fmt.Errorf("local menu %q has no items; nothing to sync", p.Local.Name)
+	if len(sourceItems) == 0 {
+		return nil, fmt.Errorf("%s menu %q has no items; nothing to sync", src.name, p.Source.Name)
 	}
-	p.warnItemMeta(r, localItems)
+	p.warnItemMeta(sourceItems)
 
-	// Resolve every item's target on the remote; abort if any is missing.
-	if err := p.resolveTargets(r, newPostMapper(r, site), localItems, opts); err != nil {
+	// Resolve every item's target; abort if any is missing.
+	if err := p.resolveTargets(newPostMapper(f), sourceItems); err != nil {
 		return nil, err
 	}
 
-	// Remote menu: by slug, else by name.
-	remoteMenus, err := listMenus(r.Remote)
+	// Target menu: by slug, else by name.
+	targetMenus, err := listMenus(dst.run)
 	if err != nil {
-		return nil, fmt.Errorf("listing remote menus: %w", err)
+		return nil, fmt.Errorf("listing %s menus: %w", dst.name, err)
 	}
-	p.RemoteMenus = remoteMenus
-	for i, m := range remoteMenus {
-		if m.Slug == p.Local.Slug {
-			p.Remote = &remoteMenus[i]
+	p.TargetMenus = targetMenus
+	for i, m := range targetMenus {
+		if m.Slug == p.Source.Slug {
+			p.Target = &targetMenus[i]
 			break
 		}
 	}
-	if p.Remote == nil {
-		for i, m := range remoteMenus {
-			if strings.EqualFold(m.Name, p.Local.Name) {
-				p.Remote = &remoteMenus[i]
-				p.Warnings = append(p.Warnings, fmt.Sprintf("matched remote menu %q by name (its slug is %q, local is %q)", m.Name, m.Slug, p.Local.Slug))
+	if p.Target == nil {
+		for i, m := range targetMenus {
+			if strings.EqualFold(m.Name, p.Source.Name) {
+				p.Target = &targetMenus[i]
+				p.Warnings = append(p.Warnings, fmt.Sprintf("matched %s menu %q by name (its slug is %q, %s is %q)", dst.name, m.Name, m.Slug, src.name, p.Source.Slug))
 				break
 			}
 		}
 	}
 
-	if p.Remote != nil {
-		if p.RemoteItems, err = listMenuItems(r.Remote, int(p.Remote.TermID)); err != nil {
-			return nil, fmt.Errorf("reading remote menu items: %w", err)
+	if p.Target != nil {
+		if p.TargetItems, err = listMenuItems(dst.run, int(p.Target.TermID)); err != nil {
+			return nil, fmt.Errorf("reading %s menu items: %w", dst.name, err)
 		}
 		p.diff()
 		p.checkDrift(opts.LastPull)
 	}
 
-	if site.LocalPLL != nil {
-		err = p.planPLLLocations(r, site)
+	if src.pll != nil {
+		err = p.planPLLLocations()
 	} else {
-		err = p.planLocations(r, remoteMenus)
+		err = p.planLocations(targetMenus)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	if p.RemoteUser, err = remoteUser(r, opts.As); err != nil {
+	if p.TargetUser, err = writeUser(dst.run, dst.name, opts.As); err != nil {
 		return nil, err
 	}
 
@@ -283,10 +288,10 @@ func isCoreMenuMeta(key string) bool {
 	return strings.HasPrefix(key, "_menu_item_") || slices.Contains(internalMetaKeys, key)
 }
 
-func (p *MenuPlan) warnItemMeta(r Runner, items []MenuItem) {
+func (p *MenuPlan) warnItemMeta(items []MenuItem) {
 	keys := []string{}
 	for _, it := range items {
-		meta, err := getMeta(r.Local, int(it.DBID))
+		meta, err := getMeta(p.f.src.run, int(it.DBID))
 		if err != nil {
 			continue
 		}
@@ -301,11 +306,12 @@ func (p *MenuPlan) warnItemMeta(r Runner, items []MenuItem) {
 	}
 }
 
-// resolveTargets maps each local item's linked post/term to the remote.
-func (p *MenuPlan) resolveTargets(r Runner, mapper *postMapper, items []MenuItem, opts Options) error {
+// resolveTargets maps each source item's linked post/term to the target.
+func (p *MenuPlan) resolveTargets(mapper *postMapper, items []MenuItem) error {
+	src, dst := p.f.src, p.f.dst
 	var missing []string
 	for _, it := range items {
-		op := MenuOp{Local: it}
+		op := MenuOp{Source: it}
 		switch it.Type {
 		case "post_type", "taxonomy":
 			var res mapResult
@@ -322,13 +328,13 @@ func (p *MenuPlan) resolveTargets(r Runner, mapper *postMapper, items []MenuItem
 				missing = appendUnique(missing, res.problem)
 				break
 			}
-			op.RemoteObjectID = res.id
+			op.TargetObjectID = res.id
 		case "post_type_archive":
-			if _, err := r.Remote("post-type", "get", it.Object, "--field=name"); err != nil {
-				missing = append(missing, fmt.Sprintf("post type %q (archive link %q) doesn't exist on the remote", it.Object, it.Label))
+			if _, err := dst.run("post-type", "get", it.Object, "--field=name"); err != nil {
+				missing = append(missing, fmt.Sprintf("post type %q (archive link %q) doesn't exist %s", it.Object, it.Label, dst.where))
 			}
 		case "custom":
-			op.URL = ReplaceDomain(it.Link, opts.LocalDomain, opts.RemoteDomain)
+			op.URL = ReplaceDomain(it.Link, src.domain, dst.domain)
 		default:
 			missing = append(missing, fmt.Sprintf("item %q has unsupported type %q", it.Label, it.Type))
 		}
@@ -336,22 +342,22 @@ func (p *MenuPlan) resolveTargets(r Runner, mapper *postMapper, items []MenuItem
 	}
 
 	if len(missing) > 0 {
-		return fmt.Errorf("menu %q links to things the remote doesn't have; sync these first:\n  - %s", p.Local.Name, strings.Join(missing, "\n  - "))
+		return fmt.Errorf("menu %q links to things %s doesn't have; %s these first:\n  - %s", p.Source.Name, dst.site, p.f.verb(), strings.Join(missing, "\n  - "))
 	}
 	return nil
 }
 
 func (op MenuOp) signature() string {
-	switch op.Local.Type {
+	switch op.Source.Type {
 	case "custom":
 		return "custom|" + op.URL
 	case "post_type_archive":
-		return "post_type_archive|" + op.Local.Object
+		return "post_type_archive|" + op.Source.Object
 	}
-	return op.Local.Type + "|" + op.Local.Object + "|" + itoa(op.RemoteObjectID)
+	return op.Source.Type + "|" + op.Source.Object + "|" + itoa(op.TargetObjectID)
 }
 
-func remoteSignature(it MenuItem) string {
+func targetSignature(it MenuItem) string {
 	switch it.Type {
 	case "custom":
 		return "custom|" + it.Link
@@ -361,43 +367,43 @@ func remoteSignature(it MenuItem) string {
 	return it.Type + "|" + it.Object + "|" + itoa(int(it.ObjectID))
 }
 
-// diff pairs local items with remote ones and works out field changes.
+// diff pairs source items with target ones and works out field changes.
 func (p *MenuPlan) diff() {
 	used := map[int]bool{}
 	for i := range p.Ops {
 		sig := p.Ops[i].signature()
-		for _, rit := range p.RemoteItems {
-			if !used[int(rit.DBID)] && remoteSignature(rit) == sig {
+		for _, rit := range p.TargetItems {
+			if !used[int(rit.DBID)] && targetSignature(rit) == sig {
 				used[int(rit.DBID)] = true
-				p.Ops[i].RemoteID = int(rit.DBID)
+				p.Ops[i].TargetID = int(rit.DBID)
 				break
 			}
 		}
 	}
-	for _, rit := range p.RemoteItems {
+	for _, rit := range p.TargetItems {
 		if !used[int(rit.DBID)] {
 			p.Removals = append(p.Removals, rit)
 		}
 	}
 
 	byID := map[int]MenuItem{}
-	for _, rit := range p.RemoteItems {
+	for _, rit := range p.TargetItems {
 		byID[int(rit.DBID)] = rit
 	}
 	for i := range p.Ops {
 		op := &p.Ops[i]
-		if op.RemoteID == 0 {
+		if op.TargetID == 0 {
 			continue
 		}
-		rit := byID[op.RemoteID]
-		l := op.Local
+		rit := byID[op.TargetID]
+		l := op.Source
 		if l.Title != rit.Title {
 			op.Changes = append(op.Changes, "title")
 		}
 		if l.Position != rit.Position {
 			op.Changes = append(op.Changes, "position")
 		}
-		if parent, known := p.remoteParent(l); !known || parent != int(rit.Parent) {
+		if parent, known := p.targetParent(l); !known || parent != int(rit.Parent) {
 			op.Changes = append(op.Changes, "parent")
 		}
 		if l.Target != rit.Target {
@@ -418,15 +424,15 @@ func (p *MenuPlan) diff() {
 	}
 }
 
-// remoteParent returns the remote item ID an item's parent maps to; known
+// targetParent returns the target item ID an item's parent maps to; known
 // is false when the parent is still to be added (so its ID isn't known yet).
-func (p *MenuPlan) remoteParent(it MenuItem) (int, bool) {
+func (p *MenuPlan) targetParent(it MenuItem) (int, bool) {
 	if it.Parent == 0 {
 		return 0, true
 	}
 	for _, op := range p.Ops {
-		if op.Local.DBID == it.Parent {
-			return op.RemoteID, op.RemoteID != 0
+		if op.Source.DBID == it.Parent {
+			return op.TargetID, op.TargetID != 0
 		}
 	}
 	return 0, true // parent not in the menu: top level
@@ -436,37 +442,38 @@ func (p *MenuPlan) checkDrift(lastPull time.Time) {
 	if lastPull.IsZero() {
 		return
 	}
-	for _, it := range p.RemoteItems {
+	for _, it := range p.TargetItems {
 		if t, ok := parseGMT(it.Modified); ok && t.After(lastPull.UTC()) {
-			p.Drift = append(p.Drift, fmt.Sprintf("remote menu item %q was modified %s UTC, after your last database pull (%s UTC)", it.Label, it.Modified, lastPull.UTC().Format("2006-01-02 15:04:05")))
+			p.Drift = append(p.Drift, fmt.Sprintf("%s menu item %q was modified %s UTC, after your last database pull (%s UTC)", p.f.dst.name, it.Label, it.Modified, lastPull.UTC().Format("2006-01-02 15:04:05")))
 		}
 	}
 }
 
-// planLocations assigns the local menu's theme locations on the remote,
+// planLocations assigns the source menu's theme locations on the target,
 // but only ones that exist there and are free.
-func (p *MenuPlan) planLocations(r Runner, remoteMenus []MenuRef) error {
-	if len(p.Local.Locations) == 0 {
+func (p *MenuPlan) planLocations(targetMenus []MenuRef) error {
+	if len(p.Source.Locations) == 0 {
 		return nil
 	}
-	registered, err := remoteLocations(r)
+	dst := p.f.dst
+	registered, err := menuLocations(dst)
 	if err != nil {
 		return err
 	}
 	owner := map[string]MenuRef{}
-	for _, m := range remoteMenus {
+	for _, m := range targetMenus {
 		for _, l := range m.Locations {
 			owner[l] = m
 		}
 	}
-	for _, loc := range p.Local.Locations {
+	for _, loc := range p.Source.Locations {
 		switch m, taken := owner[loc]; {
 		case !registered[loc]:
-			p.Warnings = append(p.Warnings, fmt.Sprintf("theme location %q isn't registered on the remote; not assigned", loc))
-		case taken && p.Remote != nil && m.TermID == p.Remote.TermID:
+			p.Warnings = append(p.Warnings, fmt.Sprintf("theme location %q isn't registered %s; not assigned", loc, dst.where))
+		case taken && p.Target != nil && m.TermID == p.Target.TermID:
 			// Already assigned to this menu.
 		case taken:
-			p.Warnings = append(p.Warnings, fmt.Sprintf("remote location %q already shows menu %q; left unchanged", loc, m.Name))
+			p.Warnings = append(p.Warnings, fmt.Sprintf("%s location %q already shows menu %q; left unchanged", dst.name, loc, m.Name))
 		default:
 			p.Locations = append(p.Locations, loc)
 		}
@@ -474,19 +481,20 @@ func (p *MenuPlan) planLocations(r Runner, remoteMenus []MenuRef) error {
 	return nil
 }
 
-// planPLLLocations assigns the local menu's per-language theme locations
+// planPLLLocations assigns the source menu's per-language theme locations
 // (Polylang stores these in its own settings, not the theme mods) on the
-// remote, but only ones that exist there and are free.
-func (p *MenuPlan) planPLLLocations(r Runner, site *Site) error {
-	local, err := pllNavMenus(r.Local)
+// target, but only ones that exist there and are free.
+func (p *MenuPlan) planPLLLocations() error {
+	src, dst := p.f.src, p.f.dst
+	source, err := pllNavMenus(src.run)
 	if err != nil {
-		return fmt.Errorf("reading local Polylang menu locations: %w", err)
+		return fmt.Errorf("reading %s Polylang menu locations: %w", src.name, err)
 	}
 	type slot struct{ loc, lang string }
 	var wanted []slot
-	for _, loc := range sortedLocKeys(local) {
-		for _, lang := range sortedKeys(local[loc]) {
-			if local[loc][lang] == int(p.Local.TermID) {
+	for _, loc := range sortedLocKeys(source) {
+		for _, lang := range sortedKeys(source[loc]) {
+			if source[loc][lang] == int(p.Source.TermID) {
 				wanted = append(wanted, slot{loc, lang})
 			}
 		}
@@ -494,31 +502,31 @@ func (p *MenuPlan) planPLLLocations(r Runner, site *Site) error {
 	if len(wanted) == 0 {
 		return nil
 	}
-	if site.RemotePLL == nil {
-		p.Warnings = append(p.Warnings, "the local menu is assigned to Polylang language locations, but Polylang isn't active on the remote; locations not assigned")
+	if dst.pll == nil {
+		p.Warnings = append(p.Warnings, fmt.Sprintf("the %s menu is assigned to Polylang language locations, but Polylang isn't active %s; locations not assigned", src.name, dst.where))
 		return nil
 	}
-	remote, err := pllNavMenus(r.Remote)
+	target, err := pllNavMenus(dst.run)
 	if err != nil {
-		return fmt.Errorf("reading remote Polylang menu locations: %w", err)
+		return fmt.Errorf("reading %s Polylang menu locations: %w", dst.name, err)
 	}
-	p.pllNavMenus = remote
-	registered, err := remoteLocations(r)
+	p.pllNavMenus = target
+	registered, err := menuLocations(dst)
 	if err != nil {
 		return err
 	}
 	p.PLLLocations = map[string][]string{}
 	for _, w := range wanted {
-		cur := remote[w.loc][w.lang]
+		cur := target[w.loc][w.lang]
 		switch {
 		case !locationRe.MatchString(w.loc) || !registered[w.loc]:
-			p.Warnings = append(p.Warnings, fmt.Sprintf("theme location %q isn't registered on the remote; not assigned", w.loc))
-		case !site.RemotePLL.HasLanguage(w.lang):
-			p.Warnings = append(p.Warnings, fmt.Sprintf("language %q isn't set up on the remote; location %s not assigned for it", w.lang, w.loc))
-		case cur != 0 && p.Remote != nil && cur == int(p.Remote.TermID):
+			p.Warnings = append(p.Warnings, fmt.Sprintf("theme location %q isn't registered %s; not assigned", w.loc, dst.where))
+		case !dst.pll.HasLanguage(w.lang):
+			p.Warnings = append(p.Warnings, fmt.Sprintf("language %q isn't set up %s; location %s not assigned for it", w.lang, dst.where, w.loc))
+		case cur != 0 && p.Target != nil && cur == int(p.Target.TermID):
 			// Already assigned to this menu.
 		case cur != 0:
-			p.Warnings = append(p.Warnings, fmt.Sprintf("remote location %q (%s) already shows another menu (ID %d); left unchanged", w.loc, w.lang, cur))
+			p.Warnings = append(p.Warnings, fmt.Sprintf("%s location %q (%s) already shows another menu (ID %d); left unchanged", dst.name, w.loc, w.lang, cur))
 		default:
 			p.PLLLocations[w.loc] = append(p.PLLLocations[w.loc], w.lang)
 		}
@@ -538,10 +546,11 @@ func sortedLocKeys(m map[string]map[string]int) []string {
 	return keys
 }
 
-func remoteLocations(r Runner) (map[string]bool, error) {
-	out, err := r.Remote("menu", "location", "list", "--format=json")
+// menuLocations returns the theme locations registered on e.
+func menuLocations(e *end) (map[string]bool, error) {
+	out, err := e.run("menu", "location", "list", "--format=json")
 	if err != nil {
-		return nil, fmt.Errorf("listing remote menu locations: %w", err)
+		return nil, fmt.Errorf("listing %s menu locations: %w", e.name, err)
 	}
 	var locs []struct {
 		Location string `json:"location"`
@@ -566,61 +575,62 @@ type MenuResult struct {
 	Done       []string
 }
 
-// MenuEditURL is the remote wp-admin screen for the menu.
+// MenuEditURL is the target's wp-admin screen for the menu.
 func (p *MenuPlan) MenuEditURL(id int) string {
-	return strings.TrimRight(p.SiteURL, "/") + "/wp-admin/nav-menus.php?action=edit&menu=" + itoa(id)
+	return strings.TrimRight(p.TargetSiteURL, "/") + "/wp-admin/nav-menus.php?action=edit&menu=" + itoa(id)
 }
 
-// ApplyMenu carries out the plan. Remote items missing locally are deleted
-// only if removeLeftovers is set. On error, the result says what was
-// already done.
-func ApplyMenu(r Runner, p *MenuPlan, removeLeftovers bool, backupDir string) (*MenuResult, error) {
+// ApplyMenu carries out the plan. Target items missing from the source are
+// deleted only if removeLeftovers is set. On error, the result says what
+// was already done.
+func ApplyMenu(p *MenuPlan, removeLeftovers bool, backupDir string) (*MenuResult, error) {
+	dst := p.f.dst
 	res := &MenuResult{}
-	user := "--user=" + p.RemoteUser
+	user := "--user=" + p.TargetUser
 
-	if p.Remote != nil {
+	if p.Target != nil {
 		path, err := WriteMenuBackup(backupDir, p)
 		if err != nil {
-			return res, fmt.Errorf("backing up the remote menu (nothing was changed): %w", err)
+			return res, fmt.Errorf("backing up the %s menu (nothing was changed): %w", dst.name, err)
 		}
 		res.BackupPath = path
-		res.MenuID = int(p.Remote.TermID)
-		res.Done = append(res.Done, "backed up remote menu to "+path)
+		res.MenuID = int(p.Target.TermID)
+		res.Done = append(res.Done, fmt.Sprintf("backed up %s menu to %s", dst.name, path))
 	} else {
-		out, err := r.Remote("menu", "create", p.Local.Name, "--porcelain", user)
+		out, err := dst.run("menu", "create", p.Source.Name, "--porcelain", user)
 		if err != nil {
-			return res, fmt.Errorf("creating remote menu: %w", err)
+			return res, fmt.Errorf("creating %s menu: %w", dst.name, err)
 		}
 		if res.MenuID, err = parseID(out); err != nil {
-			return res, fmt.Errorf("creating remote menu: %w", err)
+			return res, fmt.Errorf("creating %s menu: %w", dst.name, err)
 		}
 		res.Created = true
-		res.Done = append(res.Done, fmt.Sprintf("created remote menu %q (ID %d)", p.Local.Name, res.MenuID))
+		res.Done = append(res.Done, fmt.Sprintf("created %s menu %q (ID %d)", dst.name, p.Source.Name, res.MenuID))
 	}
 	menu := itoa(res.MenuID)
 
-	// Local item ID → remote item ID, filled in as items are paired or added.
+	// Source item ID → target item ID, filled in as items are paired or added.
 	idMap := map[int]int{}
 	for _, op := range p.Ops {
-		if op.RemoteID != 0 {
-			idMap[int(op.Local.DBID)] = op.RemoteID
+		if op.TargetID != 0 {
+			idMap[int(op.Source.DBID)] = op.TargetID
 		}
 	}
 	var parentFixes []MenuOp
 
 	for _, op := range p.Ops {
-		l := op.Local
+		l := op.Source
 		parent := 0
 		if l.Parent != 0 {
 			if id, ok := idMap[int(l.Parent)]; ok {
 				parent = id
-			} else if p.hasLocalItem(int(l.Parent)) {
+			} else if p.hasSourceItem(int(l.Parent)) {
 				parentFixes = append(parentFixes, op) // parent comes later
 			}
 		}
 
-		if op.RemoteID == 0 {
-			id, err := addMenuItem(r, menu, op, parent, user)
+		if op.TargetID == 0 {
+			id, err := addMenuItem(dst, menu, op, parent, user)
 			if err != nil {
 				return res, fmt.Errorf("adding menu item %q: %w", l.Label, err)
 			}
@@ -631,17 +641,17 @@ func ApplyMenu(r Runner, p *MenuPlan, removeLeftovers bool, backupDir string) (*
 		if len(op.Changes) == 0 {
 			continue
 		}
-		if err := updateMenuItem(r, op, parent, user); err != nil {
+		if err := updateMenuItem(dst, op, parent, user); err != nil {
 			return res, fmt.Errorf("updating menu item %q: %w", l.Label, err)
 		}
 		res.Done = append(res.Done, fmt.Sprintf("updated %q (%s)", l.Label, strings.Join(op.Changes, ", ")))
 	}
 
 	for _, op := range parentFixes {
-		id := idMap[int(op.Local.DBID)]
-		parent := idMap[int(op.Local.Parent)]
-		if _, err := r.Remote("post", "meta", "update", itoa(id), "_menu_item_menu_item_parent", itoa(parent), user); err != nil {
-			return res, fmt.Errorf("setting parent of %q: %w", op.Local.Label, err)
+		id := idMap[int(op.Source.DBID)]
+		parent := idMap[int(op.Source.Parent)]
+		if _, err := dst.run("post", "meta", "update", itoa(id), "_menu_item_menu_item_parent", itoa(parent), user); err != nil {
+			return res, fmt.Errorf("setting parent of %q: %w", op.Source.Label, err)
 		}
 	}
 
@@ -650,21 +660,21 @@ func ApplyMenu(r Runner, p *MenuPlan, removeLeftovers bool, backupDir string) (*
 		for _, it := range p.Removals {
 			args = append(args, itoa(int(it.DBID)))
 		}
-		if _, err := r.Remote(append(args, user)...); err != nil {
+		if _, err := dst.run(append(args, user)...); err != nil {
 			return res, fmt.Errorf("removing old menu items: %w", err)
 		}
-		res.Done = append(res.Done, fmt.Sprintf("removed %d old remote items", len(p.Removals)))
+		res.Done = append(res.Done, fmt.Sprintf("removed %d old %s items", len(p.Removals), dst.name))
 	}
 
 	for _, loc := range p.Locations {
-		if _, err := r.Remote("menu", "location", "assign", menu, loc, user); err != nil {
+		if _, err := dst.run("menu", "location", "assign", menu, loc, user); err != nil {
 			return res, fmt.Errorf("assigning location %q: %w", loc, err)
 		}
 		res.Done = append(res.Done, "assigned to location "+loc)
 	}
 	for _, loc := range sortedLangKeys(p.PLLLocations) {
 		for _, lang := range p.PLLLocations[loc] {
-			if _, err := r.Remote("eval", pllAssignMenuPHP(res.MenuID, loc, lang), user); err != nil {
+			if _, err := dst.run("eval", pllAssignMenuPHP(res.MenuID, loc, lang), user); err != nil {
 				return res, fmt.Errorf("assigning location %q (%s): %w", loc, lang, err)
 			}
 			res.Done = append(res.Done, fmt.Sprintf("assigned to location %s (%s)", loc, lang))
@@ -682,23 +692,23 @@ func sortedLangKeys(m map[string][]string) []string {
 	return keys
 }
 
-func (p *MenuPlan) hasLocalItem(id int) bool {
+func (p *MenuPlan) hasSourceItem(id int) bool {
 	for _, op := range p.Ops {
-		if int(op.Local.DBID) == id {
+		if int(op.Source.DBID) == id {
 			return true
 		}
 	}
 	return false
 }
 
-func addMenuItem(r Runner, menu string, op MenuOp, parent int, user string) (int, error) {
-	l := op.Local
+func addMenuItem(dst *end, menu string, op MenuOp, parent int, user string) (int, error) {
+	l := op.Source
 	var args []string
 	switch l.Type {
 	case "post_type":
-		args = []string{"menu", "item", "add-post", menu, itoa(op.RemoteObjectID)}
+		args = []string{"menu", "item", "add-post", menu, itoa(op.TargetObjectID)}
 	case "taxonomy":
-		args = []string{"menu", "item", "add-term", menu, l.Object, itoa(op.RemoteObjectID)}
+		args = []string{"menu", "item", "add-term", menu, l.Object, itoa(op.TargetObjectID)}
 	case "custom":
 		args = []string{"menu", "item", "add-custom", menu, l.Label, op.URL}
 	case "post_type_archive":
@@ -724,7 +734,7 @@ func addMenuItem(r Runner, menu string, op MenuOp, parent int, user string) (int
 	if l.AttrTitle != "" {
 		args = append(args, "--attr-title="+l.AttrTitle)
 	}
-	out, err := r.Remote(append(args, "--porcelain", user)...)
+	out, err := dst.run(append(args, "--porcelain", user)...)
 	if err != nil {
 		return 0, err
 	}
@@ -736,18 +746,18 @@ func addMenuItem(r Runner, menu string, op MenuOp, parent int, user string) (int
 	sid := itoa(id)
 	if l.Type == "post_type_archive" {
 		for k, v := range map[string]string{"_menu_item_type": "post_type_archive", "_menu_item_object": l.Object, "_menu_item_url": ""} {
-			if _, err := r.Remote("post", "meta", "update", sid, k, v, user); err != nil {
+			if _, err := dst.run("post", "meta", "update", sid, k, v, user); err != nil {
 				return id, err
 			}
 		}
 		if l.Title == "" {
-			if _, err := r.Remote("post", "update", sid, "--post_title=", user); err != nil {
+			if _, err := dst.run("post", "update", sid, "--post_title=", user); err != nil {
 				return id, err
 			}
 		}
 	}
 	if l.XFN != "" {
-		if _, err := r.Remote("post", "meta", "update", sid, "_menu_item_xfn", l.XFN, user); err != nil {
+		if _, err := dst.run("post", "meta", "update", sid, "_menu_item_xfn", l.XFN, user); err != nil {
 			return id, err
 		}
 	}
@@ -757,9 +767,9 @@ func addMenuItem(r Runner, menu string, op MenuOp, parent int, user string) (int
 // updateMenuItem writes only the changed fields, straight to the item's
 // post fields and meta (wp-cli's `menu item update` can't blank a title or
 // move an item to another parent).
-func updateMenuItem(r Runner, op MenuOp, parent int, user string) error {
-	l := op.Local
-	id := itoa(op.RemoteID)
+func updateMenuItem(dst *end, op MenuOp, parent int, user string) error {
+	l := op.Source
+	id := itoa(op.TargetID)
 	post := []string{"post", "update", id}
 	for _, c := range op.Changes {
 		var err error
@@ -773,50 +783,50 @@ func updateMenuItem(r Runner, op MenuOp, parent int, user string) error {
 		case "position":
 			post = append(post, "--menu_order="+itoa(int(l.Position)))
 		case "parent":
-			_, err = r.Remote("post", "meta", "update", id, "_menu_item_menu_item_parent", itoa(parent), user)
+			_, err = dst.run("post", "meta", "update", id, "_menu_item_menu_item_parent", itoa(parent), user)
 		case "target":
-			_, err = r.Remote("post", "meta", "update", id, "_menu_item_target", l.Target, user)
+			_, err = dst.run("post", "meta", "update", id, "_menu_item_target", l.Target, user)
 		case "xfn":
-			_, err = r.Remote("post", "meta", "update", id, "_menu_item_xfn", l.XFN, user)
+			_, err = dst.run("post", "meta", "update", id, "_menu_item_xfn", l.XFN, user)
 		case "classes":
 			classes, _ := json.Marshal(append([]string{}, l.Classes...))
 			if len(l.Classes) == 0 {
 				classes = []byte(`[""]`) // WordPress's own empty value
 			}
-			_, err = r.RemoteStdin(string(classes), "post", "meta", "update", id, "_menu_item_classes", "--format=json", user)
+			_, err = dst.stdin(string(classes), "post", "meta", "update", id, "_menu_item_classes", "--format=json", user)
 		}
 		if err != nil {
 			return err
 		}
 	}
 	if len(post) > 3 {
-		if _, err := r.Remote(append(post, user)...); err != nil {
+		if _, err := dst.run(append(post, user)...); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// WriteMenuBackup saves the remote menu, its items and every menu's
+// WriteMenuBackup saves the target menu, its items and every menu's
 // theme locations as JSON in dir.
 func WriteMenuBackup(dir string, p *MenuPlan) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 	data, err := json.MarshalIndent(map[string]any{
-		"site":    p.SiteURL,
+		"site":    p.TargetSiteURL,
 		"takenAt": time.Now().UTC().Format(time.RFC3339),
-		"menu":    p.Remote,
-		// Every remote menu with its theme locations, i.e. nav_menu_locations.
-		"allMenus": p.RemoteMenus,
+		"menu":    p.Target,
+		// Every target menu with its theme locations, i.e. nav_menu_locations.
+		"allMenus": p.TargetMenus,
 		// Polylang's per-language locations (location → language → menu ID).
 		"polylangNavMenus": p.pllNavMenus,
-		"items":            backupItems(p.RemoteItems),
+		"items":            backupItems(p.TargetItems),
 	}, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(dir, fmt.Sprintf("%s-menu-%s.json", time.Now().Format("20060102-150405"), p.Remote.Slug))
+	path := filepath.Join(dir, fmt.Sprintf("%s-menu-%s-%s.json", time.Now().Format("20060102-150405"), p.Target.Slug, p.f.dst.name))
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return "", err
 	}

@@ -59,8 +59,8 @@ func TestPolylangUpdateMatchesLanguageAndLinksTranslation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Remote == nil || p.Remote.ID != 301 {
-		t.Fatalf("matched %+v, want the English remote post 301", p.Remote)
+	if p.Target == nil || p.Target.ID != 301 {
+		t.Fatalf("matched %+v, want the English remote post 301", p.Target)
 	}
 	if p.PLL == nil || p.PLL.SetLang || strings.Join(p.PLL.NewLink, ",") != "fi" {
 		t.Fatalf("pll plan: %+v", p.PLL)
@@ -68,7 +68,7 @@ func TestPolylangUpdateMatchesLanguageAndLinksTranslation(t *testing.T) {
 	if w := f.writeCalls(); len(w) > 0 {
 		t.Fatalf("Prepare wrote: %v", w)
 	}
-	if _, err := Apply(f, p, opts, t.TempDir()); err != nil {
+	if _, err := Apply(p, t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
 	php := lastCallWithPrefix(f, "R eval pll_")
@@ -95,7 +95,7 @@ func TestPolylangCreateSetsLanguageAndSlug(t *testing.T) {
 	if !p.Creating() || !p.PLL.SetLang {
 		t.Fatalf("expected a create with language: %+v", p.PLL)
 	}
-	res, err := Apply(f, p, opts, t.TempDir())
+	res, err := Apply(p, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,16 +142,16 @@ func TestPolylangRemoteIDLanguage(t *testing.T) {
 	f.responses[pllKey("R", "post", "300")] = `{"300":{"lang":"fi","tr":{"fi":300},"translated":true}}`
 	opts := testOpts("about")
 
-	opts.RemoteID = 301
+	opts.TargetID = 301
 	p, err := Prepare(f, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Remote == nil || p.Remote.ID != 301 || p.remotePLLInfo == nil || p.remotePLLInfo.Lang != "en" {
-		t.Fatalf("remote = %+v, pll = %+v", p.Remote, p.remotePLLInfo)
+	if p.Target == nil || p.Target.ID != 301 || p.targetPLLInfo == nil || p.targetPLLInfo.Lang != "en" {
+		t.Fatalf("remote = %+v, pll = %+v", p.Target, p.targetPLLInfo)
 	}
 
-	opts.RemoteID = 300
+	opts.TargetID = 300
 	if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), `in language "fi", but the local post is in "en"`) {
 		t.Fatalf("err = %v", err)
 	}
@@ -179,8 +179,8 @@ func TestPolylangLangFlagNarrowsSlug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Local.ID != 5 {
-		t.Fatalf("picked %d", p.Local.ID)
+	if p.Source.ID != 5 {
+		t.Fatalf("picked %d", p.Source.ID)
 	}
 }
 
@@ -206,7 +206,7 @@ func TestACFBlockIDsRemapped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := p.FinalContent(opts)
+	got := p.FinalContent()
 	want := `<!-- wp:acf/hero {"name":"acf/hero","data":{"title":"Hi 12","_title":"field_t","image":77,"_image":"field_i","gallery":["77","78"],"_gallery":"field_g","link_page":"350","_link_page":"field_p"},"mode":"preview"} /-->`
 	if got != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
@@ -261,7 +261,7 @@ func TestGravityFormsRemappedByTitle(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `<!-- wp:gravityforms/form {"formId":"9","title":false} /--><p>[gravityform id="9" title="false"]</p>`
-	if got := p.FinalContent(opts); got != want {
+	if got := p.FinalContent(); got != want {
 		t.Fatalf("got %s", got)
 	}
 }
@@ -294,7 +294,7 @@ func TestPolylangMenuLocations(t *testing.T) {
 	if len(p.Locations) != 0 || strings.Join(p.PLLLocations["primary"], ",") != "fi" {
 		t.Fatalf("locations=%v pll=%v", p.Locations, p.PLLLocations)
 	}
-	if _, err := ApplyMenu(f, p, false, t.TempDir()); err != nil {
+	if _, err := ApplyMenu(p, false, t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
 	php := lastCallWithPrefix(f, "R eval $o = PLL()->options; $t = get_stylesheet();")
@@ -320,8 +320,8 @@ func TestPolylangMenuPicksSameLanguagePage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Ops[0].RemoteObjectID != 301 {
-		t.Fatalf("About mapped to %d, want the English 301", p.Ops[0].RemoteObjectID)
+	if p.Ops[0].TargetObjectID != 301 {
+		t.Fatalf("About mapped to %d, want the English 301", p.Ops[0].TargetObjectID)
 	}
 }
 

@@ -5,24 +5,22 @@ import (
 	"strings"
 )
 
-// postMapper finds the remote counterpart of local posts and terms by type
-// and slug, narrowed to the same Polylang language when both sites use it.
-// Results are cached per local ID.
+// postMapper finds the target counterpart of source posts and terms by
+// type and slug, narrowed to the same Polylang language when both sites use
+// it. Results are cached per source ID.
 type postMapper struct {
-	r         Runner
-	localPLL  *PLLState
-	remotePLL *PLLState
-	posts     map[int]mapResult
-	terms     map[string]mapResult // taxonomy|localID
+	f     *flow
+	posts map[int]mapResult
+	terms map[string]mapResult // taxonomy|sourceID
 }
 
 type mapResult struct {
 	id      int
-	problem string // why there's no unique remote counterpart
+	problem string // why there's no unique target counterpart
 }
 
-func newPostMapper(r Runner, site *Site) *postMapper {
-	return &postMapper{r: r, localPLL: site.LocalPLL, remotePLL: site.RemotePLL, posts: map[int]mapResult{}, terms: map[string]mapResult{}}
+func newPostMapper(f *flow) *postMapper {
+	return &postMapper{f: f, posts: map[int]mapResult{}, terms: map[string]mapResult{}}
 }
 
 // langArgs makes post queries span every language (Polylang otherwise
@@ -34,48 +32,49 @@ func langArgs(s *PLLState) []string {
 	return []string{"--lang=all"}
 }
 
-// localLang returns the Polylang language of a local post or term ("" when
-// not applicable).
-func (m *postMapper) localLang(kind string, id int) string {
-	if m.localPLL == nil || m.remotePLL == nil {
+// sourceLang returns the Polylang language of a source post or term (""
+// when not applicable).
+func (m *postMapper) sourceLang(kind string, id int) string {
+	if m.f.src.pll == nil || m.f.dst.pll == nil {
 		return ""
 	}
-	info, err := pllInfo(m.r.Local, kind, []int{id})
+	info, err := pllInfo(m.f.src.run, kind, []int{id})
 	if err != nil {
 		return ""
 	}
 	return info[id].Lang
 }
 
-// post maps a local post ID to the remote one.
-func (m *postMapper) post(localID int) (mapResult, error) {
-	if res, ok := m.posts[localID]; ok {
+// post maps a source post ID to the target one.
+func (m *postMapper) post(sourceID int) (mapResult, error) {
+	if res, ok := m.posts[sourceID]; ok {
 		return res, nil
 	}
-	res, err := m.lookupPost(localID)
+	res, err := m.lookupPost(sourceID)
 	if err == nil {
-		m.posts[localID] = res
+		m.posts[sourceID] = res
 	}
 	return res, err
 }
 
-func (m *postMapper) lookupPost(localID int) (mapResult, error) {
-	lp, err := getPost(m.r.Local, localID)
-	if err != nil || lp.PostName == "" {
-		return mapResult{problem: fmt.Sprintf("local post %d can't be read or has no slug", localID)}, nil
+func (m *postMapper) lookupPost(sourceID int) (mapResult, error) {
+	src, dst := m.f.src, m.f.dst
+	sp, err := getPost(src.run, sourceID)
+	if err != nil || sp.PostName == "" {
+		return mapResult{problem: fmt.Sprintf("%s post %d can't be read or has no slug", src.name, sourceID)}, nil
 	}
-	refs, err := listPosts(m.r.Remote, lp.PostType, lp.PostName, "any", langArgs(m.remotePLL)...)
+	refs, err := listPosts(dst.run, sp.PostType, sp.PostName, "any", langArgs(dst.pll)...)
 	if err != nil {
-		return mapResult{}, fmt.Errorf("looking up %s %q on the remote: %w", lp.PostType, lp.PostName, err)
+		return mapResult{}, fmt.Errorf("looking up %s %q %s: %w", sp.PostType, sp.PostName, dst.where, err)
 	}
 	ids := make([]int, len(refs))
 	for i, ref := range refs {
 		ids[i] = int(ref.ID)
 	}
-	label := fmt.Sprintf("%s %q", lp.PostType, lp.PostName)
-	if lang := m.localLang("post", localID); lang != "" {
+	label := fmt.Sprintf("%s %q", sp.PostType, sp.PostName)
+	if lang := m.sourceLang("post", sourceID); lang != "" {
 		label += " [" + lang + "]"
-		if ids, err = filterByLang(m.r.Remote, "post", ids, lang); err != nil {
+		if ids, err = filterByLang(dst.run, "post", ids, lang); err != nil {
 			return mapResult{}, err
 		}
 	}
@@ -83,33 +82,34 @@ func (m *postMapper) lookupPost(localID int) (mapResult, error) {
 	case 1:
 		return mapResult{id: ids[0]}, nil
 	case 0:
-		return mapResult{problem: fmt.Sprintf("%s is missing on the remote; run: jcore sync %d", label, localID)}, nil
+		return mapResult{problem: fmt.Sprintf("%s is missing %s; run: %s", label, dst.where, m.f.syncHint(sourceID))}, nil
 	}
-	return mapResult{problem: fmt.Sprintf("%s: several remote posts match", label)}, nil
+	return mapResult{problem: fmt.Sprintf("%s: several %s posts match", label, dst.name)}, nil
 }
 
-// term maps a local term ID to the remote one.
-func (m *postMapper) term(taxonomy string, localID int) (mapResult, error) {
-	key := taxonomy + "|" + itoa(localID)
+// term maps a source term ID to the target one.
+func (m *postMapper) term(taxonomy string, sourceID int) (mapResult, error) {
+	src, dst := m.f.src, m.f.dst
+	key := taxonomy + "|" + itoa(sourceID)
 	if res, ok := m.terms[key]; ok {
 		return res, nil
 	}
-	out, err := m.r.Local("term", "get", taxonomy, itoa(localID), "--field=slug")
+	out, err := src.run("term", "get", taxonomy, itoa(sourceID), "--field=slug")
 	if err != nil {
-		res := mapResult{problem: fmt.Sprintf("local %s term %d can't be read", taxonomy, localID)}
+		res := mapResult{problem: fmt.Sprintf("%s %s term %d can't be read", src.name, taxonomy, sourceID)}
 		m.terms[key] = res
 		return res, nil
 	}
 	slug := lastLine(out)
 	label := fmt.Sprintf("%s term %q", taxonomy, slug)
-	out, err = m.r.Remote("term", "list", taxonomy, "--slug="+slug, "--field=term_id")
+	out, err = dst.run("term", "list", taxonomy, "--slug="+slug, "--field=term_id")
 	var ids []int
 	if err == nil {
 		ids = parseIDs(out)
 	}
-	if lang := m.localLang("term", localID); lang != "" && len(ids) > 0 {
+	if lang := m.sourceLang("term", sourceID); lang != "" && len(ids) > 0 {
 		label += " [" + lang + "]"
-		if ids, err = filterByLang(m.r.Remote, "term", ids, lang); err != nil {
+		if ids, err = filterByLang(dst.run, "term", ids, lang); err != nil {
 			return mapResult{}, err
 		}
 	}
@@ -118,9 +118,9 @@ func (m *postMapper) term(taxonomy string, localID int) (mapResult, error) {
 	case 1:
 		res = mapResult{id: ids[0]}
 	case 0:
-		res = mapResult{problem: label + " is missing on the remote; create it there first"}
+		res = mapResult{problem: fmt.Sprintf("%s is missing %s; create it there first", label, dst.where)}
 	default:
-		res = mapResult{problem: label + ": several remote terms match"}
+		res = mapResult{problem: fmt.Sprintf("%s: several %s terms match", label, dst.name)}
 	}
 	m.terms[key] = res
 	return res, nil

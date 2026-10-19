@@ -1,6 +1,7 @@
-// Package postsync pushes a single local WordPress post to the project's
-// configured remote (remoteHost/remotePath), uploading any media it
-// references and rewriting local attachment IDs and *.localhost URLs.
+// Package postsync pushes a single local WordPress post or menu to the
+// project's configured remote (remoteHost/remotePath), uploading any media it
+// references and rewriting attachment IDs and *.localhost URLs, or pulls one
+// from the remote the same way.
 //
 // Local wp-cli runs inside the "wordpress" container, while ssh and rsync to
 // the remote run on the host, exactly like `jcore pull`: they use the host's
@@ -21,31 +22,33 @@ import (
 	"github.com/JCO-Digital/jcore/internal/wpout"
 )
 
-// FileState is how an uploads-relative file on the local site compares to
-// the same path on the remote.
+// FileState is how an uploads-relative file on the site it's copied from
+// compares to the same path on the site it's copied to (the remote when
+// pushing, the local site when pulling).
 type FileState int
 
 const (
-	// FileMissing: the remote has no file at this path.
+	// FileMissing: the target has no file at this path.
 	FileMissing FileState = iota
-	// FileIdentical: the remote already has this exact file.
+	// FileIdentical: the target already has this exact file.
 	FileIdentical
-	// FileDiffers: the remote has a *different* file at this path.
+	// FileDiffers: the target has a *different* file at this path.
 	FileDiffers
-	// FileMissingLocal: the local site doesn't have the file either.
-	FileMissingLocal
+	// FileMissingSource: the site it's copied from doesn't have the file
+	// either.
+	FileMissingSource
 )
 
 func (s FileState) String() string {
 	switch s {
 	case FileMissing:
-		return "upload"
+		return "missing"
 	case FileIdentical:
-		return "exists"
+		return "identical"
 	case FileDiffers:
-		return "DIFFERENT on remote"
-	case FileMissingLocal:
-		return "missing locally"
+		return "DIFFERENT"
+	case FileMissingSource:
+		return "missing at source"
 	}
 	return "unknown"
 }
@@ -60,13 +63,24 @@ type Runner interface {
 	Remote(args ...string) (string, error)
 	// RemoteStdin is Remote with stdin fed to wp-cli.
 	RemoteStdin(stdin string, args ...string) (string, error)
-	// FileStatus compares wp-content/uploads/<rel> locally and remotely
-	// without changing anything.
+	// LocalStdin is Local with stdin fed to wp-cli.
+	LocalStdin(stdin string, args ...string) (string, error)
+	// FileStatus compares wp-content/uploads/<rel> locally and remotely,
+	// for uploading, without changing anything.
 	FileStatus(rel string) (FileState, error)
 	// Upload copies wp-content/uploads/<rel> to the remote, never
 	// overwriting a file that already exists there.
 	Upload(rel string) error
+	// PullFileStatus is FileStatus for downloading: it compares the remote
+	// wp-content/uploads/<rel> to the local one.
+	PullFileStatus(rel string) (FileState, error)
+	// Download copies wp-content/uploads/<rel> from the remote, never
+	// overwriting a file that already exists locally.
+	Download(rel string) error
 }
+
+// localWPRoot is the WordPress root inside the wordpress container.
+const localWPRoot = "/var/www/html"
 
 const containerService = "wordpress"
 
@@ -146,9 +160,9 @@ func stdinReader(stdin string) io.Reader {
 }
 
 // execContainer runs parts inside the wordpress container.
-func (d *DockerRunner) execContainer(parts []string) (string, error) {
+func (d *DockerRunner) execContainer(parts []string, stdin string) (string, error) {
 	wpout.LogCommand(parts)
-	stdout, stderr, err := docker.ComposeExecOutput(d.ProjectDir, containerService, parts, nil)
+	stdout, stderr, err := docker.ComposeExecOutput(d.ProjectDir, containerService, parts, stdinReader(stdin))
 	return finishExec(stdout, stderr, err)
 }
 
@@ -187,7 +201,14 @@ func finishExec(stdout, stderr string, err error) (string, error) {
 }
 
 func (d *DockerRunner) Local(args ...string) (string, error) {
-	return d.execContainer(append([]string{"wp"}, args...))
+	return d.execContainer(append([]string{"wp"}, args...), "")
+}
+
+func (d *DockerRunner) LocalStdin(stdin string, args ...string) (string, error) {
+	if stdin == "" {
+		stdin = "\n" // see RemoteStdin
+	}
+	return d.execContainer(append([]string{"wp"}, args...), stdin)
 }
 
 func (d *DockerRunner) remoteParts(args []string) []string {
@@ -226,7 +247,7 @@ func (d *DockerRunner) rsyncParts(rel string, extra ...string) []string {
 
 func (d *DockerRunner) FileStatus(rel string) (FileState, error) {
 	if info, err := os.Stat(filepath.Join(d.localUploads(), rel)); err != nil || !info.Mode().IsRegular() {
-		return FileMissingLocal, nil
+		return FileMissingSource, nil
 	}
 	if err := requireRsync(); err != nil {
 		return 0, err
@@ -241,16 +262,23 @@ func (d *DockerRunner) FileStatus(rel string) (FileState, error) {
 	return parseItemize(out, rel), nil
 }
 
+// parseItemize reads an upload's state from rsync --itemize-changes output.
 func parseItemize(out, rel string) FileState {
+	return itemizeState(out, rel, "<")
+}
+
+// itemizeState reads rel's state from rsync --itemize-changes output; dir
+// is the transfer direction rsync prints ("<" sent, ">" received).
+func itemizeState(out, rel, dir string) FileState {
 	for _, line := range strings.Split(out, "\n") {
 		flags, name, ok := strings.Cut(strings.TrimSpace(line), " ")
 		if !ok || name != rel {
 			continue
 		}
-		if strings.HasPrefix(flags, "<f+++") {
+		if strings.HasPrefix(flags, dir+"f+++") {
 			return FileMissing
 		}
-		if strings.HasPrefix(flags, "<f") {
+		if strings.HasPrefix(flags, dir+"f") {
 			return FileDiffers
 		}
 	}
@@ -265,6 +293,57 @@ func (d *DockerRunner) Upload(rel string) error {
 		return err
 	}
 	_, err := d.execHost(d.rsyncParts(rel, "--ignore-existing"), "")
+	return err
+}
+
+// remoteUploads is the remote uploads directory.
+func (d *DockerRunner) remoteUploads() string {
+	return d.Path + "/wp-content/uploads"
+}
+
+func (d *DockerRunner) pullRsyncParts(rel string, extra ...string) []string {
+	parts := []string{"rsync", "-a", "--relative", "-e", strings.Join(d.sshCommand(), " ")}
+	parts = append(parts, extra...)
+	return append(parts,
+		d.Host+":"+d.remoteUploads()+"/./"+rel,
+		d.localUploads()+"/",
+	)
+}
+
+func (d *DockerRunner) PullFileStatus(rel string) (FileState, error) {
+	if rel == "" || strings.Contains(rel, "..") {
+		return 0, errors.New("refusing to check suspicious path " + rel)
+	}
+	// rsync fails outright on a missing source, so check for it first.
+	test := "if [ -f " + shellQuote(d.remoteUploads()+"/"+rel) + " ]; then echo yes; else echo no; fi"
+	out, err := d.execHost(append(append(d.sshCommand(), d.Host), test), "")
+	if err != nil {
+		return 0, err
+	}
+	if lastLine(out) != "yes" {
+		return FileMissingSource, nil
+	}
+	if err := requireRsync(); err != nil {
+		return 0, err
+	}
+	out, err = d.execHost(d.pullRsyncParts(rel, "--dry-run", "--checksum", "--itemize-changes"), "")
+	if err != nil {
+		return 0, err
+	}
+	return itemizeState(out, rel, ">"), nil
+}
+
+func (d *DockerRunner) Download(rel string) error {
+	if rel == "" || strings.Contains(rel, "..") {
+		return errors.New("refusing to download suspicious path " + rel)
+	}
+	if err := requireRsync(); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(d.localUploads(), 0o755); err != nil {
+		return err
+	}
+	_, err := d.execHost(d.pullRsyncParts(rel, "--ignore-existing"), "")
 	return err
 }
 

@@ -125,12 +125,12 @@ func filterByLang(run func(...string) (string, error), kind string, ids []int, l
 // PLLPlan is the Polylang part of a post sync.
 type PLLPlan struct {
 	Lang string // the post's language
-	// Group is the remote translation group to save (language → remote
+	// Group is the target translation group to save (language → target
 	// post ID), with 0 standing in for the synced post when it's created.
 	// nil: nothing to save.
 	Group   map[string]int
 	NewLink []string // languages newly linked, for the summary
-	SetLang bool     // set the language on the remote post (always on create)
+	SetLang bool     // set the language on the target post (always on create)
 }
 
 // mergeGroup adds candidate's translation group into group unless that

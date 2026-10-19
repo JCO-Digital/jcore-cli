@@ -83,7 +83,7 @@ func TestMenuCreateFlow(t *testing.T) {
 		t.Fatalf("plan: creating=%v ops=%d locations=%v", p.Creating(), len(p.Ops), p.Locations)
 	}
 
-	res, err := ApplyMenu(f, p, false, t.TempDir())
+	res, err := ApplyMenu(p, false, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,20 +112,20 @@ func TestMenuUpdateFlow(t *testing.T) {
 	if p.Creating() || p.InSync {
 		t.Fatal("expected an update")
 	}
-	if p.Ops[0].RemoteID != 200 || len(p.Ops[0].Changes) != 0 {
+	if p.Ops[0].TargetID != 200 || len(p.Ops[0].Changes) != 0 {
 		t.Errorf("About: %+v", p.Ops[0])
 	}
-	if p.Ops[1].RemoteID != 0 {
+	if p.Ops[1].TargetID != 0 {
 		t.Errorf("Contact should be added: %+v", p.Ops[1])
 	}
-	if p.Ops[2].RemoteID != 202 || !slices.Equal(p.Ops[2].Changes, []string{"position"}) {
+	if p.Ops[2].TargetID != 202 || !slices.Equal(p.Ops[2].Changes, []string{"position"}) {
 		t.Errorf("News: %+v", p.Ops[2])
 	}
 	if len(p.Removals) != 1 || p.Removals[0].DBID != 201 {
 		t.Fatalf("removals: %+v", p.Removals)
 	}
 
-	res, err := ApplyMenu(f, p, true, t.TempDir())
+	res, err := ApplyMenu(p, true, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestMenuRemovalDeclinedKeepsItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ApplyMenu(f, p, false, t.TempDir()); err != nil {
+	if _, err := ApplyMenu(p, false, t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
 	if d := callsWithPrefix(f, "R menu item delete"); len(d) > 0 {

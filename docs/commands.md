@@ -296,6 +296,28 @@ Pushes **one** classic menu (`register_nav_menus` style) to the remote.
 - Works with `--dry-run` and `--as`. `--type`, `--lang` and `--meta` don't
   apply.
 
+### `sync --pull <remote id|slug>` / `sync --pull --menu <slug|name|id>`
+Pulls **one** remote post (or classic menu) to the local site: everything above,
+in reverse. The remote is only read; every write goes to the local site.
+- The local post (or menu) is matched the same way, backed up to
+  `.jcore/sync-backups/` before it's changed, and drift (a local post modified
+  after the remote one or after your last `jcore pull db`) needs the slug typed.
+- Referenced media is downloaded (`rsync --ignore-existing`, so existing local
+  files are never overwritten) and registered in the local media library.
+  Attachment, ACF and Gravity Forms IDs are remapped to the local ones, and
+  `remoteDomain` URLs are rewritten to `localDomain`. If you have a *different*
+  file at the same path locally, the command aborts.
+- With Polylang, the post gets the remote post's language and is linked to the
+  local versions of its remote translations. Linked ACF posts, menu pages and
+  terms that are missing locally abort the pull, with the
+  `jcore sync --pull <id>` to run first.
+- A post created locally keeps the remote post's status and date (a push
+  creates a draft), plus its parent and author when they exist locally.
+- All the flags work the same way, with the local site as the target:
+  `--local-id <id>` picks the local post to update (instead of `--remote-id`),
+  `--as` is the local user to write as, and `--meta` copies the remote post's
+  meta.
+
 ## `clone <repository> [name]`
 
 Clones an existing JCore project from a Git repository.

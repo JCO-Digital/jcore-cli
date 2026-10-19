@@ -23,7 +23,7 @@ var (
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
 	Use:   "sync <id|slug> | --menu <name>",
-	Short: "Push one local post or menu to the remote site",
+	Short: "Push one local post or menu to the remote site, or pull one with --pull",
 	Long: `Pushes a single local post (content, title, excerpt, featured image and
 page template) to the remote configured by remoteHost/remotePath, including any
 [branch-<name>] override for the current git branch.
@@ -47,7 +47,14 @@ are remapped too.
 With --menu <slug|name|id>, a classic navigation menu is synced instead: items
 are matched to the remote menu, linked pages and terms are mapped by slug (the
 sync aborts if any are missing on the remote), and remote items no longer in the
-local menu are removed only after a separate confirmation.`,
+local menu are removed only after a separate confirmation.
+
+With --pull, everything goes the other way: the remote post (or --menu) given by
+ID or slug is copied to the local site, with the same matching, remapping,
+backups and confirmations. Missing media files are downloaded (never
+overwriting local ones), remoteDomain URLs are rewritten to localDomain, and
+--local-id <id> picks the local post to update. A post created locally keeps
+the remote post's status and date.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, err := project.FindProjectRoot()
@@ -63,7 +70,9 @@ local menu are removed only after a separate confirmation.`,
 		menu, _ := cmd.Flags().GetString("menu")
 		lang, _ := cmd.Flags().GetString("lang")
 		remoteID, _ := cmd.Flags().GetInt("remote-id")
-		if err := validateSyncArgs(args, menu, postType, lang, withMeta, remoteID); err != nil {
+		localID, _ := cmd.Flags().GetInt("local-id")
+		pull, _ := cmd.Flags().GetBool("pull")
+		if err := validateSyncArgs(args, menu, postType, lang, withMeta, remoteID, localID, pull); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
@@ -71,13 +80,18 @@ local menu are removed only after a separate confirmation.`,
 		if len(args) == 1 {
 			ident = args[0]
 		}
+		targetID := remoteID
+		if pull {
+			targetID = localID
+		}
 
 		opts := postsync.Options{
 			Ident:        ident,
+			Pull:         pull,
 			PostType:     postType,
 			Lang:         lang,
 			Meta:         withMeta,
-			RemoteID:     remoteID,
+			TargetID:     targetID,
 			As:           as,
 			LocalDomain:  viper.GetString("localDomain"),
 			RemoteDomain: viper.GetString("remoteDomain"),
@@ -93,11 +107,12 @@ local menu are removed only after a separate confirmation.`,
 		if info, err := os.Stat(filepath.Join(projectDir, ".jcore", "sql", "db.sql")); err == nil {
 			opts.LastPull = info.ModTime()
 		}
-		opts.ChooseRemote = chooseRemotePost
+		src, dst := syncSides(pull)
+		opts.ChooseTarget = chooseTargetPost(dst)
 
 		if withMeta {
-			fmt.Println(styleSyncDanger.Render("WARNING: --meta copies ALL custom post meta (ACF fields etc.) to the remote."))
-			fmt.Println(styleSyncWarn.Render("Only IDs in ACF image/file/gallery/post fields are remapped; other IDs are copied as-is, and existing remote values for the same keys are overwritten."))
+			fmt.Println(styleSyncDanger.Render(fmt.Sprintf("WARNING: --meta copies ALL custom post meta (ACF fields etc.) to the %s post.", dst)))
+			fmt.Println(styleSyncWarn.Render(fmt.Sprintf("Only IDs in ACF image/file/gallery/post fields are remapped; other IDs are copied as-is, and existing %s values for the same keys are overwritten.", dst)))
 		}
 
 		project.KnockIfNeeded()
@@ -108,7 +123,7 @@ local menu are removed only after a separate confirmation.`,
 			return
 		}
 
-		fmt.Printf("Inspecting local post %q and %s...\n", opts.Ident, remoteHost)
+		printInspecting("post", opts, remoteHost)
 		plan, err := postsync.Prepare(runner, opts)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
@@ -119,7 +134,7 @@ local menu are removed only after a separate confirmation.`,
 		printSyncPlan(plan, opts, remoteHost, project.CurrentBranch(projectDir))
 
 		if plan.InSync {
-			fmt.Println(styleSyncOK.Render("The remote post is already in sync. Nothing to do."))
+			fmt.Println(styleSyncOK.Render(fmt.Sprintf("The %s post is already in sync. Nothing to do.", dst)))
 			return
 		}
 		if dryRun {
@@ -128,14 +143,14 @@ local menu are removed only after a separate confirmation.`,
 		}
 
 		if len(plan.Drift) > 0 {
-			fmt.Println(styleSyncDanger.Render("The remote post may have changes your local copy doesn't have:"))
+			fmt.Println(styleSyncDanger.Render(fmt.Sprintf("The %s post may have changes the %s one doesn't have:", dst, src)))
 			for _, d := range plan.Drift {
 				fmt.Println(styleSyncDanger.Render("  ! " + d))
 			}
 			fmt.Println("Syncing will overwrite them (a backup is taken first).")
 			typed := ""
-			prompt := &survey.Input{Message: fmt.Sprintf("Type the slug (%s) to overwrite anyway:", plan.Local.PostName)}
-			if err := survey.AskOne(prompt, &typed); err != nil || strings.TrimSpace(typed) != plan.Local.PostName {
+			prompt := &survey.Input{Message: fmt.Sprintf("Type the slug (%s) to overwrite anyway:", plan.Source.PostName)}
+			if err := survey.AskOne(prompt, &typed); err != nil || strings.TrimSpace(typed) != plan.Source.PostName {
 				fmt.Println("Aborted. Nothing was changed.")
 				return
 			}
@@ -143,21 +158,25 @@ local menu are removed only after a separate confirmation.`,
 
 		if withMeta && len(plan.Meta) > 0 {
 			ok := false
-			prompt := &survey.Confirm{Message: fmt.Sprintf("Really write %d meta values to the remote post?", len(plan.Meta)), Default: false}
+			prompt := &survey.Confirm{Message: fmt.Sprintf("Really write %d meta values to the %s post?", len(plan.Meta), dst), Default: false}
 			if err := survey.AskOne(prompt, &ok); err != nil || !ok {
 				fmt.Println("Aborted. Nothing was changed.")
 				return
 			}
 		}
 
+		verb := "Sync"
+		if pull {
+			verb = "Pull"
+		}
 		ok := false
-		prompt := &survey.Confirm{Message: fmt.Sprintf("Sync %q to %s?", plan.Local.PostTitle, plan.RemoteSiteURL), Default: false}
+		prompt := &survey.Confirm{Message: fmt.Sprintf("%s %q to %s?", verb, plan.Source.PostTitle, plan.TargetSiteURL), Default: false}
 		if err := survey.AskOne(prompt, &ok); err != nil || !ok {
 			fmt.Println("Aborted. Nothing was changed.")
 			return
 		}
 
-		res, err := postsync.Apply(runner, plan, opts, filepath.Join(projectDir, ".jcore", "sync-backups"))
+		res, err := postsync.Apply(plan, filepath.Join(projectDir, ".jcore", "sync-backups"))
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			if len(res.Done) == 0 {
@@ -169,7 +188,7 @@ local menu are removed only after a separate confirmation.`,
 				}
 			}
 			if res.BackupPath != "" {
-				fmt.Printf("Remote post backup: %s\n", res.BackupPath)
+				fmt.Printf("%s post backup: %s\n", capitalize(dst), res.BackupPath)
 			}
 			return
 		}
@@ -178,56 +197,98 @@ local menu are removed only after a separate confirmation.`,
 			fmt.Println(styleSyncOK.Render("  ✓ ") + d)
 		}
 		if res.VerifyMismatch {
-			fmt.Println(styleSyncDanger.Render("WARNING: the content read back from the remote differs from what was sent."))
+			fmt.Println(styleSyncDanger.Render(fmt.Sprintf("WARNING: the content read back from the %s post differs from what was sent.", dst)))
 			fmt.Println(styleSyncWarn.Render("WordPress may have filtered markup on save. Check the post in the editor."))
 		}
-		if res.FinalSlug != "" && res.FinalSlug != plan.Local.PostName && (plan.Creating() || res.FinalSlug != plan.Remote.PostName) {
-			fmt.Println(styleSyncWarn.Render(fmt.Sprintf("Note: WordPress changed the remote slug to %q (local is %q), probably because it was already taken.", res.FinalSlug, plan.Local.PostName)))
+		if res.FinalSlug != "" && res.FinalSlug != plan.Source.PostName && (plan.Creating() || res.FinalSlug != plan.Target.PostName) {
+			fmt.Println(styleSyncWarn.Render(fmt.Sprintf("Note: WordPress changed the %s slug to %q (%s is %q), probably because it was already taken.", dst, res.FinalSlug, src, plan.Source.PostName)))
 		}
-		if res.Created {
+		if res.Created && !pull {
 			fmt.Println("Created as a draft. Review and publish it in wp-admin.")
 		}
-		fmt.Printf("Edit: %s\n", plan.EditURL(res.RemoteID))
+		fmt.Printf("Edit: %s\n", plan.EditURL(res.TargetID))
 		if res.BackupPath != "" {
-			fmt.Printf("Backup of the previous remote version: %s\n", res.BackupPath)
+			fmt.Printf("Backup of the previous %s version: %s\n", dst, res.BackupPath)
 		}
 	},
 }
 
 // validateSyncArgs checks that exactly one of a post or --menu was given,
-// and that post-only flags aren't combined with --menu.
-func validateSyncArgs(args []string, menu, postType, lang string, withMeta bool, remoteID int) error {
+// that post-only flags aren't combined with --menu, and that the target ID
+// flag matches the direction.
+func validateSyncArgs(args []string, menu, postType, lang string, withMeta bool, remoteID, localID int, pull bool) error {
 	switch {
 	case menu != "" && len(args) > 0:
 		return fmt.Errorf("give either a post or --menu, not both")
 	case menu == "" && len(args) == 0:
 		return fmt.Errorf("give a post ID or slug, or --menu <name>")
-	case menu != "" && (postType != "" || lang != "" || withMeta || remoteID != 0):
-		return fmt.Errorf("--type, --lang, --meta and --remote-id only apply to posts, not --menu")
+	case menu != "" && (postType != "" || lang != "" || withMeta || remoteID != 0 || localID != 0):
+		return fmt.Errorf("--type, --lang, --meta, --remote-id and --local-id only apply to posts, not --menu")
+	case pull && remoteID != 0:
+		return fmt.Errorf("--remote-id picks the post a push updates; with --pull, use --local-id")
+	case !pull && localID != 0:
+		return fmt.Errorf("--local-id picks the post a pull updates; it needs --pull")
 	case remoteID < 0:
 		return fmt.Errorf("--remote-id must be a post ID")
+	case localID < 0:
+		return fmt.Errorf("--local-id must be a post ID")
 	}
 	return nil
 }
 
-// chooseRemotePost asks which of several remote posts sharing the local
-// post's slug should be updated.
-func chooseRemotePost(local *postsync.Post, candidates []postsync.RemoteCandidate) (int, error) {
-	options := make([]string, len(candidates))
-	for i, c := range candidates {
-		options[i] = fmt.Sprintf("ID %d  %q  (%s, modified %s UTC)", c.ID, c.Title, c.Status, c.Modified)
+// syncSides names the source and target sites of a sync.
+func syncSides(pull bool) (src, dst string) {
+	if pull {
+		return "remote", "local"
 	}
-	fmt.Println(styleSyncWarn.Render(fmt.Sprintf("%d remote %s posts have slug %q.", len(candidates), local.PostType, local.PostName)))
-	idx := 0
-	prompt := &survey.Select{Message: "Which remote post should be updated?", Options: options}
-	if err := survey.AskOne(prompt, &idx); err != nil {
-		return 0, fmt.Errorf("no remote post chosen: %w", err)
+	return "local", "remote"
+}
+
+func printInspecting(what string, opts postsync.Options, remoteHost string) {
+	if opts.Pull {
+		fmt.Printf("Inspecting remote %s %q on %s and the local site...\n", what, opts.Ident, remoteHost)
+		return
 	}
-	return candidates[idx].ID, nil
+	fmt.Printf("Inspecting local %s %q and %s...\n", what, opts.Ident, remoteHost)
+}
+
+// printRemoteSite prints where the remote is.
+func printRemoteSite(siteURL string, opts postsync.Options, remoteHost, branch string) {
+	fmt.Printf("  site:   %s\n", siteURL)
+	fmt.Printf("  ssh:    %s:%s\n", remoteHost, opts.RemotePath)
+	if branch != "" {
+		fmt.Printf("  branch: %s\n", branch)
+	}
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// chooseTargetPost returns a prompt asking which of several target (side
+// dst) posts sharing the source post's slug should be updated.
+func chooseTargetPost(dst string) func(*postsync.Post, []postsync.Candidate) (int, error) {
+	return func(source *postsync.Post, candidates []postsync.Candidate) (int, error) {
+		options := make([]string, len(candidates))
+		for i, c := range candidates {
+			options[i] = fmt.Sprintf("ID %d  %q  (%s, modified %s UTC)", c.ID, c.Title, c.Status, c.Modified)
+		}
+		fmt.Println(styleSyncWarn.Render(fmt.Sprintf("%d %s %s posts have slug %q.", len(candidates), dst, source.PostType, source.PostName)))
+		idx := 0
+		prompt := &survey.Select{Message: fmt.Sprintf("Which %s post should be updated?", dst), Options: options}
+		if err := survey.AskOne(prompt, &idx); err != nil {
+			return 0, fmt.Errorf("no %s post chosen: %w", dst, err)
+		}
+		return candidates[idx].ID, nil
+	}
 }
 
 func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remoteHost string, dryRun bool) {
-	fmt.Printf("Inspecting local menu %q and %s...\n", opts.Ident, remoteHost)
+	src, dst := syncSides(opts.Pull)
+	printInspecting("menu", opts, remoteHost)
 	plan, err := postsync.PrepareMenu(runner, opts, opts.Ident)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -238,7 +299,7 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 	printMenuPlan(plan, opts, remoteHost, project.CurrentBranch(projectDir))
 
 	if plan.InSync {
-		fmt.Println(styleSyncOK.Render("The remote menu is already in sync. Nothing to do."))
+		fmt.Println(styleSyncOK.Render(fmt.Sprintf("The %s menu is already in sync. Nothing to do.", dst)))
 		return
 	}
 	if dryRun {
@@ -247,21 +308,25 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 	}
 
 	if len(plan.Drift) > 0 {
-		fmt.Println(styleSyncDanger.Render("The remote menu may have changes your local copy doesn't have:"))
+		fmt.Println(styleSyncDanger.Render(fmt.Sprintf("The %s menu may have changes the %s one doesn't have:", dst, src)))
 		for _, d := range plan.Drift {
 			fmt.Println(styleSyncDanger.Render("  ! " + d))
 		}
 		fmt.Println("Syncing will overwrite them (a backup is taken first).")
 		typed := ""
-		prompt := &survey.Input{Message: fmt.Sprintf("Type the menu slug (%s) to overwrite anyway:", plan.Local.Slug)}
-		if err := survey.AskOne(prompt, &typed); err != nil || strings.TrimSpace(typed) != plan.Local.Slug {
+		prompt := &survey.Input{Message: fmt.Sprintf("Type the menu slug (%s) to overwrite anyway:", plan.Source.Slug)}
+		if err := survey.AskOne(prompt, &typed); err != nil || strings.TrimSpace(typed) != plan.Source.Slug {
 			fmt.Println("Aborted. Nothing was changed.")
 			return
 		}
 	}
 
+	verb := "Sync"
+	if opts.Pull {
+		verb = "Pull"
+	}
 	ok := false
-	prompt := &survey.Confirm{Message: fmt.Sprintf("Sync menu %q to %s?", plan.Local.Name, plan.SiteURL), Default: false}
+	prompt := &survey.Confirm{Message: fmt.Sprintf("%s menu %q to %s?", verb, plan.Source.Name, plan.TargetSiteURL), Default: false}
 	if err := survey.AskOne(prompt, &ok); err != nil || !ok {
 		fmt.Println("Aborted. Nothing was changed.")
 		return
@@ -269,12 +334,12 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 
 	remove := false
 	if len(plan.Removals) > 0 {
-		prompt := &survey.Confirm{Message: fmt.Sprintf("Also REMOVE the %d remote menu items listed above?", len(plan.Removals)), Default: false}
+		prompt := &survey.Confirm{Message: fmt.Sprintf("Also REMOVE the %d %s menu items listed above?", len(plan.Removals), dst), Default: false}
 		if err := survey.AskOne(prompt, &remove); err != nil {
 			remove = false
 		}
 		if !remove {
-			fmt.Println("Keeping the old remote items.")
+			fmt.Printf("Keeping the old %s items.\n", dst)
 			if !plan.Pending() {
 				fmt.Println("Nothing else to do. Nothing was changed.")
 				return
@@ -282,7 +347,7 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 		}
 	}
 
-	res, err := postsync.ApplyMenu(runner, plan, remove, filepath.Join(projectDir, ".jcore", "sync-backups"))
+	res, err := postsync.ApplyMenu(plan, remove, filepath.Join(projectDir, ".jcore", "sync-backups"))
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		if len(res.Done) == 0 {
@@ -294,7 +359,7 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 			}
 		}
 		if res.BackupPath != "" {
-			fmt.Printf("Remote menu backup: %s\n", res.BackupPath)
+			fmt.Printf("%s menu backup: %s\n", capitalize(dst), res.BackupPath)
 		}
 		return
 	}
@@ -304,52 +369,56 @@ func runMenuSync(runner postsync.Runner, opts postsync.Options, projectDir, remo
 	}
 	fmt.Printf("Edit: %s\n", plan.MenuEditURL(res.MenuID))
 	if res.BackupPath != "" {
-		fmt.Printf("Backup of the previous remote menu: %s\n", res.BackupPath)
+		fmt.Printf("Backup of the previous %s menu: %s\n", dst, res.BackupPath)
 	}
 }
 
 func printMenuPlan(p *postsync.MenuPlan, opts postsync.Options, remoteHost, branch string) {
+	src, dst := syncSides(p.Pull)
 	fmt.Println()
-	fmt.Println(styleHeading.Render("Local menu"))
-	fmt.Printf("  %q  (ID %d, slug %s, %d items)\n", p.Local.Name, p.Local.TermID, p.Local.Slug, len(p.Ops))
-
-	fmt.Println(styleHeading.Render("Remote"))
-	fmt.Printf("  site:   %s\n", p.SiteURL)
-	fmt.Printf("  ssh:    %s:%s\n", remoteHost, opts.RemotePath)
-	if branch != "" {
-		fmt.Printf("  branch: %s\n", branch)
+	fmt.Println(styleHeading.Render(capitalize(src) + " menu"))
+	fmt.Printf("  %q  (ID %d, slug %s, %d items)\n", p.Source.Name, p.Source.TermID, p.Source.Slug, len(p.Ops))
+	if p.Pull {
+		printRemoteSite(p.SourceSiteURL, opts, remoteHost, branch)
 	}
-	fmt.Printf("  user:   %s\n", p.RemoteUser)
+
+	fmt.Println(styleHeading.Render(capitalize(dst)))
+	if p.Pull {
+		fmt.Printf("  site:   %s\n", p.TargetSiteURL)
+	} else {
+		printRemoteSite(p.TargetSiteURL, opts, remoteHost, branch)
+	}
+	fmt.Printf("  user:   %s\n", p.TargetUser)
 	if p.Creating() {
 		fmt.Println("  action: " + styleSyncWarn.Render("CREATE new menu"))
 	} else {
-		fmt.Printf("  action: "+styleSyncWarn.Render("UPDATE")+" remote menu %q (ID %d, %d items)\n", p.Remote.Name, p.Remote.TermID, len(p.RemoteItems))
+		fmt.Printf("  action: "+styleSyncWarn.Render("UPDATE")+" %s menu %q (ID %d, %d items)\n", dst, p.Target.Name, p.Target.TermID, len(p.TargetItems))
 	}
 
 	fmt.Println(styleHeading.Render("Items"))
 	depth := map[int]int{}
 	for _, op := range p.Ops {
 		d := 0
-		if op.Local.Parent != 0 {
-			d = depth[int(op.Local.Parent)] + 1
+		if op.Source.Parent != 0 {
+			d = depth[int(op.Source.Parent)] + 1
 		}
-		depth[int(op.Local.DBID)] = d
+		depth[int(op.Source.DBID)] = d
 		status := styleDim.Render("keep")
 		switch {
-		case op.RemoteID == 0:
+		case op.TargetID == 0:
 			status = styleSyncOK.Render("add")
 		case len(op.Changes) > 0:
 			status = styleSyncWarn.Render("update: " + strings.Join(op.Changes, ", "))
 		}
-		target := op.Local.Object
-		if op.Local.Type == "custom" {
+		target := op.Source.Object
+		if op.Source.Type == "custom" {
 			target = op.URL
 		}
-		fmt.Printf("  %s%s  %s  [%s]\n", strings.Repeat("  ", d), op.Local.Label, styleDim.Render(target), status)
+		fmt.Printf("  %s%s  %s  [%s]\n", strings.Repeat("  ", d), op.Source.Label, styleDim.Render(target), status)
 	}
 
 	if len(p.Removals) > 0 {
-		fmt.Println(styleSyncDanger.Render("Remote items not in the local menu (removed only if you confirm)"))
+		fmt.Println(styleSyncDanger.Render(fmt.Sprintf("%s items not in the %s menu (removed only if you confirm)", capitalize(dst), src)))
 		for _, it := range p.Removals {
 			fmt.Println(styleSyncDanger.Render("  - " + it.Label))
 		}
@@ -361,32 +430,34 @@ func printMenuPlan(p *postsync.MenuPlan, opts postsync.Options, remoteHost, bran
 		fmt.Printf("Assign to theme location %s for: %s\n", loc, strings.Join(langs, ", "))
 	}
 
-	if len(p.Warnings) > 0 {
-		fmt.Println(styleHeading.Render("Warnings"))
-		for _, w := range p.Warnings {
-			fmt.Println(styleSyncWarn.Render("  ! " + w))
-		}
-	}
-	fmt.Println()
+	printWarnings(p.Warnings)
 }
 
 func printSyncPlan(p *postsync.Plan, opts postsync.Options, remoteHost, branch string) {
+	src, dst := syncSides(p.Pull)
 	fmt.Println()
-	fmt.Println(styleHeading.Render("Local post"))
-	fmt.Printf("  %s %q  (ID %d, slug %s, %s)\n", p.Local.PostType, p.Local.PostTitle, p.Local.ID, p.Local.PostName, p.Local.PostStatus)
-
-	fmt.Println(styleHeading.Render("Remote"))
-	fmt.Printf("  site:   %s\n", p.RemoteSiteURL)
-	fmt.Printf("  ssh:    %s:%s\n", remoteHost, opts.RemotePath)
-	if branch != "" {
-		fmt.Printf("  branch: %s\n", branch)
+	fmt.Println(styleHeading.Render(capitalize(src) + " post"))
+	fmt.Printf("  %s %q  (ID %d, slug %s, %s)\n", p.Source.PostType, p.Source.PostTitle, p.Source.ID, p.Source.PostName, p.Source.PostStatus)
+	if p.Pull {
+		printRemoteSite(p.SourceSiteURL, opts, remoteHost, branch)
 	}
-	fmt.Printf("  user:   %s\n", p.RemoteUser)
-	if p.Creating() {
-		fmt.Println("  action: " + styleSyncWarn.Render("CREATE new draft "+p.Local.PostType))
+
+	fmt.Println(styleHeading.Render(capitalize(dst)))
+	if p.Pull {
+		fmt.Printf("  site:   %s\n", p.TargetSiteURL)
 	} else {
-		fmt.Printf("  action: "+styleSyncWarn.Render("UPDATE")+" remote ID %d %q (%s, modified %s UTC)\n", p.Remote.ID, p.Remote.PostTitle, p.Remote.PostStatus, p.Remote.PostModifiedGMT)
-		fmt.Printf("  content: %d → %d bytes\n", len(p.Remote.PostContent), len(p.FinalContent(opts)))
+		printRemoteSite(p.TargetSiteURL, opts, remoteHost, branch)
+	}
+	fmt.Printf("  user:   %s\n", p.TargetUser)
+	if p.Creating() {
+		status := "draft"
+		if p.Pull {
+			status = p.Source.PostStatus
+		}
+		fmt.Println("  action: " + styleSyncWarn.Render("CREATE new "+status+" "+p.Source.PostType))
+	} else {
+		fmt.Printf("  action: "+styleSyncWarn.Render("UPDATE")+" %s ID %d %q (%s, modified %s UTC)\n", dst, p.Target.ID, p.Target.PostTitle, p.Target.PostStatus, p.Target.PostModifiedGMT)
+		fmt.Printf("  content: %d → %d bytes\n", len(p.Target.PostContent), len(p.FinalContent()))
 	}
 
 	if p.PLL != nil {
@@ -403,14 +474,14 @@ func printSyncPlan(p *postsync.Plan, opts postsync.Options, remoteHost, branch s
 	if len(p.Forms) > 0 {
 		fmt.Println(styleHeading.Render("Gravity Forms"))
 		for _, f := range p.Forms {
-			fmt.Printf("  %d → remote %d  %q\n", f.LocalID, f.RemoteID, f.Title)
+			fmt.Printf("  %d → %s %d  %q\n", f.SourceID, dst, f.TargetID, f.Title)
 		}
 	}
 
 	if len(p.PostMap) > 0 {
 		fmt.Println(styleHeading.Render("Linked posts (ACF)"))
-		for local, remote := range p.PostMap {
-			fmt.Printf("  %d → remote %d\n", local, remote)
+		for from, to := range p.PostMap {
+			fmt.Printf("  %d → %s %d\n", from, dst, to)
 		}
 	}
 
@@ -418,15 +489,19 @@ func printSyncPlan(p *postsync.Plan, opts postsync.Options, remoteHost, branch s
 		fmt.Println(styleHeading.Render("Media"))
 		for _, m := range p.Media {
 			switch {
-			case m.RemoteID != 0:
-				fmt.Printf("  %d → remote %d  %s\n", m.LocalID, m.RemoteID, m.RelPath)
+			case m.TargetID != 0:
+				fmt.Printf("  %d → %s %d  %s\n", m.SourceID, dst, m.TargetID, m.RelPath)
 			case m.RelPath != "":
-				fmt.Printf("  %d → new attachment  %s\n", m.LocalID, m.RelPath)
+				fmt.Printf("  %d → new attachment  %s\n", m.SourceID, m.RelPath)
 			}
 		}
-		if up := p.Uploads(); len(up) > 0 {
-			fmt.Printf("  files to upload (%d):\n", len(up))
-			for _, f := range up {
+		if files := p.Copies(); len(files) > 0 {
+			verb := "upload"
+			if p.Pull {
+				verb = "download"
+			}
+			fmt.Printf("  files to %s (%d):\n", verb, len(files))
+			for _, f := range files {
 				fmt.Println("    " + f)
 			}
 		}
@@ -439,9 +514,13 @@ func printSyncPlan(p *postsync.Plan, opts postsync.Options, remoteHost, branch s
 		}
 	}
 
-	if len(p.Warnings) > 0 {
+	printWarnings(p.Warnings)
+}
+
+func printWarnings(warnings []string) {
+	if len(warnings) > 0 {
 		fmt.Println(styleHeading.Render("Warnings"))
-		for _, w := range p.Warnings {
+		for _, w := range warnings {
 			fmt.Println(styleSyncWarn.Render("  ! " + w))
 		}
 	}
@@ -457,5 +536,7 @@ func init() {
 	syncCmd.Flags().String("lang", "", "Polylang language narrowing a slug shared by several languages (e.g. fi)")
 	syncCmd.Flags().String("menu", "", "sync a classic navigation menu (slug, name or ID) instead of a post")
 	syncCmd.Flags().Int("remote-id", 0, "remote post ID to update, instead of matching one by slug")
-	syncCmd.Flags().String("as", "", "remote user login to perform the write as (default: first administrator)")
+	syncCmd.Flags().Int("local-id", 0, "with --pull: local post ID to update, instead of matching one by slug")
+	syncCmd.Flags().String("as", "", "user login to perform the write as on the target site (default: first administrator)")
+	syncCmd.Flags().Bool("pull", false, "copy the given remote post or --menu to the local site instead of pushing")
 }
