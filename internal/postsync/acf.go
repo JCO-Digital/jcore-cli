@@ -70,9 +70,9 @@ func acfBlockData(content string, fn func(attrs string, data map[string]any)) {
 	}
 }
 
-// acfFieldTypes looks up field types by key on the local site. nil when
-// ACF isn't active.
-func acfFieldTypes(r Runner, keys []string) (map[string]string, error) {
+// acfFieldTypes looks up field types by key on the site run talks to. nil
+// when ACF isn't active.
+func acfFieldTypes(run func(...string) (string, error), keys []string) (map[string]string, error) {
 	valid := []string{}
 	for _, k := range keys {
 		if fieldKeyRe.MatchString(k) {
@@ -83,7 +83,7 @@ func acfFieldTypes(r Runner, keys []string) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	php := fmt.Sprintf(`if (!function_exists("acf_get_field")) { echo "null"; return; } $o = array(); foreach (array(%s) as $k) { $f = acf_get_field($k); $o[$k] = $f ? $f["type"] : ""; } echo json_encode((object) $o);`, strings.Join(valid, ","))
-	out, err := r.Local("eval", php)
+	out, err := run("eval", php)
 	if err != nil {
 		return nil, err
 	}
@@ -161,9 +161,10 @@ func mapToken(tok string, m map[int]int) string {
 	})
 }
 
-// planACF finds ACF fields in the content (and in meta when withMeta) that
-// hold attachment or post IDs. Returns nil when there are none.
-func planACF(r Runner, p *Plan, content string, meta []MetaEntry, withMeta bool) (*ACFPlan, error) {
+// planACF finds ACF fields in the source content (and in meta when
+// withMeta) that hold attachment or post IDs. Returns nil when there are
+// none.
+func planACF(p *Plan, content string, meta []MetaEntry, withMeta bool) (*ACFPlan, error) {
 	contentRefs := map[string]string{}
 	acfBlockData(content, func(_ string, data map[string]any) { acfFieldRefs(data, contentRefs) })
 
@@ -192,12 +193,12 @@ func planACF(r Runner, p *Plan, content string, meta []MetaEntry, withMeta bool)
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	types, err := acfFieldTypes(r, keys)
+	types, err := acfFieldTypes(p.f.src.run, keys)
 	if err != nil {
 		return nil, fmt.Errorf("reading ACF field types: %w", err)
 	}
 	if types == nil {
-		p.Warnings = append(p.Warnings, "the content has ACF block data but ACF isn't active locally; IDs in it are NOT remapped")
+		p.Warnings = append(p.Warnings, fmt.Sprintf("the content has ACF block data but ACF isn't active %s; IDs in it are NOT remapped", p.f.src.where))
 		return nil, nil
 	}
 

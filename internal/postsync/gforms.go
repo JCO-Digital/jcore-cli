@@ -17,11 +17,11 @@ var (
 	gfShortcodeRe = regexp.MustCompile(`(\[gravityforms?\b[^\]]*?\bid\s*=\s*["']?)(\d+)`)
 )
 
-// FormMapping is a local form and its remote counterpart.
+// FormMapping is a source form and its target counterpart.
 type FormMapping struct {
-	LocalID  int
+	SourceID int
 	Title    string
-	RemoteID int
+	TargetID int
 }
 
 // CollectFormIDs returns the Gravity Forms IDs embedded in content.
@@ -72,24 +72,25 @@ func RemapFormIDs(content string, m map[int]int) string {
 	return gfShortcodeRe.ReplaceAllStringFunc(content, mapID(gfShortcodeRe))
 }
 
-const gfRemoteFormsPHP = `if (!class_exists("GFAPI")) { echo "null"; return; }
+const gfFormsPHP = `if (!class_exists("GFAPI")) { echo "null"; return; }
 $o = array(); foreach (GFAPI::get_forms(null, false) as $f) { $o[] = array("id" => (int) $f["id"], "title" => $f["title"], "active" => (bool) $f["is_active"]); }
 echo json_encode($o);`
 
-// planForms maps every embedded form to the remote by title. A form that's
-// missing (or ambiguous) on the remote aborts the sync.
-func planForms(r Runner, p *Plan, content string) error {
+// planForms maps every embedded form to the target by title. A form that's
+// missing (or ambiguous) on the target aborts the sync.
+func planForms(p *Plan, content string) error {
+	src, dst := p.f.src, p.f.dst
 	ids := CollectFormIDs(content)
 	if len(ids) == 0 {
 		return nil
 	}
 	php := fmt.Sprintf(`if (!class_exists("GFAPI")) { echo "null"; return; } $o = array(); foreach (array(%s) as $i) { $f = GFAPI::get_form($i); $o[$i] = $f ? $f["title"] : ""; } echo json_encode((object) $o);`, intList(ids))
-	out, err := r.Local("eval", php)
+	out, err := src.run("eval", php)
 	if err != nil {
-		return fmt.Errorf("reading local Gravity Forms: %w", err)
+		return fmt.Errorf("reading %s Gravity Forms: %w", src.name, err)
 	}
 	if lastLine(out) == "null" {
-		p.Warnings = append(p.Warnings, "the content embeds Gravity Forms but the plugin isn't active locally; form IDs are NOT remapped")
+		p.Warnings = append(p.Warnings, fmt.Sprintf("the content embeds Gravity Forms but the plugin isn't active %s; form IDs are NOT remapped", src.where))
 		return nil
 	}
 	var titles map[string]string
@@ -97,19 +98,19 @@ func planForms(r Runner, p *Plan, content string) error {
 		return err
 	}
 
-	out, err = r.Remote("eval", gfRemoteFormsPHP)
+	out, err = dst.run("eval", gfFormsPHP)
 	if err != nil {
-		return fmt.Errorf("reading remote Gravity Forms: %w", err)
+		return fmt.Errorf("reading %s Gravity Forms: %w", dst.name, err)
 	}
 	if lastLine(out) == "null" {
-		return fmt.Errorf("the post embeds Gravity Forms, but Gravity Forms isn't active on the remote")
+		return fmt.Errorf("the post embeds Gravity Forms, but Gravity Forms isn't active %s", dst.where)
 	}
-	var remote []struct {
+	var target []struct {
 		ID     int    `json:"id"`
 		Title  string `json:"title"`
 		Active bool   `json:"active"`
 	}
-	if err := parseJSON(out, &remote); err != nil {
+	if err := parseJSON(out, &target); err != nil {
 		return err
 	}
 
@@ -117,12 +118,12 @@ func planForms(r Runner, p *Plan, content string) error {
 	for _, id := range ids {
 		title := strings.TrimSpace(titles[itoa(id)])
 		if title == "" {
-			problems = append(problems, fmt.Sprintf("form %d doesn't exist locally", id))
+			problems = append(problems, fmt.Sprintf("form %d doesn't exist %s", id, src.where))
 			continue
 		}
 		var matches []int
 		inactive := false
-		for _, f := range remote {
+		for _, f := range target {
 			if strings.TrimSpace(f.Title) == title {
 				matches = append(matches, f.ID)
 				inactive = !f.Active
@@ -130,18 +131,18 @@ func planForms(r Runner, p *Plan, content string) error {
 		}
 		switch len(matches) {
 		case 1:
-			p.Forms = append(p.Forms, FormMapping{LocalID: id, Title: title, RemoteID: matches[0]})
+			p.Forms = append(p.Forms, FormMapping{SourceID: id, Title: title, TargetID: matches[0]})
 			if inactive {
-				p.Warnings = append(p.Warnings, fmt.Sprintf("remote form %q (ID %d) is inactive", title, matches[0]))
+				p.Warnings = append(p.Warnings, fmt.Sprintf("%s form %q (ID %d) is inactive", dst.name, title, matches[0]))
 			}
 		case 0:
-			problems = append(problems, fmt.Sprintf("form %q is missing on the remote; import it there first (Forms → Import/Export)", title))
+			problems = append(problems, fmt.Sprintf("form %q is missing %s; import it there first (Forms → Import/Export)", title, dst.where))
 		default:
-			problems = append(problems, fmt.Sprintf("form %q: several remote forms have this title", title))
+			problems = append(problems, fmt.Sprintf("form %q: several %s forms have this title", title, dst.name))
 		}
 	}
 	if len(problems) > 0 {
-		return fmt.Errorf("the post embeds Gravity Forms the remote doesn't have:\n  - %s", strings.Join(problems, "\n  - "))
+		return fmt.Errorf("the post embeds Gravity Forms %s doesn't have:\n  - %s", dst.site, strings.Join(problems, "\n  - "))
 	}
 	return nil
 }
@@ -149,7 +150,7 @@ func planForms(r Runner, p *Plan, content string) error {
 func (p *Plan) formMap() map[int]int {
 	m := map[int]int{}
 	for _, f := range p.Forms {
-		m[f.LocalID] = f.RemoteID
+		m[f.SourceID] = f.TargetID
 	}
 	return m
 }
