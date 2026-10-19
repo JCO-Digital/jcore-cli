@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.1.1-beta.1 (2026-10-13)
+
+#### Bug Fixes
+
+- sync: run remote ssh and rsync on the host (91d9f35)
+
 ## v4.1.0 (2026-10-12)
 
 #### Features
