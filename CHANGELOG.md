@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.2.0 (2026-10-23)
+
+#### Features
+
+- cmd: add ssh command (6b9c5c5)
+
 ## v4.1.0 (2026-10-12)
 
 #### Features
