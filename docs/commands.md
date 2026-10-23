@@ -176,6 +176,17 @@ Opens a bash shell inside the `wordpress` container.
 
 - Runs `docker compose exec wordpress /bin/bash`.
 
+## `ssh [-- command...]`
+
+Opens an ssh session on the project's remote server (`remoteHost`).
+
+- Sends the port knock sequence first when `knockdPorts` is configured
+  (skipped if the host was knocked within `knockdTimeout` seconds).
+- Without arguments, opens a login shell, starting in `remotePath` when set.
+- Anything after `--` is run on the remote instead (from `remotePath` when
+  set), e.g. `jcore ssh -- wp plugin list`.
+- Exits with ssh's (or the remote command's) exit code.
+
 ## `run <command>`
 
 Runs a specific command inside the `wordpress` container.
