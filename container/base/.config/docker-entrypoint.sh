@@ -34,10 +34,27 @@ if [[ ! -f "$WEBROOT/index.php" || ! -f "$WEBROOT/wp-includes/version.php" ]]; t
   wp core download --path="$WEBROOT" --version="$WP_VERSION" --skip-content
 fi
 
+# Wait until the DB accepts connections as the WordPress user. On a fresh
+# volume (first start, or after `jcore clean`) MariaDB first initialises
+# behind a temporary server with networking off, which can take well over
+# the few seconds a fixed sleep allows; every step below would then fail.
+DB_WAIT_SECONDS=180
+echo "Waiting for database."
+for (( i = 0; i < DB_WAIT_SECONDS; i += 2 )); do
+  php -r '
+    mysqli_report(MYSQLI_REPORT_OFF);
+    [$host, $port] = array_pad(explode(":", getenv("WP_DB_HOST"), 2), 2, 3306);
+    $db = @mysqli_connect($host, getenv("WP_DB_USER"), getenv("WP_DB_PASSWORD"), getenv("WP_DB_NAME"), (int) $port);
+    exit($db ? 0 : 1);
+  ' && break
+  sleep 2
+done
+if (( i >= DB_WAIT_SECONDS )); then
+  echo "Error: database not reachable at $WP_DB_HOST after ${DB_WAIT_SECONDS}s; WordPress setup will likely fail."
+fi
+
 # Create config file.
 if [[ ! -f "$WEBROOT/wp-config.php" ]]; then
-  echo "Waiting to configure in case DB is not created."
-  sleep 8
   echo "Creating wp-config.php"
   wp config create --path="$WEBROOT" --dbhost="$WP_DB_HOST" --dbname="$WP_DB_NAME" --dbuser="$WP_DB_USER" --dbpass="$WP_DB_PASSWORD" --dbcharset="$DB_CHARSET" --dbprefix="$DB_PREFIX"
   wp config set --path="$WEBROOT" memcached_servers "array( array( 'memcached', 11211 ) )" --raw --type=variable
