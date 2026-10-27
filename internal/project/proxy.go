@@ -246,6 +246,11 @@ func renderProxyOverride(composeName, projectDir, localDomain string, domains []
 		w("    network_mode: \"service:wordpress\"")
 		w("    entrypoint: [\"sh\", \"-c\"]")
 		w("    command: [%s]", yamlString(script))
+		// The shell would be PID 1, which ignores the SIGTERM from `docker
+		// stop`, so every stop waited the full 10s timeout - and wordpress,
+		// whose network this shares, only stops after it. Docker's init
+		// passes the signal on instead.
+		w("    init: true")
 		w("    restart: unless-stopped")
 	}
 
