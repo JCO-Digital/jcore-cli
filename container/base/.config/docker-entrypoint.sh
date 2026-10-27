@@ -43,7 +43,40 @@ if [[ ! -f "$WEBROOT/wp-config.php" ]]; then
   echo "Creating wp-config.php"
   wp config create --path="$WEBROOT" --dbhost="$WP_DB_HOST" --dbname="$WP_DB_NAME" --dbuser="$WP_DB_USER" --dbpass="$WP_DB_PASSWORD" --dbcharset="$DB_CHARSET" --dbprefix="$DB_PREFIX" ||
     fail "creating wp-config.php failed."
-  wp config set --path="$WEBROOT" memcached_servers "array( array( 'memcached', 11211 ) )" --raw --type=variable
+fi
+
+# Add the local development constants (and multisite ones) to
+# wp-config.php, all in one wp-cli run. Before anything loads WordPress,
+# so the object cache drop-in already finds WP_REDIS_HOST.
+wp eval-file /project/.config/scripts/wp-config-local.php --path="$WEBROOT" --skip-wordpress ||
+  fail "updating wp-config.php failed."
+
+# Redis object cache, as on production: SpinupWP's plugin installs its own
+# object-cache.php drop-in there, but only on SpinupWP servers, so copy it
+# in from the project's copy of the plugin. Skipped when the objectCache
+# setting is off, or for Object Cache Pro, which the plugin skips too.
+# The drop-in needs the PhpRedis extension: without it, it falls back to
+# Predis, which the plugin doesn't ship, and every request dies, so an
+# image older than PhpRedis gets no drop-in.
+# Only a drop-in that came from SpinupWP is ever replaced or removed.
+SPINUPWP_DROPIN="$WEBROOT/wp-content/plugins/spinupwp/drop-ins/object-cache.php"
+OBJECT_CACHE_FILE="$WEBROOT/wp-content/object-cache.php"
+OBJECT_CACHE_MARKER="SpinupWP Redis Object Cache Drop-In"
+HAS_PHPREDIS=true
+php -r 'exit(class_exists("Redis") ? 0 : 1);' || HAS_PHPREDIS=false
+if [[ $HAS_PHPREDIS == false && -f $SPINUPWP_DROPIN && $OBJECT_CACHE != false ]]; then
+  echo "This image has no PhpRedis, so the Redis object cache is off. Update the image (jcore start --install pulls it)."
+fi
+if [[ $OBJECT_CACHE != false && $HAS_PHPREDIS == true && -f $SPINUPWP_DROPIN && ! -d $WEBROOT/wp-content/plugins/object-cache-pro ]]; then
+  if [[ -f $OBJECT_CACHE_FILE ]] && ! grep -q "$OBJECT_CACHE_MARKER" "$OBJECT_CACHE_FILE"; then
+    echo "Keeping the existing (non-SpinupWP) object-cache.php."
+  elif ! cmp -s "$SPINUPWP_DROPIN" "$OBJECT_CACHE_FILE"; then
+    echo "Installing the SpinupWP Redis object cache drop-in."
+    cp "$SPINUPWP_DROPIN" "$OBJECT_CACHE_FILE" || fail "installing object-cache.php failed."
+  fi
+elif grep -qs "$OBJECT_CACHE_MARKER" "$OBJECT_CACHE_FILE"; then
+  echo "Removing the SpinupWP object cache drop-in (objectCache is off, no PhpRedis, or the plugin is gone)."
+  rm -f "$OBJECT_CACHE_FILE"
 fi
 
 # Install WP.
@@ -54,11 +87,6 @@ else
   wp core install --path="$WEBROOT" --title="WordPress" --url="https://$LOCAL_DOMAIN" --admin_user="$WP_ADMIN_USER" --admin_email="$WP_ADMIN_EMAIL" --admin_password="$WP_ADMIN_PASSWORD" ||
     fail "installing WordPress failed."
 fi
-
-# Add the local development constants (and multisite ones) to
-# wp-config.php, all in one wp-cli run.
-wp eval-file /project/.config/scripts/wp-config-local.php --path="$WEBROOT" --skip-wordpress ||
-  fail "updating wp-config.php failed."
 
 /project/.config/scripts/appendssl
 

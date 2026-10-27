@@ -8,7 +8,7 @@ A robust, containerized WordPress development environment by JCO Digital. This s
 - **SSL/TLS**: Built-in certificate generation for local HTTPS.
 - **Database Management**: MariaDB with Adminer for easy database access.
 - **Mail Trapping**: Mailpit to catch all outgoing emails during development.
-- **Performance**: Integrated Memcached support.
+- **Object Cache**: Redis with SpinupWP's object cache drop-in, as on production.
 - **Tooling**: Includes WP-CLI, Composer, and SSH agent forwarding.
 - **Custom Scripts**: Pre-configured scripts for importing databases, media, and plugins.
 
@@ -51,7 +51,7 @@ each request to the right project by its domain.
 - **Database (MariaDB)**: Persistent database storage.
 - **Adminer**: Database management UI at `http://adminer.LOCAL_DOMAIN`.
 - **Mailhog (Mailpit)**: Email testing tool. UI at `http://mail.LOCAL_DOMAIN`.
-- **Memcached**: Object caching service.
+- **Redis**: Persistent object cache. Projects with the SpinupWP plugin get its `object-cache.php` drop-in, as on production (turn off with `objectCache = false`). Flushed after every database import; after editing the database directly, flush it with `jcore run "wp cache flush"`.
 - **Loopback**: Forwards WordPress's requests to its own site (wp-cron, REST, multisite subsites) to Nginx.
 
 ## Configuration

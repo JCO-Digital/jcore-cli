@@ -17,4 +17,8 @@ if [ -f "$SQLPATH/update.sql" ]; then
       wp search-replace --network --path="$WEBROOT" --skip-plugins --skip-themes "${record[0]}" "${record[1]}"  --recurse-objects --report-changed-only --skip-columns=guid
     fi
   done
+
+  # Don't serve objects and transients cached before the import.
+  echo "Flush object cache"
+  wp cache flush --path="$WEBROOT" --skip-plugins --skip-themes
 fi

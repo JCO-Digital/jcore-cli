@@ -36,6 +36,23 @@ func TestGenerateEnvFile_KnockdSettings(t *testing.T) {
 	}
 }
 
+// The entrypoint only turns the Redis object cache off for an explicit
+// OBJECT_CACHE=false, so the setting must reach .env.
+func TestGenerateEnvFile_ObjectCacheSetting(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("objectCache", false)
+
+	dir := t.TempDir()
+	if err := GenerateEnvFile(dir); err != nil {
+		t.Fatalf("GenerateEnvFile error = %v", err)
+	}
+
+	if got := readEnvVar(t, dir, "OBJECT_CACHE"); got != "false" {
+		t.Errorf("OBJECT_CACHE = %q, want %q", got, "false")
+	}
+}
+
 // TestGenerateEnvFile_ReplaceAlwaysIncludesDefaultDomainRow reproduces the
 // legacy TypeScript CLI's createEnv(), which always added a
 // "//remoteDomain|//localDomain" row to REPLACE so `jcore pull db` rewrites

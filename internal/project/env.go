@@ -53,6 +53,7 @@ func GenerateEnvFile(projectDir string) error {
 		"wpDebug":        "WP_DEBUG",
 		"wpDebugLog":     "WP_DEBUG_LOG",
 		"wpDebugDisplay": "WP_DEBUG_DISPLAY",
+		"objectCache":    "OBJECT_CACHE",
 		"remoteHost":     "REMOTE_HOST",
 		"remotePath":     "REMOTE_PATH",
 		"knockdPorts":    "KNOCKD_PORTS",

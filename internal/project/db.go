@@ -114,6 +114,10 @@ func ImportDatabaseNative(projectDir string) error {
 		if err := ApplyDomainReplacements(projectDir); err != nil {
 			logging.Warn("Domain replacement warning: %v", err)
 		}
+
+		if err := FlushObjectCache(projectDir); err != nil {
+			logging.Warn("Object cache flush warning: %v", err)
+		}
 	}
 
 	// Execute custom after-script inside container if present
@@ -436,6 +440,16 @@ func UpdateTablePrefix(projectDir string, dbPrefix string) error {
 	}
 	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{
 		"wp", "config", "set", "--path=/var/www/html", "--skip-plugins", "--skip-themes", "--type=variable", "table_prefix", dbPrefix,
+	})
+}
+
+// FlushObjectCache empties the persistent object cache, so cached objects
+// and transients from before a database import aren't served over the
+// imported data.
+func FlushObjectCache(projectDir string) error {
+	fmt.Println("Flushing the object cache...")
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{
+		"wp", "cache", "flush", "--path=/var/www/html", "--skip-plugins", "--skip-themes",
 	})
 }
 
