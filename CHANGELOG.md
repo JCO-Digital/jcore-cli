@@ -1,30 +1,6 @@
 # Changelog
 
-### v4.5.0-beta.5 (2026-10-27)
-
-#### Documentation
-
-- add CLAUDE.md with the branch and beta sprint workflow (efbb2b9)
-
-### v4.5.0-beta.4 (2026-10-27)
-
-#### Bug Fixes
-
-- init: time out stalled theme and plugin downloads (8d737f4)
-
-### v4.5.0-beta.3 (2026-10-27)
-
-#### Bug Fixes
-
-- init: render the theme path into project files after creating the theme (a72d88d)
-
-### v4.5.0-beta.2 (2026-10-27)
-
-#### Bug Fixes
-
-- migrate: don't write the global-only install setting (f0dcb1b)
-
-### v4.5.0-beta.1 (2026-10-27)
+## v4.5.0 (2026-10-27)
 
 #### Features
 
@@ -33,6 +9,13 @@
 #### Bug Fixes
 
 - sync: run remote ssh and rsync on the host (66415fa)
+- init: time out stalled theme and plugin downloads (8d737f4)
+- init: render the theme path into project files after creating the theme (a72d88d)
+- migrate: don't write the global-only install setting (f0dcb1b)
+
+#### Documentation
+
+- add CLAUDE.md with the branch and beta sprint workflow (efbb2b9)
 
 ### v4.4.1 (2026-10-27)
 
