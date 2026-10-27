@@ -100,7 +100,7 @@ var Settings = []SettingDef{
 	{Key: "pluginExclude", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins excluded from install/sync."},
 	{Key: "pluginGit", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins installed from their own git repository."},
 	{Key: "pluginPullLegacy", Type: TypeBool, Default: false, Category: "Plugins", Description: "Deprecated: use the project's legacy in-container script (importplugins) for pulling plugins."},
-	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalOnly, Description: "Plugins symlinked from a local checkout."},
+	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalOnly, Description: "Plugins only used locally (e.g. development tools), installed and activated after pulling plugins or the database."},
 
 	// Deployment
 	{Key: "remoteHost", Type: TypeString, Category: "Deployment", Description: "SSH host of the remote/production server."},
