@@ -178,3 +178,44 @@ func TestUpdateProjectUpdatesComposerYdinVersion(t *testing.T) {
 		t.Errorf("expected ^5 after updating to branch irishcoffee, got:\n%s", string(content))
 	}
 }
+
+// `jcore init` scaffolds before creating the theme, so the files using the
+// theme path first render with the template's placeholder (#14).
+func TestRenderThemeFilesUsesTheRealTheme(t *testing.T) {
+	viper.Reset()
+	defer viper.Reset()
+	viper.Set("template", "jcore3")
+	viper.Set("theme", "jcore-ilme")
+
+	dir := t.TempDir()
+	if err := ScaffoldProject(dir, "jcore3"); err != nil {
+		t.Fatalf("ScaffoldProject error = %v", err)
+	}
+
+	viper.Set("theme", "my-site")
+	if err := RenderThemeFiles(dir); err != nil {
+		t.Fatalf("RenderThemeFiles error = %v", err)
+	}
+
+	for _, file := range []string{".github/workflows/deploy.yml", "Makefile", "pnpm-workspace.yaml"} {
+		content, err := os.ReadFile(filepath.Join(dir, file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(content), "wp-content/themes/my-site") {
+			t.Errorf("%s doesn't use the real theme path; got:\n%s", file, content)
+		}
+		if strings.Contains(string(content), "jcore-ilme") {
+			t.Errorf("%s still has the placeholder theme; got:\n%s", file, content)
+		}
+	}
+
+	// With refreshed checksums, `jcore update` keeps treating them as its own.
+	modified, err := DetectModifiedFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(modified) != 0 {
+		t.Errorf("files taken for user-modified after RenderThemeFiles: %v", modified)
+	}
+}

@@ -7,18 +7,15 @@ import (
 	"strings"
 )
 
-var (
-	themeNameRe     = regexp.MustCompile(`(?m)^Theme Name:.*$`)
-	makefileThemeRe = regexp.MustCompile(`(?m)^theme := .*$`)
-	pnpmWorkspaceRe = regexp.MustCompile(`wp-content/themes/[^"'\s]+`)
-)
+var themeNameRe = regexp.MustCompile(`(?m)^Theme Name:.*$`)
 
 // CreateTheme downloads a child theme archive (substituting "{{branch}}"
 // in themeURLTemplate), extracts it into "wp-content/themes/<slug>" under
 // projectDir (slug derived from projectName), and rewrites the theme's own
-// style.css "Theme Name:" header plus the project's Makefile/
-// pnpm-workspace.yaml theme path references to match — mirroring the
-// legacy TypeScript CLI's createTheme(). Returns the theme's slug.
+// style.css "Theme Name:" header to match — mirroring the legacy
+// TypeScript CLI's createTheme(). Returns the theme's slug. The project
+// files that reference the theme path are re-rendered separately, see
+// RenderThemeFiles.
 func CreateTheme(projectDir, projectName, themeURLTemplate, branch string) (string, error) {
 	slug := Slugify(projectName)
 	url := strings.ReplaceAll(themeURLTemplate, "{{branch}}", branch)
@@ -41,19 +38,12 @@ func CreateTheme(projectDir, projectName, themeURLTemplate, branch string) (stri
 	if err := regexReplaceInFile(filepath.Join(themePath, "style.css"), themeNameRe, "Theme Name: "+projectName); err != nil {
 		return "", err
 	}
-	if err := regexReplaceInFile(filepath.Join(projectDir, "Makefile"), makefileThemeRe, "theme := "+filepath.ToSlash(themeRelPath)); err != nil {
-		return "", err
-	}
-	if err := regexReplaceInFile(filepath.Join(projectDir, "pnpm-workspace.yaml"), pnpmWorkspaceRe, filepath.ToSlash(themeRelPath)); err != nil {
-		return "", err
-	}
 
 	return slug, nil
 }
 
 // regexReplaceInFile replaces every match of re in path's content with
-// replacement, in place. A missing file is a no-op, not an error — not
-// every project has a Makefile/pnpm-workspace.yaml.
+// replacement, in place. A missing file is a no-op, not an error.
 func regexReplaceInFile(path string, re *regexp.Regexp, replacement string) error {
 	content, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
