@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.4.0 (2026-10-27)
+
+#### Features
+
+- install: pull Docker images at most once a day on start (5ed8246)
+
 ## v4.3.0 (2026-10-27)
 
 #### Features
