@@ -1,5 +1,12 @@
 # Changelog
 
+### v4.2.4 (2026-10-27)
+
+#### Bug Fixes
+
+- tls: renew host certs and the CA before they expire (c6eb9cd)
+- container: exec php-fpm so docker stop doesn't time out (b5775d8)
+
 ### v4.2.3 (2026-10-27)
 
 #### Bug Fixes
