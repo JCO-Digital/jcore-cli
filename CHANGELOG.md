@@ -1,5 +1,12 @@
 # Changelog
 
+### v4.6.0-beta.4 (2026-10-27)
+
+#### Bug Fixes
+
+- config: let template and the knockd settings be set per project (c73a98b)
+- config: allow pluginLocal at project scope (8c70d11)
+
 ### v4.6.0-beta.3 (2026-10-27)
 
 #### Refactor
