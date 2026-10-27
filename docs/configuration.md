@@ -26,6 +26,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `localDomain`      | string  | `""`                                      | The domain used for local development.                                                                |
 | `logLevel`         | number  | `2`                                       | Logging verbosity (0: error, 1: warn, 2: info, 3: verbose, 4: debug).                                 |
 | `mediaPullLegacy`  | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importmedia`) for pulling media. |
+| `mounts`           | array   | `[]`                                      | Extra bind mounts for the `wordpress` and `web` containers, e.g. `"./app:/var/www/html/app"`. The source is relative to the project root. |
 | `mode`             | string  | `"foreground"`                            | Docker run mode (`foreground` or `background`).                                                       |
 | `pluginExclude`    | array   | `[]`                                      | Plugins to exclude from syncing.                                                                      |
 | `pluginGit`        | array   | `[]`                                      | Plugins to be managed via Git submodules.                                                             |

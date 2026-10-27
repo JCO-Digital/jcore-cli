@@ -70,14 +70,21 @@ jcore generates the project's compose file, `compose.jcore.yml`, on every
 start, so every project runs on the current setup. Don't edit or commit it
 (it's in `.gitignore`).
 
-Put project-specific changes (extra services, ports, volumes) in
-`compose.override.yml`, which jcore merges on top of the generated file.
-Commit that one.
+Extra bind mounts go in the `mounts` setting in `jcore.toml`. Each one is
+added to both the `wordpress` and `web` containers:
+
+```toml
+mounts = ["./app:/var/www/html/app"]
+```
+
+Anything else (extra services, ports) goes in `compose.override.yml`, which
+jcore merges on top of the generated file. Commit that one.
 
 Older projects carry their own `docker-compose.yml`. Without local changes
 jcore ignores it and it can be deleted. With local changes jcore keeps using
-it, but updating the project no longer updates it: move the project's own
-changes into `compose.override.yml`, then delete `docker-compose.yml`.
+it, but updating the project no longer updates it: move extra bind mounts
+into `mounts`, anything else into `compose.override.yml`, then delete
+`docker-compose.yml`.
 
 ### PHP Configuration
 Custom PHP settings can be adjusted in `php.ini`. The default configuration is optimized for development:

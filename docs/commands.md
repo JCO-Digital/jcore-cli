@@ -108,12 +108,13 @@ Starts the WordPress environment for the current project.
   and Composer (from `composer.json`) packages, then `docker compose pull`
   to refresh images — unless the `install` setting is `false`. Use
   `--install`/`-i` to force this even when `install` is disabled.
-- Writes the generated compose file, `compose.jcore.yml`, and points
+- Writes the generated compose file, `compose.jcore.yml`, with the `mounts`
+  setting added to the `wordpress` and `web` services, and points
   `COMPOSE_FILE` in `.env` at it, `compose.override.yml` (if the project has
   one) and the proxy override. A project's own `docker-compose.yml` is
   ignored when it matches its stored checksum; with local changes it's used
-  instead of the generated file, with a warning, until the project has a
-  `compose.override.yml`. It's never deleted.
+  instead of the generated file, with a warning, until the project has the
+  `mounts` setting or a `compose.override.yml`. It's never deleted.
 - Also parses the compose files itself and creates any project-relative
   bind-mount folder it declares (e.g. `./wp-content`, `./vendor`, or any
   custom one a service adds) that doesn't already exist, before starting
