@@ -10,46 +10,53 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// composeFile is the minimal shape of docker-compose.yml this package
-// needs: enough to find every service's bind-mounted host folders.
+// composeFile is the minimal shape of a compose file this package needs:
+// enough to find every service's bind-mounted host folders.
 type composeFile struct {
 	Services map[string]struct {
 		Volumes []any `yaml:"volumes"`
 	} `yaml:"services"`
 }
 
-// ComposeMountedFolders parses "docker-compose.yml" under projectDir and
-// returns every project-relative bind-mount source path (e.g.
-// "./wp-content") it declares across all services, deduplicated and
-// sorted. A missing or unparsable file just yields no folders, not an
-// error.
+// ComposeMountedFolders parses the compose files projectDir runs on (see
+// ResolveComposeFiles) and returns every project-relative bind-mount
+// source path (e.g. "./wp-content") they declare across all services,
+// deduplicated and sorted. A missing or unparsable file just yields no
+// folders, not an error.
 func ComposeMountedFolders(projectDir string) ([]string, error) {
-	raw, err := os.ReadFile(filepath.Join(projectDir, "docker-compose.yml"))
-	if os.IsNotExist(err) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	var compose composeFile
-	if err := yaml.Unmarshal(raw, &compose); err != nil {
+	setup, err := ResolveComposeFiles(projectDir)
+	if err != nil {
 		return nil, err
 	}
 
 	seen := make(map[string]bool)
 	var folders []string
-	for _, service := range compose.Services {
-		for _, v := range service.Volumes {
-			entry, ok := v.(string)
-			if !ok {
-				continue // long (map) mount syntax isn't handled
+	for _, file := range setup.Files {
+		raw, err := os.ReadFile(filepath.Join(projectDir, file))
+		if os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		var compose composeFile
+		if err := yaml.Unmarshal(raw, &compose); err != nil {
+			continue
+		}
+
+		for _, service := range compose.Services {
+			for _, v := range service.Volumes {
+				entry, ok := v.(string)
+				if !ok {
+					continue // long (map) mount syntax isn't handled
+				}
+				source, ok := bindMountSource(entry)
+				if !ok || seen[source] {
+					continue
+				}
+				seen[source] = true
+				folders = append(folders, source)
 			}
-			source, ok := bindMountSource(entry)
-			if !ok || seen[source] {
-				continue
-			}
-			seen[source] = true
-			folders = append(folders, source)
 		}
 	}
 

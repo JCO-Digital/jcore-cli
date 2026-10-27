@@ -18,6 +18,29 @@ import (
 
 var yearRegex = regexp.MustCompile(`^\d{4}$`)
 
+// legacyPullWarned keeps the legacy pull deprecation warning to once per
+// run, however many targets are pulled.
+var legacyPullWarned bool
+
+// runLegacyPullScript runs one of the project's legacy in-container pull
+// scripts (.config/scripts/<name>), which `--legacy` or the <setting>
+// setting selects. New projects don't get these scripts any more, so it
+// fails clearly when the project doesn't have it.
+func runLegacyPullScript(projectDir, name, setting string) error {
+	if !legacyPullWarned {
+		legacyPullWarned = true
+		fmt.Println("Warning: the legacy pull scripts (--legacy and the *PullLegacy settings) are deprecated and will be removed in jcore 5.")
+	}
+
+	relPath := filepath.Join(".config", "scripts", name)
+	if _, err := os.Stat(filepath.Join(projectDir, relPath)); os.IsNotExist(err) {
+		return fmt.Errorf("%s not found: the project has no legacy pull scripts, which new projects don't include. Pull without --legacy, and turn off the %s setting if it's on", relPath, setting)
+	}
+
+	KnockIfNeeded()
+	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/" + filepath.ToSlash(relPath)})
+}
+
 // SyncPlugins runs the plugin synchronization, either natively from the host via rsync
 // or falls back to the container's importplugins script if legacy is true or pluginPullLegacy is configured.
 func SyncPlugins(projectDir string, legacy bool) error {
@@ -29,8 +52,7 @@ func SyncPlugins(projectDir string, legacy bool) error {
 
 // SyncPluginsLegacy runs the container's importplugins script inside the wordpress container.
 func SyncPluginsLegacy(projectDir string) error {
-	KnockIfNeeded()
-	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importplugins"})
+	return runLegacyPullScript(projectDir, "importplugins", "pluginPullLegacy")
 }
 
 // SyncPluginsNative syncs plugins from the remote host to the local wp-content/plugins directory using rsync.
@@ -175,8 +197,7 @@ func SyncMedia(projectDir string, legacy bool) error {
 
 // SyncMediaLegacy runs the container's importmedia script inside the wordpress container.
 func SyncMediaLegacy(projectDir string) error {
-	KnockIfNeeded()
-	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importmedia"})
+	return runLegacyPullScript(projectDir, "importmedia", "mediaPullLegacy")
 }
 
 // SyncMediaNative syncs uploads from the remote host to wp-content/uploads using rsync,
@@ -411,8 +432,7 @@ func SyncThemes(projectDir string, legacy bool) error {
 
 // SyncThemesLegacy runs the container's importthemes script inside the wordpress container.
 func SyncThemesLegacy(projectDir string) error {
-	KnockIfNeeded()
-	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importthemes"})
+	return runLegacyPullScript(projectDir, "importthemes", "themePullLegacy")
 }
 
 // SyncThemesNative syncs themes from the remote host to wp-content/themes using rsync,

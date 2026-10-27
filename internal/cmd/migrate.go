@@ -18,7 +18,12 @@ var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Migrate a legacy JCore project to the current format",
 	Long: `Converts a legacy config.sh-based project to the current jcore.toml format,
-then updates project files (docker-compose.yml, etc.) from the current templates.`,
+then updates project files from the current templates.
+
+jcore generates the project's compose file itself, so an unmodified
+docker-compose.yml is removed. A modified one is only removed if you
+confirm; otherwise jcore keeps using it until its changes are moved to
+compose.override.yml.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, isLegacy, err := project.FindLegacyProjectRoot()
 		if err != nil {
@@ -35,20 +40,9 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 			return
 		}
 
-		dockerChanged := false
-		if match, err := legacyFileMatches(projectDir, "docker-compose.yml"); err != nil {
-			fmt.Printf("Error checking docker-compose.yml checksum: %v\n", err)
+		removeCompose, ok := confirmLegacyComposeRemoval(projectDir)
+		if !ok {
 			return
-		} else if !match {
-			dockerChanged = true
-			fmt.Println("Warning: checksum mismatch for docker-compose.yml.")
-
-			overwrite := false
-			prompt := &survey.Confirm{Message: "Overwrite docker-compose.yml?"}
-			if err := survey.AskOne(prompt, &overwrite); err != nil || !overwrite {
-				fmt.Println("Aborting migration.")
-				return
-			}
 		}
 
 		packageChanged := false
@@ -70,10 +64,10 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 		viper.SetConfigFile(filepath.Join(projectDir, "jcore.toml"))
 		_ = viper.MergeInConfig()
 
-		if dockerChanged {
-			fmt.Println("Updating docker-compose.yml")
-			if err := project.UpdateProject(projectDir, []string{"docker-compose.yml"}, []string{"docker-compose.yml"}); err != nil {
-				fmt.Printf("Error updating docker-compose.yml: %v\n", err)
+		if removeCompose {
+			fmt.Println("Removing docker-compose.yml, jcore generates compose.jcore.yml instead.")
+			if err := os.Remove(filepath.Join(projectDir, project.LegacyComposeFile)); err != nil {
+				fmt.Printf("Error removing docker-compose.yml: %v\n", err)
 			}
 		}
 
@@ -135,6 +129,32 @@ func selectMigrateTemplate(cmd *cobra.Command, projectDir string) (string, bool)
 		return "", false
 	}
 	return template, true
+}
+
+// confirmLegacyComposeRemoval reports whether migrating should remove the
+// project's docker-compose.yml: always if it's unmodified, and if the user
+// confirms when it has local changes. ok is false if migrating should stop.
+func confirmLegacyComposeRemoval(projectDir string) (remove, ok bool) {
+	if _, err := os.Stat(filepath.Join(projectDir, project.LegacyComposeFile)); os.IsNotExist(err) {
+		return false, true
+	}
+	match, err := legacyFileMatches(projectDir, project.LegacyComposeFile)
+	if err != nil {
+		fmt.Printf("Error checking docker-compose.yml checksum: %v\n", err)
+		return false, false
+	}
+	if match {
+		return true, true
+	}
+
+	fmt.Println("docker-compose.yml has local changes (checksum mismatch). jcore now generates its own")
+	fmt.Println("compose file; project-specific changes belong in compose.override.yml.")
+	prompt := &survey.Confirm{Message: "Delete docker-compose.yml? (No keeps using it until it's moved to an override)"}
+	if err := survey.AskOne(prompt, &remove); err != nil {
+		fmt.Println(err.Error())
+		return false, false
+	}
+	return remove, true
 }
 
 // legacyFileMatches reports whether relPath matches its stored checksum. A

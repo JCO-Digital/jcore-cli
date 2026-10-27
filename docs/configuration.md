@@ -17,7 +17,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `template`         | string  | `"jcore3"`                                | The project template to use.                                                                          |
 | `dbExclude`        | array   | `[]`                                      | Tables to exclude from database imports/exports. Names may be given with or without the table prefix. |
 | `dbPrefix`         | string  | `"wp_"`                                   | WordPress database table prefix.                                                                      |
-| `dbPullLegacy`     | boolean | `false`                                   | Use legacy in-container script (`importdb`) for pulling database.                                     |
+| `dbPullLegacy`     | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importdb`) for pulling database. |
 | `debug`            | boolean | `false`                                   | Enable CLI debug logging.                                                                             |
 | `domains`          | array   | `[]`                                      | List of domains for the project.                                                                      |
 | `install`          | boolean | `true`                                    | Whether to run installation/setup steps on start.                                                     |
@@ -25,13 +25,13 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `knockdTimeout`    | number  | `60`                                      | Timeout in seconds to assume knocked port remains open.                                               |
 | `localDomain`      | string  | `""`                                      | The domain used for local development.                                                                |
 | `logLevel`         | number  | `2`                                       | Logging verbosity (0: error, 1: warn, 2: info, 3: verbose, 4: debug).                                 |
-| `mediaPullLegacy`  | boolean | `false`                                   | Use legacy in-container script (`importmedia`) for pulling media.                                     |
+| `mediaPullLegacy`  | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importmedia`) for pulling media. |
 | `mode`             | string  | `"foreground"`                            | Docker run mode (`foreground` or `background`).                                                       |
 | `pluginExclude`    | array   | `[]`                                      | Plugins to exclude from syncing.                                                                      |
 | `pluginGit`        | array   | `[]`                                      | Plugins to be managed via Git submodules.                                                             |
 | `pluginInstall`    | string  | `"remote"`                                | Plugin installation mode (`remote` or `local`).                                                       |
 | `pluginLocal`      | array   | `[]`                                      | Plugins to be kept only locally.                                                                      |
-| `pluginPullLegacy` | boolean | `false`                                   | Use legacy in-container script (`importplugins`) for pulling plugins.                                 |
+| `pluginPullLegacy` | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importplugins`) for pulling plugins. |
 | `projectDefault`   | string  | `"git@github.com:JCO-Digital/{name}.git"` | Default Git URL pattern for cloning.                                                                  |
 | `projectName`      | string  | `""`                                      | Name of the project.                                                                                  |
 | `remoteDomain`     | string  | `""`                                      | The domain of the remote/production site.                                                             |
@@ -39,7 +39,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `remotePath`       | string  | `""`                                      | File path on the remote host.                                                                         |
 | `replace`          | array   | `[]`                                      | String replacements to perform during database import.                                                |
 | `theme`            | string  | `""`                                      | The name of the active WordPress theme.                                                               |
-| `themePullLegacy`  | boolean | `false`                                   | Use legacy in-container script (`importthemes`) for pulling themes.                                   |
+| `themePullLegacy`  | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importthemes`) for pulling themes. |
 | `wpDebug`          | boolean | `true`                                    | Enable `WP_DEBUG` in WordPress.                                                                       |
 | `wpDebugDisplay`   | boolean | `true`                                    | Enable `WP_DEBUG_DISPLAY` in WordPress.                                                               |
 | `wpDebugLog`       | boolean | `false`                                   | Enable `WP_DEBUG_LOG` in WordPress.                                                                   |

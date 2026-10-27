@@ -103,7 +103,7 @@ func prepareStart(cmd *cobra.Command, projectDir string) bool {
 		return false
 	}
 
-	// Create every folder docker-compose.yml bind-mounts that doesn't
+	// Create every folder the compose files bind-mount that doesn't
 	// exist yet, before docker itself does — as root, leaving it
 	// unwritable by build scripts running as a normal user.
 	if err := project.EnsureComposeMountedFolders(projectDir); err != nil {
@@ -404,5 +404,5 @@ func init() {
 	restartCmd.Flags().BoolP("install", "i", false, "Force reinstalling dependencies even if the install setting is disabled")
 	stopCmd.Flags().BoolP("all", "a", false, "Stop every running JCore project")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
-	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")
+	pullCmd.Flags().Bool("legacy", false, "Deprecated: use the project's legacy in-container pull scripts")
 }
