@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.6.0-beta.3 (2026-10-27)
+
+#### Refactor
+
+- pull: install local plugins from the CLI instead of a project script (4a90ec0)
+
 ### v4.6.0-beta.2 (2026-10-27)
 
 #### Features
