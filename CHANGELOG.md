@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.5.0-beta.3 (2026-10-27)
+
+#### Bug Fixes
+
+- init: render the theme path into project files after creating the theme (a72d88d)
+
 ### v4.5.0-beta.2 (2026-10-27)
 
 #### Bug Fixes
