@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.6.0-beta.2 (2026-10-27)
+
+#### Features
+
+- compose: add a mounts setting for extra bind mounts (4b8681b)
+
 ### v4.6.0-beta.1 (2026-10-27)
 
 #### Features
