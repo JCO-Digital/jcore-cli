@@ -76,6 +76,7 @@ var Settings = []SettingDef{
 	{Key: "wpDebug", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG."},
 	{Key: "wpDebugLog", Type: TypeBool, Default: false, Category: "WordPress", Description: "Enable WP_DEBUG_LOG."},
 	{Key: "wpDebugDisplay", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG_DISPLAY."},
+	{Key: "objectCache", Type: TypeBool, Default: true, Category: "WordPress", Description: "Use the Redis object cache drop-in from the SpinupWP plugin, as on production, when the project has that plugin."},
 	{Key: "mediaPullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importmedia) for pulling media."},
 	{Key: "xdebugPort", Type: TypeInt, Default: 9003, Category: "WordPress", Description: "Port Xdebug connects back to the IDE on. Give concurrently debugged projects different ports."},
 	{Key: "themePullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importthemes) for pulling themes."},

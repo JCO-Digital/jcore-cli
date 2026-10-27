@@ -51,8 +51,8 @@ services:
         condition: service_started
       tlscerts:
         condition: service_completed_successfully
-    links:
-      - memcached
+      redis:
+        condition: service_started
     image: ${WP_IMAGE}
     user: "1000"
     environment:
@@ -75,9 +75,12 @@ services:
       - jcore
     working_dir: "/var/www/html"
 
-  memcached:
-    image: "memcached:1.6.21"
-    command: ["-m", "64m"]
+  # Redis for the persistent object cache, matching production on
+  # SpinupWP (Redis 8, allkeys-lru). Nothing is persisted to disk, so a
+  # restart starts with an empty cache.
+  redis:
+    image: "redis:8-alpine"
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
 
   # Mail catcher (Mailpit), served by the JCore proxy at
   # http://mail.${LOCAL_DOMAIN}. The service keeps its old "mailhog" name,

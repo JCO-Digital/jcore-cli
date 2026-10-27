@@ -34,6 +34,17 @@ $set( 'JCORE_IS_LOCAL', 'true', true );
 // auto_update_plugins setting came along with a production database.
 $set( 'AUTOMATIC_UPDATER_DISABLED', 'true', true );
 
+// Redis object cache (the SpinupWP drop-in, installed by
+// docker-entrypoint.sh). Production on SpinupWP only sets the key salt and
+// uses the default connection; locally Redis is its own container.
+$set( 'WP_REDIS_HOST', 'redis' );
+$set( 'WP_CACHE_KEY_SALT', $domain );
+
+// Left over from the unused memcached container.
+if ( $config->exists( 'variable', 'memcached_servers' ) ) {
+	$config->remove( 'variable', 'memcached_servers' );
+}
+
 if ( 'true' === getenv( 'MULTISITE' ) ) {
 	$set( 'WP_ALLOW_MULTISITE', 'true', true );
 	$set( 'MULTISITE', 'true', true );
