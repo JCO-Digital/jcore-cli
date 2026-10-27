@@ -72,14 +72,17 @@ func ListDockerProjects() ([]DockerProject, error) {
 	return projects, nil
 }
 
-// CleanProject removes a project's containers and volumes, and deletes its .jcore workfiles.
+// CleanProject stops and removes a project's containers and volumes, and
+// deletes its .jcore workfiles. p.Name must be the compose project name
+// (see ComposeProjectName), which is what Docker labels the volumes with.
 func CleanProject(p DockerProject) error {
-	fmt.Printf("Cleaning containers for %s.\n", p.Name)
-	if err := docker.ComposeRm(p.Path); err != nil {
+	fmt.Printf("Removing containers and volumes for %s.\n", p.Name)
+	if err := docker.ComposeDown(p.Path); err != nil {
 		return err
 	}
 
-	fmt.Printf("Cleaning volumes for project %s.\n", p.Name)
+	// down only removes volumes the compose files still declare; catch any
+	// left over from an older docker-compose.yml.
 	volumes, err := docker.VolumesByProject(p.Name)
 	if err != nil {
 		return err
