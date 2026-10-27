@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.5.0-beta.2 (2026-10-27)
+
+#### Bug Fixes
+
+- migrate: don't write the global-only install setting (f0dcb1b)
+
 ### v4.5.0-beta.1 (2026-10-27)
 
 #### Features
