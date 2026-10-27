@@ -23,7 +23,7 @@ then updates project files from the current templates.
 jcore generates the project's compose file itself, so an unmodified
 docker-compose.yml is removed. A modified one is only removed if you
 confirm; otherwise jcore keeps using it until its changes are moved to
-compose.override.yml.`,
+the mounts setting or compose.override.yml.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, isLegacy, err := project.FindLegacyProjectRoot()
 		if err != nil {
@@ -148,8 +148,8 @@ func confirmLegacyComposeRemoval(projectDir string) (remove, ok bool) {
 	}
 
 	fmt.Println("docker-compose.yml has local changes (checksum mismatch). jcore now generates its own")
-	fmt.Println("compose file; project-specific changes belong in compose.override.yml.")
-	prompt := &survey.Confirm{Message: "Delete docker-compose.yml? (No keeps using it until it's moved to an override)"}
+	fmt.Println("compose file: extra bind mounts belong in the mounts setting, anything else in compose.override.yml.")
+	prompt := &survey.Confirm{Message: "Delete docker-compose.yml? (No keeps using it until it's converted)"}
 	if err := survey.AskOne(prompt, &remove); err != nil {
 		fmt.Println(err.Error())
 		return false, false
