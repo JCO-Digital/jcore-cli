@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.6 (2026-10-27)
+
+#### Refactor
+
+- container: streamline the WordPress entrypoint (b04e87c)
+
 ### v4.2.5 (2026-10-27)
 
 #### Bug Fixes
