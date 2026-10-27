@@ -2,6 +2,7 @@ package project
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -21,9 +22,48 @@ var (
 	legacyQuoteTrimRe = regexp.MustCompile(`(?m)^["' ]+|["' ]+$`)
 )
 
+// legacyTemplateSubmodules maps a parent theme committed as a git submodule
+// in a legacy project to the template it was built on, most specific first.
+var legacyTemplateSubmodules = []struct{ path, template string }{
+	{"wp-content/themes/jcore2", "jcore2"},
+	{"wp-content/themes/jcore", "jcore1"},
+}
+
+// DetectLegacyTemplate guesses which template a legacy project was built on
+// from the parent theme committed to it as a submodule (a gitlink in the
+// index), falling back to "blank". .gitmodules alone isn't trusted: old
+// projects sometimes list a submodule there that was never committed.
+func DetectLegacyTemplate(projectDir string) string {
+	args := []string{"ls-files", "--stage", "--"}
+	for _, s := range legacyTemplateSubmodules {
+		args = append(args, s.path)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = projectDir
+	out, err := cmd.Output()
+	if err != nil {
+		return "blank"
+	}
+
+	gitlinks := map[string]bool{}
+	for _, line := range strings.Split(string(out), "\n") {
+		// "<mode> <object> <stage>\t<path>"; submodules have mode 160000.
+		meta, path, ok := strings.Cut(line, "\t")
+		if ok && strings.HasPrefix(meta, "160000 ") {
+			gitlinks[path] = true
+		}
+	}
+	for _, s := range legacyTemplateSubmodules {
+		if gitlinks[s.path] {
+			return s.template
+		}
+	}
+	return "blank"
+}
+
 // ConvertLegacyConfig parses a legacy config.sh file in projectDir and writes
-// an equivalent jcore.toml alongside it.
-func ConvertLegacyConfig(projectDir string) error {
+// an equivalent jcore.toml alongside it, using the given template.
+func ConvertLegacyConfig(projectDir string, template string) error {
 	data, err := os.ReadFile(filepath.Join(projectDir, LegacyConfigFilename))
 	if err != nil {
 		return err
@@ -31,6 +71,7 @@ func ConvertLegacyConfig(projectDir string) error {
 
 	values := map[string]any{"name": filepath.Base(projectDir)}
 	parseLegacySettings(values, string(data))
+	applyVagrantLegacySettings(projectDir, values)
 
 	var newDomain, newLocal string
 	var domains, replace []string
@@ -60,7 +101,7 @@ func ConvertLegacyConfig(projectDir string) error {
 		return err
 	}
 	_ = store.Set("projectName", values["name"])
-	_ = store.Set("template", "jcore2")
+	_ = store.Set("template", template)
 	setIfPresent(store, "theme", values["theme"])
 	setIfPresent(store, "branch", values["branch"])
 	setIfPresent(store, "remoteHost", values["remotehost"])
@@ -76,6 +117,76 @@ func ConvertLegacyConfig(projectDir string) error {
 	_ = store.Set("install", values["install"] == "true")
 
 	return store.Save()
+}
+
+// applyVagrantLegacySettings maps the oldest, Vagrant-era config.sh format
+// (WPENAME/WEB/PRODUCTION/STAGING instead of REMOTEHOST/REMOTEPATH/DOMAINS)
+// onto the newer legacy keys, so the rest of ConvertLegacyConfig handles
+// both. Keys already present in the newer format are left alone.
+func applyVagrantLegacySettings(projectDir string, values map[string]any) {
+	name, _ := values["name"].(string)
+
+	if wpe, ok := values["wpename"].(string); ok && isResolvedLegacyValue(wpe) {
+		if _, exists := values["remotehost"]; !exists {
+			values["remotehost"] = wpe + "@" + wpe + ".ssh.wpengine.net"
+		}
+		if _, exists := values["remotepath"]; !exists {
+			values["remotepath"] = "/sites/" + wpe
+		}
+	}
+
+	if _, exists := values["domains"]; !exists {
+		var domains []string
+		for _, key := range []string{"production", "staging", "web"} {
+			host, ok := values[key].(string)
+			if !ok || !isResolvedLegacyValue(host) {
+				continue
+			}
+			if entry := host + ";" + name; !slices.Contains(domains, entry) {
+				domains = append(domains, entry)
+			}
+		}
+		if len(domains) > 0 {
+			values["domains"] = domains
+		}
+	}
+
+	// Vagrant-era configs set THEME=$NAME, which often isn't the real theme
+	// directory. If it doesn't exist and there's exactly one theme, use that.
+	if theme, ok := values["theme"].(string); ok {
+		themesDir := filepath.Join(projectDir, "wp-content", "themes")
+		if _, err := os.Stat(filepath.Join(themesDir, theme)); os.IsNotExist(err) {
+			if only := singleThemeDir(themesDir); only != "" {
+				values["theme"] = only
+			}
+		}
+	}
+}
+
+// isResolvedLegacyValue reports whether val is non-empty and has no
+// remaining unresolved $VAR references.
+func isResolvedLegacyValue(val string) bool {
+	return val != "" && !strings.Contains(val, "$")
+}
+
+// singleThemeDir returns the name of the only directory in themesDir, or ""
+// if there are none or several.
+func singleThemeDir(themesDir string) string {
+	entries, err := os.ReadDir(themesDir)
+	if err != nil {
+		return ""
+	}
+	found := ""
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = e.Name()
+	}
+	return found
 }
 
 // setIfPresent sets key on store only when val is a non-nil parsed value,
