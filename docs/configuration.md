@@ -31,7 +31,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `pluginExclude`    | array   | `[]`                                      | Plugins to exclude from syncing.                                                                      |
 | `pluginGit`        | array   | `[]`                                      | Plugins to be managed via Git submodules.                                                             |
 | `pluginInstall`    | string  | `"remote"`                                | Plugin installation mode (`remote` or `local`).                                                       |
-| `pluginLocal`      | array   | `[]`                                      | Plugins to be kept only locally.                                                                      |
+| `pluginLocal`      | array   | `[]`                                      | Plugins only used locally (e.g. development tools), installed and activated after pulling plugins or the database. |
 | `pluginPullLegacy` | boolean | `false`                                   | Deprecated: use the legacy in-container script (`importplugins`) for pulling plugins. |
 | `projectDefault`   | string  | `"git@github.com:JCO-Digital/{name}.git"` | Default Git URL pattern for cloning.                                                                  |
 | `projectName`      | string  | `""`                                      | Name of the project.                                                                                  |
