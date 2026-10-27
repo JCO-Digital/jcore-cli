@@ -96,6 +96,58 @@ func ScaffoldProject(targetDir string, template string) error {
 	return SaveChecksums(targetDir, checksums)
 }
 
+// RenderThemeFiles re-renders the scaffolded files whose templates use the
+// theme name (.Theme): the deploy workflow, Makefile, pnpm-workspace.yaml.
+// `jcore init` scaffolds before it creates the theme, so these first render
+// with the template's placeholder theme; this runs once the real theme is
+// set, and refreshes their stored checksums so `jcore update` doesn't take
+// them for user-modified files.
+func RenderThemeFiles(projectDir string) error {
+	checksums, err := LoadChecksums(projectDir)
+	if err != nil {
+		return fmt.Errorf("failed to load checksums: %w", err)
+	}
+	data := CurrentTemplateData()
+
+	render := func(srcFS fs.FS, srcRoot string) error {
+		return fs.WalkDir(srcFS, srcRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, TemplateExt) {
+				return err
+			}
+			content, err := fs.ReadFile(srcFS, path)
+			if err != nil {
+				return err
+			}
+			if !strings.Contains(string(content), ".Theme") {
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(srcRoot, path)
+			destRelPath := strings.TrimSuffix(relPath, TemplateExt)
+			destPath := filepath.Join(projectDir, destRelPath)
+			if err := copyOrRenderFile(srcFS, path, destPath, data); err != nil {
+				return err
+			}
+			checksums[destRelPath], _ = CalculateChecksum(destPath)
+			return nil
+		})
+	}
+
+	if err := render(container.BaseAssets, "base"); err != nil {
+		return err
+	}
+	if template := viper.GetString("template"); template != "" {
+		templateRoot := filepath.Join("templates", template)
+		if _, err := fs.Stat(container.TemplateAssets, templateRoot); err == nil {
+			if err := render(container.TemplateAssets, templateRoot); err != nil {
+				return err
+			}
+		}
+	}
+
+	return SaveChecksums(projectDir, checksums)
+}
+
 // copyOrRenderFile copies srcPath to destPath. If srcPath ends in TemplateExt,
 // its content is executed as a Go template against data first.
 func copyOrRenderFile(srcFS fs.FS, srcPath, destPath string, data any) error {
