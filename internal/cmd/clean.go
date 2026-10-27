@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // cleanCmd represents the clean command
@@ -40,11 +38,9 @@ With no argument, cleans containers, volumes, and .jcore workfiles for the curre
 				return
 			}
 
-			name := viper.GetString("projectName")
-			if name == "" {
-				name = filepath.Base(projectDir)
-			}
-
+			// Docker labels the volumes with the compose project name, which
+			// comes from the directory, not the projectName setting.
+			name := project.ComposeProjectName(projectDir)
 			if err := project.CleanProject(project.DockerProject{Name: name, Path: projectDir}); err != nil {
 				fmt.Printf("Error: %v\n", err)
 			}

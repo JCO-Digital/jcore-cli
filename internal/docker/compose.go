@@ -64,9 +64,10 @@ func ComposeLogs(projectDir string, service string) error {
 	return cmd.Run()
 }
 
-// ComposeRm runs docker compose rm -f
-func ComposeRm(projectDir string) error {
-	cmd := exec.Command("docker", "compose", "rm", "-f")
+// ComposeDown stops and removes the project's containers, its own networks
+// and its named volumes (docker compose down -v --remove-orphans).
+func ComposeDown(projectDir string) error {
+	cmd := exec.Command("docker", "compose", "down", "--volumes", "--remove-orphans")
 	cmd.Dir = projectDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
