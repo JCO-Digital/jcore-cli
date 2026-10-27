@@ -136,6 +136,11 @@ project name, template, and (if the template offers more than one) branch.`,
 				theme = ""
 			} else {
 				viper.Set("theme", theme)
+				// The scaffold above rendered the theme path (deploy
+				// workflow, Makefile, ...) with the template's placeholder.
+				if err := project.RenderThemeFiles(targetDir); err != nil {
+					fmt.Printf("Warning: failed to update the theme path in project files: %v\n", err)
+				}
 			}
 		}
 

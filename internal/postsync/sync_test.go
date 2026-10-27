@@ -13,16 +13,18 @@ import (
 // prefix ("L " local / "R " remote + space-joined args) and records every
 // call, so tests can assert which commands ran.
 type fakeRunner struct {
-	responses map[string]string // prefix → stdout
-	failing   map[string]bool   // prefix → returns an error
-	files     map[string]FileState
+	responses map[string]string    // prefix → stdout
+	failing   map[string]bool      // prefix → returns an error
+	files     map[string]FileState // push: remote vs local
+	pullFiles map[string]FileState // pull: local vs remote
 	calls     []string
 	uploads   []string
+	downloads []string
 	stdin     map[string]string // call → stdin
 }
 
 func newFake() *fakeRunner {
-	return &fakeRunner{responses: map[string]string{}, failing: map[string]bool{}, files: map[string]FileState{}, stdin: map[string]string{}}
+	return &fakeRunner{responses: map[string]string{}, failing: map[string]bool{}, files: map[string]FileState{}, pullFiles: map[string]FileState{}, stdin: map[string]string{}}
 }
 
 func (f *fakeRunner) answer(call string) (string, error) {
@@ -55,6 +57,21 @@ func (f *fakeRunner) RemoteStdin(stdin string, args ...string) (string, error) {
 	f.stdin[call] = stdin
 	return f.answer(call)
 }
+func (f *fakeRunner) LocalStdin(stdin string, args ...string) (string, error) {
+	call := "L " + strings.Join(args, " ")
+	f.stdin[call] = stdin
+	return f.answer(call)
+}
+func (f *fakeRunner) PullFileStatus(rel string) (FileState, error) {
+	if s, ok := f.pullFiles[rel]; ok {
+		return s, nil
+	}
+	return FileMissing, nil
+}
+func (f *fakeRunner) Download(rel string) error {
+	f.downloads = append(f.downloads, rel)
+	return nil
+}
 func (f *fakeRunner) FileStatus(rel string) (FileState, error) {
 	if s, ok := f.files[rel]; ok {
 		return s, nil
@@ -86,6 +103,7 @@ func baseFake() *fakeRunner {
 	f.responses["L core is-installed"] = ""
 	f.failing["L core is-installed --network"] = true
 	f.responses["R option get siteurl"] = "https://example.com\n"
+	f.responses["L option get siteurl"] = "https://site.localhost\n"
 	f.failing["R core is-installed --network"] = true
 	// Polylang, ACF and Gravity Forms aren't active unless a test says so.
 	f.responses["L eval"] = "null\n"
@@ -129,8 +147,8 @@ func TestPrepareMakesNoWrites(t *testing.T) {
 	if w := f.writeCalls(); len(w) > 0 || len(f.uploads) > 0 {
 		t.Fatalf("Prepare wrote: %v uploads %v", w, f.uploads)
 	}
-	if len(p.Imports()) != 1 || len(p.Uploads()) != 1 {
-		t.Fatalf("imports %v uploads %v", p.Imports(), p.Uploads())
+	if len(p.Imports()) != 1 || len(p.Copies()) != 1 {
+		t.Fatalf("imports %v uploads %v", p.Imports(), p.Copies())
 	}
 }
 
@@ -141,11 +159,11 @@ func TestCreateFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := Apply(f, p, opts, t.TempDir())
+	res, err := Apply(p, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Created || res.RemoteID != 200 || res.BackupPath != "" {
+	if !res.Created || res.TargetID != 200 || res.BackupPath != "" {
 		t.Fatalf("result %+v", res)
 	}
 	if len(f.uploads) != 1 || f.uploads[0] != "2025/03/a.jpg" {
@@ -186,11 +204,11 @@ func TestUpdateFlowBacksUpFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Creating() || len(p.Drift) != 0 || len(p.Uploads()) != 0 || len(p.Imports()) != 0 {
-		t.Fatalf("plan: creating=%v drift=%v uploads=%v imports=%v", p.Creating(), p.Drift, p.Uploads(), p.Imports())
+	if p.Creating() || len(p.Drift) != 0 || len(p.Copies()) != 0 || len(p.Imports()) != 0 {
+		t.Fatalf("plan: creating=%v drift=%v uploads=%v imports=%v", p.Creating(), p.Drift, p.Copies(), p.Imports())
 	}
 	dir := t.TempDir()
-	res, err := Apply(f, p, opts, dir)
+	res, err := Apply(p, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,8 +270,8 @@ func TestMultipleRemoteMatchesChoose(t *testing.T) {
 	f.responses["R post get 2 --format=json"] = `{"ID":2,"post_type":"page","post_name":"about","post_title":"About (old)","post_status":"draft","post_content":"old","post_modified_gmt":"2025-03-01 10:00:00"}`
 	f.responses["R post meta list 2"] = `[]`
 	opts := testOpts("about")
-	var got []RemoteCandidate
-	opts.ChooseRemote = func(_ *Post, c []RemoteCandidate) (int, error) {
+	var got []Candidate
+	opts.ChooseTarget = func(_ *Post, c []Candidate) (int, error) {
 		got = c
 		return 2, nil
 	}
@@ -264,11 +282,11 @@ func TestMultipleRemoteMatchesChoose(t *testing.T) {
 	if len(got) != 2 || got[0].ID != 1 || got[1].Title != "About (old)" {
 		t.Fatalf("candidates = %+v", got)
 	}
-	if p.Remote == nil || p.Remote.ID != 2 {
-		t.Fatalf("remote = %+v", p.Remote)
+	if p.Target == nil || p.Target.ID != 2 {
+		t.Fatalf("remote = %+v", p.Target)
 	}
 
-	opts.ChooseRemote = func(*Post, []RemoteCandidate) (int, error) { return 3, nil }
+	opts.ChooseTarget = func(*Post, []Candidate) (int, error) { return 3, nil }
 	if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), "isn't one of the matches") {
 		t.Fatalf("err = %v", err)
 	}
@@ -279,13 +297,13 @@ func TestRemoteIDTargetsPostWithOtherSlug(t *testing.T) {
 	f.responses["R post get 9 --format=json"] = `{"ID":9,"post_type":"page","post_name":"about-us","post_title":"About us","post_status":"publish","post_content":"old","post_modified_gmt":"2025-03-01 10:00:00"}`
 	f.responses["R post meta list 9"] = `[]`
 	opts := testOpts("about")
-	opts.RemoteID = 9
+	opts.TargetID = 9
 	p, err := Prepare(f, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Remote == nil || p.Remote.ID != 9 {
-		t.Fatalf("remote = %+v", p.Remote)
+	if p.Target == nil || p.Target.ID != 9 {
+		t.Fatalf("remote = %+v", p.Target)
 	}
 	if !strings.Contains(strings.Join(p.Warnings, "\n"), `slug "about-us", not "about"`) {
 		t.Fatalf("warnings: %v", p.Warnings)
@@ -307,7 +325,7 @@ func TestRemoteIDRejectsUnsuitablePost(t *testing.T) {
 		f := baseFake()
 		f.responses["R post get 9 --format=json"] = post
 		opts := testOpts("about")
-		opts.RemoteID = 9
+		opts.TargetID = 9
 		if _, err := Prepare(f, opts); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: err = %v, want %q", post, err, want)
 		}

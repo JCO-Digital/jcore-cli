@@ -79,7 +79,7 @@ func CollectAttachmentIDs(content string) []int {
 	return ids
 }
 
-// RemapAttachmentIDs rewrites local attachment IDs to remote ones in media
+// RemapAttachmentIDs rewrites source attachment IDs to target ones in media
 // block attributes, gallery "ids" and wp-image-N classes. IDs missing from
 // idMap are left untouched. Every replacement is a single pass, so a
 // mapping like 12→34 alongside 34→56 can't chain.
@@ -152,24 +152,24 @@ func ReplaceDomain(s, from, to string) string {
 	})
 }
 
-// LocalRefs are URLs on the local domain found in content.
-type LocalRefs struct {
+// SiteRefs are URLs on one site's domain found in content.
+type SiteRefs struct {
 	// Uploads are wp-content/uploads-relative file paths, e.g.
 	// "2025/03/photo-1024x768.jpg".
 	Uploads []string
-	// Links are every other local URL path (internal links, which may
-	// point at pages that don't exist on the remote).
+	// Links are every other URL path on the domain (internal links, which
+	// may point at pages that don't exist on the other site).
 	Links []string
 }
 
-// CollectLocalRefs finds URLs on localDomain in content.
-func CollectLocalRefs(content, localDomain string) LocalRefs {
-	var refs LocalRefs
-	if localDomain == "" {
+// CollectSiteRefs finds URLs on domain in content.
+func CollectSiteRefs(content, domain string) SiteRefs {
+	var refs SiteRefs
+	if domain == "" {
 		return refs
 	}
 	plain := strings.ReplaceAll(content, `\/`, "/")
-	re := regexp.MustCompile(`//` + regexp.QuoteMeta(localDomain) + `(?::\d+)?(/[^"'\s<>()]*)?`)
+	re := regexp.MustCompile(`//` + regexp.QuoteMeta(domain) + `(?::\d+)?(/[^"'\s<>()]*)?`)
 	seenU, seenL := map[string]bool{}, map[string]bool{}
 	for _, m := range re.FindAllStringSubmatchIndex(plain, -1) {
 		// Same hostname boundary as ReplaceDomain.

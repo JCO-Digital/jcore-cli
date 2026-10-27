@@ -9,11 +9,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// downloadClient fetches theme and plugin archives. Without a timeout a
+// stalled connection hung `jcore init` forever. Overridable by tests.
+var downloadClient = &http.Client{Timeout: 120 * time.Second}
 
 // downloadZip fetches url's full body into memory.
 func downloadZip(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+	resp, err := downloadClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
