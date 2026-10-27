@@ -114,7 +114,10 @@ func ConvertLegacyConfig(projectDir string, template string) error {
 	setIfPresent(store, "pluginExclude", values["plugin_exclude"])
 	setIfPresent(store, "pluginGit", values["plugin_git"])
 	setIfPresent(store, "pluginInstall", values["plugin_install"])
-	_ = store.Set("install", values["install"] == "true")
+	// The legacy INSTALL value is deliberately not carried over: install is
+	// a global-only setting now, and writing it here (as false whenever
+	// config.sh had no INSTALL line) silently turned off dependency
+	// installs for every migrated project.
 
 	return store.Save()
 }

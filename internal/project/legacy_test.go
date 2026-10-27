@@ -75,8 +75,10 @@ func TestConvertLegacyConfig(t *testing.T) {
 		t.Errorf("dbExclude = %v, want %v", got, wantExclude)
 	}
 
-	if !v.GetBool("install") {
-		t.Errorf("install = false, want true")
+	// install is global-only, so the converter must not write it, even
+	// though the fixture sets INSTALL=true.
+	if v.IsSet("install") {
+		t.Errorf("install = %v written to jcore.toml, want it left to the global config", v.Get("install"))
 	}
 
 	// Regression check: viper.WriteConfig lower-cases every key, which
