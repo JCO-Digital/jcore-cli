@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/internal/project"
@@ -29,8 +30,13 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 			return
 		}
 
+		template, ok := selectMigrateTemplate(cmd, projectDir)
+		if !ok {
+			return
+		}
+
 		dockerChanged := false
-		if match, err := project.CompareChecksum(projectDir, "docker-compose.yml", true); err != nil {
+		if match, err := legacyFileMatches(projectDir, "docker-compose.yml"); err != nil {
 			fmt.Printf("Error checking docker-compose.yml checksum: %v\n", err)
 			return
 		} else if !match {
@@ -46,7 +52,7 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 		}
 
 		packageChanged := false
-		if match, err := project.CompareChecksum(projectDir, "package.json", true); err != nil {
+		if match, err := legacyFileMatches(projectDir, "package.json"); err != nil {
 			fmt.Printf("Error checking package.json checksum: %v\n", err)
 			return
 		} else if !match {
@@ -55,7 +61,7 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 		}
 
 		fmt.Println("Converting config file.")
-		if err := project.ConvertLegacyConfig(projectDir); err != nil {
+		if err := project.ConvertLegacyConfig(projectDir, template); err != nil {
 			fmt.Printf("Error converting project settings: %v\n", err)
 			return
 		}
@@ -97,6 +103,51 @@ then updates project files (docker-compose.yml, etc.) from the current templates
 	},
 }
 
+// selectMigrateTemplate returns the template to migrate to: the --template
+// flag if given, otherwise the user's pick from the catalog, defaulting to
+// the template detected from the project's committed theme submodule.
+func selectMigrateTemplate(cmd *cobra.Command, projectDir string) (string, bool) {
+	catalog, err := project.LoadTemplateCatalog()
+	if err != nil {
+		fmt.Printf("Error loading template catalog: %v\n", err)
+		return "", false
+	}
+	templateNames := make([]string, 0, len(catalog))
+	for k := range catalog {
+		templateNames = append(templateNames, k)
+	}
+	sort.Strings(templateNames)
+
+	template, _ := cmd.Flags().GetString("template")
+	if !cmd.Flags().Changed("template") {
+		if err := survey.AskOne(&survey.Select{
+			Message: "Select the template this project uses:",
+			Options: templateNames,
+			Default: project.DetectLegacyTemplate(projectDir),
+		}, &template); err != nil {
+			fmt.Println(err.Error())
+			return "", false
+		}
+	}
+
+	if _, ok := catalog[template]; !ok {
+		fmt.Printf("Error: unknown template %q.\n", template)
+		return "", false
+	}
+	return template, true
+}
+
+// legacyFileMatches reports whether relPath matches its stored checksum. A
+// file that doesn't exist yet counts as a match: there are no local changes
+// to protect, and the template update will simply create it.
+func legacyFileMatches(projectDir, relPath string) (bool, error) {
+	if _, err := os.Stat(filepath.Join(projectDir, relPath)); os.IsNotExist(err) {
+		return true, nil
+	}
+	return project.CompareChecksum(projectDir, relPath, true)
+}
+
 func init() {
 	rootCmd.AddCommand(migrateCmd)
+	migrateCmd.Flags().StringP("template", "t", "", "Project template to migrate to (prompted for if omitted)")
 }
