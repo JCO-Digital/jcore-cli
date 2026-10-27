@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.3 (2026-10-27)
+
+#### Bug Fixes
+
+- install: pull Docker images after make install too (9255e73)
+
 ### v4.2.2 (2026-10-27)
 
 #### Bug Fixes
