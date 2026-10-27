@@ -20,7 +20,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestScopeClassification(t *testing.T) {
-	globalOnly := []string{"template", "debug", "install", "logLevel", "mode", "projectDefault", "verbose", "knockdPorts", "knockdTimeout"}
+	globalOnly := []string{"debug", "install", "logLevel", "mode", "projectDefault", "verbose"}
 	for _, key := range globalOnly {
 		def, ok := Lookup(key)
 		if !ok {
@@ -31,7 +31,18 @@ func TestScopeClassification(t *testing.T) {
 		}
 	}
 
-	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword", "pluginLocal"}
+	globalDefault := []string{"template", "knockdPorts", "knockdTimeout", "pluginLocal"}
+	for _, key := range globalDefault {
+		def, ok := Lookup(key)
+		if !ok {
+			t.Fatalf("expected %s to be a known setting", key)
+		}
+		if def.ScopeClass != ScopeClassGlobalDefault {
+			t.Errorf("%s ScopeClass = %v, want ScopeClassGlobalDefault", key, def.ScopeClass)
+		}
+	}
+
+	projectEligible := []string{"projectName", "theme", "branch", "remoteDomain", "wpImage", "wpDbPassword"}
 	for _, key := range projectEligible {
 		def, ok := Lookup(key)
 		if !ok {

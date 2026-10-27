@@ -25,6 +25,11 @@ const (
 	ScopeClassProjectEligible ScopeClass = iota
 	// ScopeClassGlobalOnly settings may only be set at ScopeGlobal.
 	ScopeClassGlobalOnly
+	// ScopeClassGlobalDefault settings may be set at any scope like
+	// project-eligible ones, but are also commonly set globally as the
+	// default for every project (e.g. the knock sequence shared by all
+	// servers), so they're offered outside a project too.
+	ScopeClassGlobalDefault
 )
 
 // SettingDef describes one known jcore setting.
@@ -60,7 +65,7 @@ type SettingDef struct {
 var Settings = []SettingDef{
 	// Project
 	{Key: "projectName", Type: TypeString, Category: "Project", Description: "Name of the project."},
-	{Key: "template", Type: TypeString, Default: "jcore3", Category: "Project", ScopeClass: ScopeClassGlobalOnly, Description: "Template used to scaffold new projects."},
+	{Key: "template", Type: TypeString, Default: "jcore3", Category: "Project", ScopeClass: ScopeClassGlobalDefault, Description: "Template used to scaffold new projects."},
 	{Key: "theme", Type: TypeString, Default: "jcore-ilme", Category: "Project", Description: "WordPress theme to install."},
 	{Key: "branch", Type: TypeString, Category: "Project", Description: "Git branch of the theme/plugins to track."},
 
@@ -100,13 +105,13 @@ var Settings = []SettingDef{
 	{Key: "pluginExclude", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins excluded from install/sync."},
 	{Key: "pluginGit", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins installed from their own git repository."},
 	{Key: "pluginPullLegacy", Type: TypeBool, Default: false, Category: "Plugins", Description: "Deprecated: use the project's legacy in-container script (importplugins) for pulling plugins."},
-	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins only used locally (e.g. development tools), installed and activated after pulling plugins or the database."},
+	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalDefault, Description: "Plugins only used locally (e.g. development tools), installed and activated after pulling plugins or the database."},
 
 	// Deployment
 	{Key: "remoteHost", Type: TypeString, Category: "Deployment", Description: "SSH host of the remote/production server."},
 	{Key: "remotePath", Type: TypeString, Category: "Deployment", Description: "Remote path to the WordPress installation."},
-	{Key: "knockdPorts", Type: TypeString, Default: "", Category: "Deployment", ScopeClass: ScopeClassGlobalOnly, Description: "Port knocking sequence before SSH connections."},
-	{Key: "knockdTimeout", Type: TypeInt, Default: 60, Category: "Deployment", ScopeClass: ScopeClassGlobalOnly, Description: "Timeout in seconds to assume knocked SSH port remains open."},
+	{Key: "knockdPorts", Type: TypeString, Default: "", Category: "Deployment", ScopeClass: ScopeClassGlobalDefault, Description: "Port knocking sequence before SSH connections."},
+	{Key: "knockdTimeout", Type: TypeInt, Default: 60, Category: "Deployment", ScopeClass: ScopeClassGlobalDefault, Description: "Timeout in seconds to assume knocked SSH port remains open."},
 
 	// CLI Behavior
 	{Key: "debug", Type: TypeBool, Default: false, Category: "CLI Behavior", ScopeClass: ScopeClassGlobalOnly, Description: "Print debug output."},
