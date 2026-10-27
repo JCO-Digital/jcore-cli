@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.6.0-beta.1 (2026-10-27)
+
+#### Features
+
+- compose: generate the project compose file instead of scaffolding it (7883c63)
+
 ## v4.5.0 (2026-10-27)
 
 #### Features
