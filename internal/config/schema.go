@@ -77,14 +77,14 @@ var Settings = []SettingDef{
 	{Key: "wpDebugLog", Type: TypeBool, Default: false, Category: "WordPress", Description: "Enable WP_DEBUG_LOG."},
 	{Key: "wpDebugDisplay", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG_DISPLAY."},
 	{Key: "objectCache", Type: TypeBool, Default: true, Category: "WordPress", Description: "Use the Redis object cache drop-in from the SpinupWP plugin, as on production, when the project has that plugin."},
-	{Key: "mediaPullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importmedia) for pulling media."},
+	{Key: "mediaPullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Deprecated: use the project's legacy in-container script (importmedia) for pulling media."},
 	{Key: "xdebugPort", Type: TypeInt, Default: 9003, Category: "WordPress", Description: "Port Xdebug connects back to the IDE on. Give concurrently debugged projects different ports."},
-	{Key: "themePullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Use legacy in-container script (importthemes) for pulling themes."},
+	{Key: "themePullLegacy", Type: TypeBool, Default: false, Category: "WordPress", Description: "Deprecated: use the project's legacy in-container script (importthemes) for pulling themes."},
 
 	// Database
 	{Key: "dbPrefix", Type: TypeString, Default: "wp_", Category: "Database", Description: "Database table prefix."},
 	{Key: "dbExclude", Type: TypeStringSlice, Category: "Database", Description: "Database tables excluded when pulling/pushing."},
-	{Key: "dbPullLegacy", Type: TypeBool, Default: false, Category: "Database", Description: "Use legacy in-container script (importdb) for pulling database."},
+	{Key: "dbPullLegacy", Type: TypeBool, Default: false, Category: "Database", Description: "Deprecated: use the project's legacy in-container script (importdb) for pulling database."},
 	{Key: "wpDbName", Type: TypeString, Category: "Database", Description: "Remote database name override."},
 	{Key: "wpDbUser", Type: TypeString, Category: "Database", Description: "Remote database user override."},
 	{Key: "wpDbPassword", Type: TypeString, Category: "Database", Sensitive: true, Description: "Remote database password override."},
@@ -98,7 +98,7 @@ var Settings = []SettingDef{
 	{Key: "pluginInstall", Type: TypeString, Default: "remote", Category: "Plugins", Description: "How plugins are installed: remote (default) or local. \"composer\" is deprecated.", Options: []string{"remote", "local"}},
 	{Key: "pluginExclude", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins excluded from install/sync."},
 	{Key: "pluginGit", Type: TypeStringSlice, Category: "Plugins", Description: "Plugins installed from their own git repository."},
-	{Key: "pluginPullLegacy", Type: TypeBool, Default: false, Category: "Plugins", Description: "Use legacy in-container script (importplugins) for pulling plugins."},
+	{Key: "pluginPullLegacy", Type: TypeBool, Default: false, Category: "Plugins", Description: "Deprecated: use the project's legacy in-container script (importplugins) for pulling plugins."},
 	{Key: "pluginLocal", Type: TypeStringSlice, Category: "Plugins", ScopeClass: ScopeClassGlobalOnly, Description: "Plugins symlinked from a local checkout."},
 
 	// Deployment

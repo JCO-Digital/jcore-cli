@@ -82,7 +82,7 @@ func CleanProject(p DockerProject) error {
 	}
 
 	// down only removes volumes the compose files still declare; catch any
-	// left over from an older docker-compose.yml.
+	// left over from an older compose file.
 	volumes, err := docker.VolumesByProject(p.Name)
 	if err != nil {
 		return err
