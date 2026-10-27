@@ -114,6 +114,11 @@ func TestRenderProxyOverride_RoutesHTTPFacingServicesOnly(t *testing.T) {
 	if loopback == nil || loopback["network_mode"] != "service:wordpress" {
 		t.Errorf("loopback sidecar missing or not sharing wordpress's network: %v", loopback)
 	}
+	// Without an init, the sidecar's shell is PID 1 and `docker stop` waits
+	// out its full timeout.
+	if loopback["init"] != true {
+		t.Errorf("loopback init = %v, want true", loopback["init"])
+	}
 }
 
 func TestRenderProxyOverride_SkipsMissingServices(t *testing.T) {
