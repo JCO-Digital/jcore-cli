@@ -22,8 +22,8 @@ func TestUpdateProjectTargetedFileOverridesChecksumMismatch(t *testing.T) {
 		t.Fatalf("ScaffoldProject failed: %v", err)
 	}
 
-	composePath := filepath.Join(dir, "docker-compose.yml")
-	if err := os.WriteFile(composePath, []byte("# locally modified\n"), 0644); err != nil {
+	iniPath := filepath.Join(dir, "php.ini")
+	if err := os.WriteFile(iniPath, []byte("# locally modified\n"), 0644); err != nil {
 		t.Fatalf("failed to simulate a local edit: %v", err)
 	}
 
@@ -31,24 +31,24 @@ func TestUpdateProjectTargetedFileOverridesChecksumMismatch(t *testing.T) {
 	if err := UpdateProject(dir, nil, nil); err != nil {
 		t.Fatalf("UpdateProject (untargeted) failed: %v", err)
 	}
-	content, err := os.ReadFile(composePath)
+	content, err := os.ReadFile(iniPath)
 	if err != nil {
-		t.Fatalf("failed to read docker-compose.yml: %v", err)
+		t.Fatalf("failed to read php.ini: %v", err)
 	}
 	if string(content) != "# locally modified\n" {
 		t.Errorf("expected untargeted update to skip the modified file, but it was overwritten")
 	}
 
 	// Explicitly targeting the file must force the overwrite regardless of checksum.
-	if err := UpdateProject(dir, []string{"docker-compose.yml"}, []string{"docker-compose.yml"}); err != nil {
+	if err := UpdateProject(dir, []string{"php.ini"}, []string{"php.ini"}); err != nil {
 		t.Fatalf("UpdateProject (targeted) failed: %v", err)
 	}
-	content, err = os.ReadFile(composePath)
+	content, err = os.ReadFile(iniPath)
 	if err != nil {
-		t.Fatalf("failed to read docker-compose.yml: %v", err)
+		t.Fatalf("failed to read php.ini: %v", err)
 	}
 	if string(content) == "# locally modified\n" {
-		t.Errorf("expected targeting docker-compose.yml to force an overwrite, but it was left unchanged")
+		t.Errorf("expected targeting php.ini to force an overwrite, but it was left unchanged")
 	}
 }
 
@@ -65,8 +65,8 @@ func TestUpdateProjectForceWithoutOnlyStillUpdatesOtherFiles(t *testing.T) {
 		t.Fatalf("ScaffoldProject failed: %v", err)
 	}
 
-	composePath := filepath.Join(dir, "docker-compose.yml")
-	if err := os.WriteFile(composePath, []byte("# locally modified\n"), 0644); err != nil {
+	iniPath := filepath.Join(dir, "php.ini")
+	if err := os.WriteFile(iniPath, []byte("# locally modified\n"), 0644); err != nil {
 		t.Fatalf("failed to simulate a local edit: %v", err)
 	}
 
@@ -79,22 +79,22 @@ func TestUpdateProjectForceWithoutOnlyStillUpdatesOtherFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DetectModifiedFiles failed: %v", err)
 	}
-	if len(modified) != 1 || modified[0] != "docker-compose.yml" {
-		t.Fatalf("expected DetectModifiedFiles to report only docker-compose.yml, got %v", modified)
+	if len(modified) != 1 || modified[0] != "php.ini" {
+		t.Fatalf("expected DetectModifiedFiles to report only php.ini, got %v", modified)
 	}
 
-	// Force docker-compose.yml without restricting "only" - readme.md (missing,
+	// Force php.ini without restricting "only" - readme.md (missing,
 	// unmodified) must still get recreated normally by the same update pass.
-	if err := UpdateProject(dir, nil, []string{"docker-compose.yml"}); err != nil {
+	if err := UpdateProject(dir, nil, []string{"php.ini"}); err != nil {
 		t.Fatalf("UpdateProject failed: %v", err)
 	}
 
-	content, err := os.ReadFile(composePath)
+	content, err := os.ReadFile(iniPath)
 	if err != nil {
-		t.Fatalf("failed to read docker-compose.yml: %v", err)
+		t.Fatalf("failed to read php.ini: %v", err)
 	}
 	if string(content) == "# locally modified\n" {
-		t.Errorf("expected forced docker-compose.yml to be overwritten")
+		t.Errorf("expected forced php.ini to be overwritten")
 	}
 
 	if _, err := os.Stat(readmePath); err != nil {

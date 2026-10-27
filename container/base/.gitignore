@@ -17,6 +17,7 @@
 *.log
 /vendor/
 /.jcore/
+/compose.jcore.yml
 .env
 .local*
 

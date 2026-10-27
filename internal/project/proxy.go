@@ -82,7 +82,7 @@ func ToolURLs() (adminer, mail string) {
 	return "http://adminer." + localDomain, "http://mail." + localDomain
 }
 
-// composeServices is the minimal shape of docker-compose.yml needed to
+// composeServices is the minimal shape of a compose file needed to
 // generate the override: which services exist, and which networks they
 // already declare.
 type composeServices struct {
@@ -91,56 +91,58 @@ type composeServices struct {
 	} `yaml:"services"`
 }
 
-// readComposeServices parses projectDir's docker-compose.yml, returning
+// readComposeServices parses the compose files under projectDir, returning
 // each service's declared network names (empty if it declares none, i.e.
-// it's implicitly on "default"). ok is false if there's no compose file.
-func readComposeServices(projectDir string) (services map[string][]string, ok bool, err error) {
-	raw, err := os.ReadFile(filepath.Join(projectDir, "docker-compose.yml"))
-	if os.IsNotExist(err) {
-		return nil, false, nil
-	} else if err != nil {
-		return nil, false, err
-	}
-
-	var compose composeServices
-	if err := yaml.Unmarshal(raw, &compose); err != nil {
-		return nil, false, fmt.Errorf("parsing docker-compose.yml: %w", err)
-	}
-
-	services = make(map[string][]string, len(compose.Services))
-	for name, service := range compose.Services {
-		var networks []string
-		switch service.Networks.Kind {
-		case yaml.SequenceNode:
-			for _, n := range service.Networks.Content {
-				networks = append(networks, n.Value)
-			}
-		case yaml.MappingNode:
-			for i := 0; i < len(service.Networks.Content); i += 2 {
-				networks = append(networks, service.Networks.Content[i].Value)
-			}
+// it's implicitly on "default"). Services and networks are merged across
+// the files the way compose merges them: a later file adds to a service,
+// it doesn't replace it.
+func readComposeServices(projectDir string, files []string) (map[string][]string, error) {
+	services := make(map[string][]string)
+	for _, file := range files {
+		raw, err := os.ReadFile(filepath.Join(projectDir, file))
+		if err != nil {
+			return nil, err
 		}
-		services[name] = networks
+
+		var compose composeServices
+		if err := yaml.Unmarshal(raw, &compose); err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", file, err)
+		}
+
+		for name, service := range compose.Services {
+			networks := services[name]
+			switch service.Networks.Kind {
+			case yaml.SequenceNode:
+				for _, n := range service.Networks.Content {
+					networks = append(networks, n.Value)
+				}
+			case yaml.MappingNode:
+				for i := 0; i < len(service.Networks.Content); i += 2 {
+					networks = append(networks, service.Networks.Content[i].Value)
+				}
+			}
+			slices.Sort(networks)
+			services[name] = slices.Compact(networks)
+		}
 	}
-	return services, true, nil
+	return services, nil
 }
 
-// WriteProxyOverride generates .jcore/compose.proxy.yml for projectDir. It
-// reports false (and writes nothing) for a directory without a
-// docker-compose.yml, in which case COMPOSE_FILE must not point at it.
-func WriteProxyOverride(projectDir string) (bool, error) {
-	services, ok, err := readComposeServices(projectDir)
-	if err != nil || !ok {
-		return false, err
+// WriteProxyOverride generates .jcore/compose.proxy.yml for projectDir,
+// from the services its compose files define.
+func WriteProxyOverride(projectDir string, files []string) error {
+	services, err := readComposeServices(projectDir, files)
+	if err != nil {
+		return err
 	}
 
 	content := renderProxyOverride(ComposeProjectName(projectDir), projectDir, LocalDomain(), ProxyDomains(), services)
 
 	path := filepath.Join(projectDir, ProxyOverrideRelPath)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return false, err
+		return err
 	}
-	return true, os.WriteFile(path, content, 0644)
+	return os.WriteFile(path, content, 0644)
 }
 
 // sniRule builds the Traefik TCP rule matching every domain and its
