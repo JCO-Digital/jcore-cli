@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.3.0 (2026-10-27)
+
+#### Features
+
+- Redis object cache with SpinupWP's drop-in, replacing memcached (5327b33)
+
 ### v4.2.7 (2026-10-27)
 
 #### Bug Fixes
