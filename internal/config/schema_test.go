@@ -20,7 +20,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestScopeClassification(t *testing.T) {
-	globalOnly := []string{"template", "debug", "install", "logLevel", "mode", "pluginLocal", "projectDefault", "verbose", "knockdPorts", "knockdTimeout"}
+	globalOnly := []string{"debug", "install", "logLevel", "mode", "projectDefault", "verbose"}
 	for _, key := range globalOnly {
 		def, ok := Lookup(key)
 		if !ok {
@@ -28,6 +28,17 @@ func TestScopeClassification(t *testing.T) {
 		}
 		if def.ScopeClass != ScopeClassGlobalOnly {
 			t.Errorf("%s ScopeClass = %v, want ScopeClassGlobalOnly", key, def.ScopeClass)
+		}
+	}
+
+	globalDefault := []string{"template", "knockdPorts", "knockdTimeout", "pluginLocal"}
+	for _, key := range globalDefault {
+		def, ok := Lookup(key)
+		if !ok {
+			t.Fatalf("expected %s to be a known setting", key)
+		}
+		if def.ScopeClass != ScopeClassGlobalDefault {
+			t.Errorf("%s ScopeClass = %v, want ScopeClassGlobalDefault", key, def.ScopeClass)
 		}
 	}
 
