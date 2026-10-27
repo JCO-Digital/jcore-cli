@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.5.0-beta.5 (2026-10-27)
+
+#### Documentation
+
+- add CLAUDE.md with the branch and beta sprint workflow (efbb2b9)
+
 ### v4.5.0-beta.4 (2026-10-27)
 
 #### Bug Fixes
