@@ -1,5 +1,15 @@
 # Changelog
 
+### v4.5.0-beta.1 (2026-10-27)
+
+#### Features
+
+- sync: support pulling posts and menus from remote (e2cbc9a)
+
+#### Bug Fixes
+
+- sync: run remote ssh and rsync on the host (66415fa)
+
 ### v4.4.1 (2026-10-27)
 
 #### Bug Fixes
