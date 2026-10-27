@@ -1,9 +1,11 @@
 package project
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -131,5 +133,58 @@ func TestInstallDependencies_MakefileTakesPriorityOverNodeAndComposer(t *testing
 	// Regression: the Makefile branch used to return before pulling images.
 	if len(*pulls) != 1 || (*pulls)[0] != dir {
 		t.Fatalf("expected one image pull for %s after 'make install', got %v", dir, *pulls)
+	}
+}
+
+func TestPullImages_AtMostOncePerIntervalUnlessForced(t *testing.T) {
+	pulls := stubComposePull(t)
+	dir := t.TempDir()
+
+	if err := pullImages(dir, false); err != nil {
+		t.Fatalf("first pull error = %v", err)
+	}
+	if err := pullImages(dir, false); err != nil {
+		t.Fatalf("second pull error = %v", err)
+	}
+	if len(*pulls) != 1 {
+		t.Fatalf("expected one pull within the interval, got %d", len(*pulls))
+	}
+
+	// `start --install`, clone and init always pull.
+	if err := pullImages(dir, true); err != nil {
+		t.Fatalf("forced pull error = %v", err)
+	}
+	if len(*pulls) != 2 {
+		t.Fatalf("expected a forced pull despite the fresh stamp, got %d pulls", len(*pulls))
+	}
+
+	// A stamp older than the interval pulls again.
+	old := time.Now().Add(-ImagePullInterval - time.Hour)
+	if err := os.Chtimes(filepath.Join(dir, imagePullStampRelPath), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := pullImages(dir, false); err != nil {
+		t.Fatalf("pull after interval error = %v", err)
+	}
+	if len(*pulls) != 3 {
+		t.Fatalf("expected a pull once the stamp is stale, got %d pulls", len(*pulls))
+	}
+}
+
+func TestPullImages_FailedScheduledPullOnlyWarns(t *testing.T) {
+	orig := composePull
+	composePull = func(string) error { return errors.New("offline") }
+	t.Cleanup(func() { composePull = orig })
+	dir := t.TempDir()
+
+	if err := pullImages(dir, false); err != nil {
+		t.Fatalf("scheduled pull should only warn, got error %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, imagePullStampRelPath)); err == nil {
+		t.Fatal("a failed pull mustn't record a stamp, so the next start tries again")
+	}
+
+	if err := pullImages(dir, true); err == nil {
+		t.Fatal("a forced pull should return the error")
 	}
 }
