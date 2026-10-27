@@ -160,7 +160,7 @@ func TestGenerateEnvFile_PointsComposeAtProxyOverride(t *testing.T) {
 	}
 }
 
-func TestGenerateEnvFile_NoComposeFileNoOverride(t *testing.T) {
+func TestGenerateEnvFile_GeneratesComposeFile(t *testing.T) {
 	viper.Reset()
 	defer viper.Reset()
 
@@ -169,11 +169,18 @@ func TestGenerateEnvFile_NoComposeFileNoOverride(t *testing.T) {
 		t.Fatalf("GenerateEnvFile error = %v", err)
 	}
 
-	raw, err := os.ReadFile(filepath.Join(dir, ".env"))
+	if got := readEnvVar(t, dir, "COMPOSE_FILE"); got != GeneratedComposeFile+":"+ProxyOverrideRelPath {
+		t.Errorf("COMPOSE_FILE = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, GeneratedComposeFile)); err != nil {
+		t.Errorf("%s not written: %v", GeneratedComposeFile, err)
+	}
+	// The real template has web and wordpress, so the override routes it.
+	override, err := os.ReadFile(filepath.Join(dir, ProxyOverrideRelPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "COMPOSE_FILE=") {
-		t.Errorf("COMPOSE_FILE set without a docker-compose.yml:\n%s", raw)
+	if !strings.Contains(string(override), "  loopback:") {
+		t.Errorf("override from the generated compose file has no loopback service:\n%s", override)
 	}
 }

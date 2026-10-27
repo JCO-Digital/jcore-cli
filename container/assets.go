@@ -9,6 +9,13 @@ import (
 //go:embed all:base
 var BaseAssets embed.FS
 
+// ComposeFile is the project's docker compose file. Rather than being
+// scaffolded into the project, where it would go stale, jcore writes it on
+// every start (see project.WriteComposeFile).
+//
+//go:embed compose.yml
+var ComposeFile []byte
+
 // TemplateAssets holds the project templates
 //
 //go:embed all:templates

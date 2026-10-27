@@ -108,7 +108,13 @@ Starts the WordPress environment for the current project.
   and Composer (from `composer.json`) packages, then `docker compose pull`
   to refresh images — unless the `install` setting is `false`. Use
   `--install`/`-i` to force this even when `install` is disabled.
-- Also parses `docker-compose.yml` itself and creates any project-relative
+- Writes the generated compose file, `compose.jcore.yml`, and points
+  `COMPOSE_FILE` in `.env` at it, `compose.override.yml` (if the project has
+  one) and the proxy override. A project's own `docker-compose.yml` is
+  ignored when it matches its stored checksum; with local changes it's used
+  instead of the generated file, with a warning, until the project has a
+  `compose.override.yml`. It's never deleted.
+- Also parses the compose files itself and creates any project-relative
   bind-mount folder it declares (e.g. `./wp-content`, `./vendor`, or any
   custom one a service adds) that doesn't already exist, before starting
   containers — otherwise Docker creates a missing mount point itself as
@@ -200,7 +206,7 @@ Pulls data from the remote environment to the local environment.
 - Defaults to `plugins` and `db` if no target is specified.
 - Database, plugin, media, and theme pulls run natively on the host: fetches the database via host SSH and pipes it directly into MariaDB in the `db` container, and syncs plugins, uploads, and themes via host `rsync`.
 - When pulling media or themes, interactively prompts with a checklist to select which folders to sync.
-- Can take a `--legacy` flag to fall back to the legacy in-container import scripts (`.config/scripts/import*`).
+- Can take a `--legacy` flag to fall back to the legacy in-container import scripts (`.config/scripts/import*`). Deprecated, to be removed in jcore 5: new projects don't include these scripts, and pulling with `--legacy` fails without them.
 - Can take a `--dbfile <filename>` flag to import a specific SQL file.
 
 ## `sync <id|slug>`
@@ -477,6 +483,11 @@ Checks the system for potential issues.
 ## `migrate`
 
 Migrates a legacy JCore project to the current format.
+
+- Removes `docker-compose.yml` if it matches its stored checksum, since jcore
+  generates the compose file itself. A modified one is only removed if you
+  confirm; otherwise it stays in use until its changes are moved to
+  `compose.override.yml`.
 
 ## `create`
 

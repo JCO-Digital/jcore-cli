@@ -31,8 +31,7 @@ func ImportDatabase(projectDir string, legacy bool) error {
 
 // ImportDatabaseLegacy runs the container's importdb script inside the wordpress container.
 func ImportDatabaseLegacy(projectDir string) error {
-	KnockIfNeeded()
-	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/importdb"})
+	return runLegacyPullScript(projectDir, "importdb", "dbPullLegacy")
 }
 
 // ImportDatabaseNative orchestrates the host-driven database migration:

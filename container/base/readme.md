@@ -33,7 +33,7 @@ Ensure you have the following installed on your host machine:
 
 3. **Start the containers**:
    ```bash
-   docker-compose up -d
+   jcore start
    ```
    On the first run, the `tlscerts` container will generate local certificates, and the `wordpress` container will download WordPress core and set up the database.
 
@@ -65,6 +65,20 @@ The environment is configured via `.env` (generated) and `env-values.toml`. Key 
 - `MULTISITE`: Set to `true` to enable WordPress Multisite (Subdomain install).
 - `WP_DEBUG`: Boolean to toggle WordPress debug mode.
 
+### Compose Files
+jcore generates the project's compose file, `compose.jcore.yml`, on every
+start, so every project runs on the current setup. Don't edit or commit it
+(it's in `.gitignore`).
+
+Put project-specific changes (extra services, ports, volumes) in
+`compose.override.yml`, which jcore merges on top of the generated file.
+Commit that one.
+
+Older projects carry their own `docker-compose.yml`. Without local changes
+jcore ignores it and it can be deleted. With local changes jcore keeps using
+it, but updating the project no longer updates it: move the project's own
+changes into `compose.override.yml`, then delete `docker-compose.yml`.
+
 ### PHP Configuration
 Custom PHP settings can be adjusted in `php.ini`. The default configuration is optimized for development:
 - `memory_limit`: 256M
@@ -74,21 +88,13 @@ Custom PHP settings can be adjusted in `php.ini`. The default configuration is o
 
 ### File Structure
 - `wp-content/`: This directory is mapped to the container and contains your themes, plugins, and uploads.
-- `.config/`: Contains Nginx configurations, entrypoint scripts, and helper scripts.
+- `.config/`: Contains Nginx configurations and entrypoint scripts.
 - `.jcore/`: Internal storage for WordPress core files, SSL certificates, and SQL dumps.
 
-## Helper Scripts
+## Pulling From Production
 
-The project includes several scripts located in `.config/scripts/` to streamline development workflows. These can be executed inside the `wordpress` container:
-
-- `importdb`: Imports a database dump from `.jcore/sql`.
-- `importmedia`: Syncs or imports media assets.
-- `importplugins` / `importthemes`: Helpers for managing project dependencies.
-
-Example usage:
-```bash
-docker-compose exec wordpress /project/.config/scripts/importdb
-```
+`jcore pull` fetches the database, plugins, themes and media from the remote
+server (see `jcore pull --help`).
 
 ## Development Tools
 
@@ -103,7 +109,7 @@ pnpm exec prettier --write .
 ### WP-CLI
 You can run WP-CLI commands directly through the wordpress container:
 ```bash
-docker-compose exec wordpress wp plugin list
+jcore run "wp plugin list"
 ```
 
 ## Templates

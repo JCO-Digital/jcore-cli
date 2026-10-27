@@ -35,11 +35,7 @@ func TestBindMountSource(t *testing.T) {
 
 func TestComposeMountedFolders_RealTemplate(t *testing.T) {
 	dir := t.TempDir()
-	raw, err := os.ReadFile("../../container/base/docker-compose.yml")
-	if err != nil {
-		t.Fatalf("reading real docker-compose.yml: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "docker-compose.yml"), raw, 0644); err != nil {
+	if err := WriteComposeFile(dir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,7 +64,7 @@ func TestComposeMountedFolders_MissingFile(t *testing.T) {
 		t.Fatalf("ComposeMountedFolders error = %v", err)
 	}
 	if len(folders) != 0 {
-		t.Fatalf("ComposeMountedFolders() for a project with no docker-compose.yml = %v, want none", folders)
+		t.Fatalf("ComposeMountedFolders() for a project with no compose file = %v, want none", folders)
 	}
 }
 

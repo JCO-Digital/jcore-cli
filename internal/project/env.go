@@ -96,21 +96,31 @@ func GenerateEnvFile(projectDir string) error {
 	}
 	envMap["REPLACE"] = formatEnvValue(replaceRows)
 
-	// 5. Put the project behind the shared proxy: generate the compose
-	// override and point compose at it. COMPOSE_FILE is read by compose
-	// itself from .env, so every `docker compose` call in the project
-	// directory - jcore's and manual ones - includes the override.
-	hasOverride, err := WriteProxyOverride(projectDir)
+	// 5. Generate the compose file, put the project behind the shared
+	// proxy with a generated override, and point compose at both.
+	// COMPOSE_FILE is read by compose itself from .env, so every `docker
+	// compose` call in the project directory - jcore's and manual ones -
+	// uses the same files.
+	if err := WriteComposeFile(projectDir); err != nil {
+		return fmt.Errorf("writing %s: %w", GeneratedComposeFile, err)
+	}
+	compose, err := ResolveComposeFiles(projectDir)
 	if err != nil {
+		return fmt.Errorf("checking %s: %w", LegacyComposeFile, err)
+	}
+	for _, notice := range []string{compose.Notice, composeFileIgnoreNotice(projectDir)} {
+		if notice != "" {
+			fmt.Println(notice)
+		}
+	}
+	if err := WriteProxyOverride(projectDir, compose.Files); err != nil {
 		return fmt.Errorf("generating %s: %w", ProxyOverrideRelPath, err)
 	}
-	if hasOverride {
-		envMap["COMPOSE_FILE"] = "docker-compose.yml:" + ProxyOverrideRelPath
-	}
+	envMap["COMPOSE_FILE"] = strings.Join(append(compose.Files, ProxyOverrideRelPath), ":")
 
 	// Lets PhpStorm tell concurrently debugged projects apart. Set here
 	// rather than in the override's `environment:`, so a project's own
-	// PHP_IDE_CONFIG in docker-compose.yml still takes precedence.
+	// PHP_IDE_CONFIG in its compose files still takes precedence.
 	envMap["PHP_IDE_CONFIG"] = "serverName=" + envMap["LOCAL_DOMAIN"]
 
 	// 6. Write to .env file
