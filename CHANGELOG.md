@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.7 (2026-10-27)
+
+#### Bug Fixes
+
+- proxy: run the loopback sidecar with an init (e6c2880)
+
 ### v4.2.6 (2026-10-27)
 
 #### Refactor
