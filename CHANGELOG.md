@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.5 (2026-10-27)
+
+#### Bug Fixes
+
+- clean: remove the right volumes, also for running projects (1818252)
+
 ### v4.2.4 (2026-10-27)
 
 #### Bug Fixes
