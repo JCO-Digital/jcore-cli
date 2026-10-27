@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.4.1 (2026-10-27)
+
+#### Bug Fixes
+
+- clean: keep `clean all` to JCore projects, and ask first (3dcca25)
+
 ## v4.4.0 (2026-10-27)
 
 #### Features
