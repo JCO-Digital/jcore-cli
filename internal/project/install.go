@@ -5,13 +5,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/JCO-Digital/jcore/internal/docker"
+	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/spf13/viper"
 )
 
 // composePull pulls the project's Docker images. Overridable by tests.
 var composePull = docker.ComposePull
+
+// ImagePullInterval is how often a plain start (with the install setting on)
+// pulls the project's Docker images. Pulling on every start costs a few
+// seconds and a network round trip even when nothing changed, while the
+// images themselves are only rebuilt weekly. Images compose doesn't have
+// yet are pulled by `docker compose up` regardless.
+const ImagePullInterval = 24 * time.Hour
+
+// imagePullStampRelPath records when the project's images were last pulled.
+// It lives in .jcore, so `jcore clean` resets it.
+const imagePullStampRelPath = ".jcore/images-pulled"
 
 // InstallDependencies runs the project's host-side dependency installation
 // (a Makefile's "install" target, or npm/pnpm plus Composer) and pulls
@@ -43,8 +56,35 @@ func InstallDependencies(projectDir string, force bool) error {
 		}
 	}
 
+	return pullImages(projectDir, force)
+}
+
+// pullImages pulls the project's Docker images: always when forced (clone,
+// init, `start --install`), otherwise at most once per ImagePullInterval. A
+// scheduled pull that fails (e.g. offline) only warns, since the images
+// already on disk still work; a forced one returns the error.
+func pullImages(projectDir string, force bool) error {
+	stamp := filepath.Join(projectDir, imagePullStampRelPath)
+	if !force {
+		if info, err := os.Stat(stamp); err == nil && time.Since(info.ModTime()) < ImagePullInterval {
+			logging.Verbose("Docker images were updated less than %s ago, skipping the pull.", ImagePullInterval)
+			return nil
+		}
+	}
+
 	fmt.Println("Updating Docker images.")
-	return composePull(projectDir)
+	if err := composePull(projectDir); err != nil {
+		if force {
+			return err
+		}
+		logging.Warn("Updating Docker images failed, starting with the ones already on disk: %v", err)
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(stamp), 0755); err == nil {
+		_ = os.WriteFile(stamp, []byte(time.Now().Format(time.RFC3339)+"\n"), 0644)
+	}
+	return nil
 }
 
 // installNodePackages installs npm packages, preferring npm's own lock file
