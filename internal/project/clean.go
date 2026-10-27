@@ -96,38 +96,53 @@ func CleanProject(p DockerProject) error {
 	return os.RemoveAll(filepath.Join(p.Path, ".jcore"))
 }
 
-// CleanAll cleans every non-running JCore project, then prunes Docker globally.
-func CleanAll() error {
+// StoppedProjects returns the JCore projects that aren't running: the ones
+// `jcore clean all` removes.
+func StoppedProjects() ([]DockerProject, error) {
 	projects, err := ListDockerProjects()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	var stopped []DockerProject
 	for _, p := range projects {
 		if !p.Running {
-			if err := CleanProject(p); err != nil {
-				fmt.Printf("Error cleaning %s: %v\n", p.Name, err)
-			}
+			stopped = append(stopped, p)
+		}
+	}
+	return stopped, nil
+}
+
+// CleanProjects cleans each of projects (see CleanProject), then removes
+// dangling images. It deliberately prunes nothing else machine-wide: that
+// would also delete volumes and images belonging to other Docker work.
+func CleanProjects(projects []DockerProject) error {
+	for _, p := range projects {
+		if err := CleanProject(p); err != nil {
+			fmt.Printf("Error cleaning %s: %v\n", p.Name, err)
 		}
 	}
 
-	return CleanDocker(true)
+	fmt.Println("Removing dangling images.")
+	return docker.PruneImages(false)
 }
 
-// CleanDocker prunes unused Docker containers, images, volumes, and networks.
-func CleanDocker(all bool) error {
+// CleanDocker prunes Docker machine-wide, not just JCore: stopped
+// containers, dangling images, anonymous volumes and unused networks.
+// Named volumes (databases) and tagged images are kept.
+func CleanDocker() error {
 	fmt.Println("Cleaning Containers")
 	if err := docker.PruneContainers(); err != nil {
 		return err
 	}
 
 	fmt.Println("Cleaning Images")
-	if err := docker.PruneImages(all); err != nil {
+	if err := docker.PruneImages(false); err != nil {
 		return err
 	}
 
 	fmt.Println("Cleaning Volumes")
-	if err := docker.PruneVolumes(all); err != nil {
+	if err := docker.PruneVolumes(false); err != nil {
 		return err
 	}
 
