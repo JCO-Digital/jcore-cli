@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.1 (2026-10-27)
+
+#### Bug Fixes
+
+- migrate: support older legacy projects and template selection (bafa1d8)
+
 ## v4.2.0 (2026-10-23)
 
 #### Features
