@@ -414,10 +414,26 @@ func isTerminal() bool {
 	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
-// InstallLocalPlugins runs the container's installplugins script, which
-// installs and activates every plugin listed in pluginLocal.
+// InstallLocalPlugins installs and activates every plugin listed in
+// pluginLocal: plugins only used locally, such as development tools, that
+// a pull doesn't bring along from production. One already installed is
+// just activated. A failing plugin doesn't stop the others.
 func InstallLocalPlugins(projectDir string) error {
-	return docker.ComposeExecFiltered(projectDir, "wordpress", []string{"/project/.config/scripts/installplugins"})
+	var failed []string
+	for _, plugin := range viper.GetStringSlice("pluginLocal") {
+		action := []string{"wp", "plugin", "activate", "--path=/var/www/html", plugin}
+		isInstalled := []string{"wp", "plugin", "is-installed", "--path=/var/www/html", plugin}
+		if _, err := docker.ComposeExecCaptured(projectDir, "wordpress", isInstalled); err != nil {
+			action = []string{"wp", "plugin", "install", "--path=/var/www/html", "--activate", plugin}
+		}
+		if err := docker.ComposeExecFiltered(projectDir, "wordpress", action); err != nil {
+			failed = append(failed, plugin)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("couldn't install or activate %s", strings.Join(failed, ", "))
+	}
+	return nil
 }
 
 // SyncThemes runs theme synchronization, either natively from the host via rsync
