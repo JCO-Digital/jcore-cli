@@ -10,6 +10,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// composePull pulls the project's Docker images. Overridable by tests.
+var composePull = docker.ComposePull
+
 // InstallDependencies runs the project's host-side dependency installation
 // (a Makefile's "install" target, or npm/pnpm plus Composer) and pulls
 // updated Docker images, mirroring the legacy TypeScript CLI's
@@ -25,24 +28,23 @@ func InstallDependencies(projectDir string, force bool) error {
 		if err := runIn(projectDir, "make", "install"); err != nil {
 			return fmt.Errorf("running make failed: %w", err)
 		}
-		return nil
-	}
-
-	if fileExists(projectDir, "package.json") {
-		if err := installNodePackages(projectDir); err != nil {
-			return err
+	} else {
+		if fileExists(projectDir, "package.json") {
+			if err := installNodePackages(projectDir); err != nil {
+				return err
+			}
 		}
-	}
 
-	if fileExists(projectDir, "composer.json") {
-		fmt.Println("Installing composer packages.")
-		if err := runIn(projectDir, "composer", "install", "--quiet"); err != nil {
-			return fmt.Errorf("composer failed, maybe not installed: %w", err)
+		if fileExists(projectDir, "composer.json") {
+			fmt.Println("Installing composer packages.")
+			if err := runIn(projectDir, "composer", "install", "--quiet"); err != nil {
+				return fmt.Errorf("composer failed, maybe not installed: %w", err)
+			}
 		}
 	}
 
 	fmt.Println("Updating Docker images.")
-	return docker.ComposePull(projectDir)
+	return composePull(projectDir)
 }
 
 // installNodePackages installs npm packages, preferring npm's own lock file
