@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.2.2 (2026-10-27)
+
+#### Bug Fixes
+
+- container: wait for the database instead of a fixed sleep (6f648cf)
+
 ### v4.2.1 (2026-10-27)
 
 #### Bug Fixes
