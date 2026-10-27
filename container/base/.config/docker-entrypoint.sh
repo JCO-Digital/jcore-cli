@@ -98,5 +98,7 @@ fi
 
 /project/.config/scripts/appendssl
 
-# Start PHP-FPM
-php-fpm
+# Start PHP-FPM. exec, so it replaces this script and receives the stop
+# signal from `docker stop` directly; otherwise the container ignores it
+# and Docker waits its full timeout before killing it.
+exec php-fpm
