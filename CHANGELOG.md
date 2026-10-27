@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.5.0-beta.4 (2026-10-27)
+
+#### Bug Fixes
+
+- init: time out stalled theme and plugin downloads (8d737f4)
+
 ### v4.5.0-beta.3 (2026-10-27)
 
 #### Bug Fixes
