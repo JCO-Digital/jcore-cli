@@ -64,6 +64,16 @@ make install
 jcore --help
 ```
 
+Run wp-cli (or any command) in a project's WordPress container with
+`jcore run`. Xdebug and PHP deprecation noise are off and the exit code is
+passed through, so it works from scripts too:
+
+```bash
+jcore run wp option get siteurl
+```
+
+See [docs/commands.md](docs/commands.md) for every command.
+
 ## Development
 
 This project uses [Cobra](https://github.com/spf13/cobra) for command-line parsing and [Viper](https://github.com/spf13/viper) for configuration.

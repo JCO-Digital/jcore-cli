@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -157,6 +158,63 @@ func ComposeExec(projectDir string, service string, cmdParts []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
+}
+
+// ExecOptions configures ComposeRun.
+type ExecOptions struct {
+	// TTY allocates a pseudo-terminal. A terminal merges the command's
+	// stderr into its stdout, and docker refuses one when jcore's stdin
+	// isn't a terminal, so only set it when stdin, stdout and stderr all
+	// are (see StdioIsTerminal).
+	TTY bool
+	// Env holds NAME=value pairs set for the command only.
+	Env []string
+}
+
+// StdioIsTerminal reports whether jcore's stdin, stdout and stderr are all
+// terminals, i.e. it was started interactively rather than from a script,
+// a pipe or an agent.
+func StdioIsTerminal() bool {
+	for _, f := range []*os.File{os.Stdin, os.Stdout, os.Stderr} {
+		if !term.IsTerminal(int(f.Fd())) {
+			return false
+		}
+	}
+	return true
+}
+
+// composeExecArgs builds the docker arguments of ComposeRun.
+func composeExecArgs(service string, opts ExecOptions, cmdParts []string) []string {
+	args := []string{"compose", "exec"}
+	if !opts.TTY {
+		args = append(args, "-T")
+	}
+	for _, env := range opts.Env {
+		args = append(args, "-e", env)
+	}
+	args = append(args, service)
+	return append(args, cmdParts...)
+}
+
+// ComposeRun runs a command in a service container wired straight to
+// jcore's stdin, stdout and stderr. Without a TTY, stdout and stderr stay
+// separate streams. The returned error is an *exec.ExitError when the
+// command (or docker itself) exits non-zero, carrying its exit code.
+//
+// Ctrl-C is left to the command: jcore keeps running until it exits, so
+// its exit code and last output still come through.
+func ComposeRun(projectDir string, service string, opts ExecOptions, cmdParts []string) error {
+	cmd := exec.Command("docker", composeExecArgs(service, opts, cmdParts)...)
+	cmd.Dir = projectDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt)
+	defer signal.Stop(interrupts)
 
 	return cmd.Run()
 }
