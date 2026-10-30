@@ -121,7 +121,7 @@ Starts the WordPress environment for the current project.
   foreground until stopped) — a no-op if that theme is already active, so
   it never fights a theme you deliberately switched via wp-admin. If
   WordPress never becomes reachable in time, it warns and leaves you to
-  activate it yourself with `jcore run "wp theme activate <slug>"`.
+  activate it yourself with `jcore run wp theme activate <slug>`.
 
 ## `stop`
 
@@ -187,11 +187,35 @@ Opens an ssh session on the project's remote server (`remoteHost`).
   set), e.g. `jcore ssh -- wp plugin list`.
 - Exits with ssh's (or the remote command's) exit code.
 
-## `run <command>`
+## `run [--xdebug] [--notices] <command> [args...]`
 
-Runs a specific command inside the `wordpress` container.
+Runs a command inside the `wordpress` container, as its normal user in the
+WordPress root, so wp-cli needs neither `--allow-root` nor `--path`. It works
+from anywhere in the project and is meant for scripts and agents as much as
+for typing:
 
-- Example: `jcore run "wp plugin list"`
+```sh
+jcore run wp option get siteurl
+jcore run wp plugin list --format=json
+jcore run wp db export - > dump.sql
+```
+
+- Everything after the command is passed to it unchanged, flags included.
+  jcore's own flags go before it.
+- A single quoted argument containing spaces is run through `sh -c`, so
+  pipes and `&&` work inside the container: `jcore run "wp plugin list | wc -l"`.
+- Xdebug is off for the command (`XDEBUG_MODE=off`), even when the project's
+  `debug` setting turns it on for the site. `--xdebug` keeps the project's
+  setting, e.g. to step-debug a wp-cli command. `XDEBUG_MODE` set in your
+  shell is passed on instead.
+- PHP deprecations and notices are hidden, and the remaining PHP warnings and
+  errors go to stderr only, so stdout holds just the command's output.
+  `--notices` shows them again. This uses PHP settings loaded only by the
+  command run (`.jcore/php-cli/`, through `PHP_INI_SCAN_DIR`); the site keeps
+  its own error reporting.
+- A terminal is allocated only when stdin, stdout and stderr all are one.
+  Otherwise stdout and stderr stay separate, and stdin is passed through.
+- Exits with the command's exit code.
 
 ## `pull [plugins|db|media|themes|all]`
 

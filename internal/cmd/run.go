@@ -1,15 +1,20 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/JCO-Digital/jcore/internal/docker"
+	"github.com/JCO-Digital/jcore/internal/logging"
 	"github.com/JCO-Digital/jcore/internal/project"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 )
 
 // startCmd represents the start command
@@ -331,18 +336,89 @@ If no target is specified, it defaults to pulling the database and plugins.`,
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run <command>",
+	Use:   "run [--xdebug] [--notices] <command> [args...]",
 	Short: "Run a command in the wordpress container",
-	Args:  cobra.MinimumNArgs(1),
+	Long: `Runs a command in the project's wordpress container, as its normal user
+in the WordPress root, so wp-cli needs neither --allow-root nor --path:
+
+  jcore run wp option get siteurl
+  jcore run wp plugin list --format=json
+
+Everything after the command is passed to it unchanged, flags included.
+A single quoted argument containing spaces is run through sh -c, so
+pipes and && work inside the container: jcore run "wp plugin list | wc -l"
+
+Built for scripts as much as for typing:
+  - Xdebug is off (XDEBUG_MODE=off). --xdebug keeps the project's own
+    Xdebug setting; XDEBUG_MODE set in your shell is passed on as is.
+  - PHP deprecations and notices are hidden and the remaining PHP errors
+    go to stderr only, so stdout holds just the command's output. --notices
+    shows them. This only affects the command run, not the site.
+  - A terminal is allocated only when stdin, stdout and stderr all are
+    one; otherwise stdout and stderr stay separate streams.
+  - jcore exits with the command's exit code.`,
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, err := project.FindProjectRoot()
 		if err != nil || projectDir == "" {
-			fmt.Println("Error: not in a JCore project (no jcore.toml found)")
-			return
+			fmt.Fprintln(os.Stderr, "Error: not in a JCore project (no jcore.toml found)")
+			os.Exit(1)
 		}
 
-		_ = docker.ComposeExec(projectDir, "wordpress", args)
+		xdebug, _ := cmd.Flags().GetBool("xdebug")
+		notices, _ := cmd.Flags().GetBool("notices")
+		opts := docker.ExecOptions{
+			TTY: docker.StdioIsTerminal(),
+			Env: runEnv(xdebug, os.LookupEnv),
+		}
+		// Without a terminal wp-cli assumes its output is piped and drops
+		// tables and colours; keep them while a person is reading it.
+		if !opts.TTY && term.IsTerminal(int(os.Stdout.Fd())) {
+			opts.Env = append(opts.Env, "SHELL_PIPE=0")
+		}
+		if !notices {
+			scanDir, err := project.WriteQuietPHPConfig(projectDir)
+			if err != nil {
+				logging.Warn("Could not write the PHP settings that hide deprecations: %v", err)
+			} else {
+				opts.Env = append(opts.Env, scanDir)
+			}
+		}
+
+		if err := docker.ComposeRun(projectDir, "wordpress", opts, runCommandParts(args)); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				os.Exit(exitErr.ExitCode())
+			}
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 	},
+}
+
+// runEnv returns the environment jcore run sets for the command: Xdebug
+// off, unless keepXdebug asks for the project's own setting or the
+// XDEBUG_MODE found through lookupEnv (jcore's own environment) is
+// passed on instead.
+func runEnv(keepXdebug bool, lookupEnv func(string) (string, bool)) []string {
+	if keepXdebug {
+		return nil
+	}
+	if mode, ok := lookupEnv("XDEBUG_MODE"); ok {
+		return []string{"XDEBUG_MODE=" + mode}
+	}
+	return []string{"XDEBUG_MODE=off"}
+}
+
+// runCommandParts turns jcore run's arguments into the command to execute.
+// A single argument containing whitespace is the documented
+// `jcore run "wp plugin list"` form, run through a shell; anything else is
+// executed as is.
+func runCommandParts(args []string) []string {
+	if len(args) == 1 && strings.ContainsAny(args[0], " \t\n") {
+		return []string{"sh", "-c", args[0]}
+	}
+	return args
 }
 
 // attachCmd represents the attach command
@@ -405,4 +481,9 @@ func init() {
 	stopCmd.Flags().BoolP("all", "a", false, "Stop every running JCore project")
 	pullCmd.Flags().String("dbfile", "", "Specific database file to import")
 	pullCmd.Flags().Bool("legacy", false, "Use legacy in-container import script")
+	// Stop at the command, so its own flags (wp ... --format=json) are
+	// passed to it instead of being parsed as jcore's.
+	runCmd.Flags().SetInterspersed(false)
+	runCmd.Flags().Bool("xdebug", false, "Keep the project's Xdebug setting instead of turning Xdebug off")
+	runCmd.Flags().Bool("notices", false, "Show PHP deprecations and notices")
 }
