@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.6.0 (2026-10-30)
+
+#### Features
+
+- run: make jcore run quiet and script-friendly for wp-cli (0dc7890)
+
 ## v4.5.0 (2026-10-27)
 
 #### Features
