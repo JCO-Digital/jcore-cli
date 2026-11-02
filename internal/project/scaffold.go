@@ -179,7 +179,7 @@ func UpdateProject(projectDir string, only []string, force []string) error {
 
 	template := viper.GetString("template")
 	if template == "" {
-		template = "jcore3"
+		template = DefaultTemplate
 	}
 
 	fmt.Printf("Updating project using template: %s\n", template)
@@ -197,7 +197,7 @@ func UpdateProject(projectDir string, only []string, force []string) error {
 	err = updateFromFS(container.TemplateAssets, templatePath, projectDir, checksums, only, force, data)
 	if err != nil {
 		// Template might not exist in embedded assets, just warn if it's not "jcore3"
-		if template != "jcore3" {
+		if template != DefaultTemplate {
 			fmt.Printf("Warning: Template assets for '%s' not found or failed to update.\n", template)
 		}
 	}
@@ -221,7 +221,7 @@ func DetectModifiedFiles(projectDir string) ([]string, error) {
 
 	template := viper.GetString("template")
 	if template == "" {
-		template = "jcore3"
+		template = DefaultTemplate
 	}
 
 	modified := make(map[string]bool)
