@@ -1,12 +1,6 @@
 # Changelog
 
-### v4.7.0-beta.2 (2026-11-02)
-
-#### Bug Fixes
-
-- update: use the project's own template, detecting legacy jcore2/jcore1 (fc10237)
-
-### v4.7.0-beta.1 (2026-11-02)
+## v4.7.0 (2026-11-02)
 
 #### Features
 
@@ -21,6 +15,12 @@
 #### Refactor
 
 - pull: install local plugins from the CLI instead of a project script (d588c0a)
+
+### v4.6.1 (2026-11-02)
+
+#### Bug Fixes
+
+- update: use the project's own template, detecting legacy jcore2/jcore1 (badaa72)
 
 ## v4.6.0 (2026-10-30)
 
