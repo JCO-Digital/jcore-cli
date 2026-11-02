@@ -220,3 +220,67 @@ func equalSlices(a, b []string) bool {
 	}
 	return true
 }
+
+func TestProjectTemplate(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+
+	write := func(dir, name, content string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jcore2Repo := func() string {
+		dir := t.TempDir()
+		for _, args := range [][]string{
+			{"init"},
+			{"update-index", "--add", "--cacheinfo", "160000,a39b904810da89e481054189f4c0de6403d7d4a5,wp-content/themes/jcore2"},
+		} {
+			cmd := exec.Command("git", args...)
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("git %v failed: %v\n%s", args, err, out)
+			}
+		}
+		return dir
+	}
+
+	// An old jcore2 project: defaults.toml without a template key.
+	legacy := jcore2Repo()
+	write(legacy, "defaults.toml", "theme = \"jcore2-child\"\n")
+	if got := ProjectTemplate(legacy); got != "jcore2" {
+		t.Errorf("legacy jcore2 project: got %q, want jcore2", got)
+	}
+
+	// An explicit template wins over detection; jcore.toml over defaults.toml.
+	explicit := jcore2Repo()
+	write(explicit, "defaults.toml", "template = \"jcore3\"\n")
+	if got := ProjectTemplate(explicit); got != "jcore3" {
+		t.Errorf("defaults.toml template: got %q, want jcore3", got)
+	}
+	write(explicit, "jcore.toml", "template = \"blank\"\n")
+	if got := ProjectTemplate(explicit); got != "blank" {
+		t.Errorf("jcore.toml template: got %q, want blank", got)
+	}
+
+	// Nothing to go on: the default.
+	if got := ProjectTemplate(t.TempDir()); got != DefaultTemplate {
+		t.Errorf("empty project: got %q, want %q", got, DefaultTemplate)
+	}
+}
+
+func TestProjectTemplateLocalOverride(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"jcore.toml":        "template = \"jcore3\"\n",
+		".localConfig.toml": "template = \"jcore2\"\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := ProjectTemplate(dir); got != "jcore2" {
+		t.Errorf("local override: got %q, want jcore2", got)
+	}
+}

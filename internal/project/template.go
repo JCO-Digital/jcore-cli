@@ -37,7 +37,7 @@ func CurrentTemplateData() TemplateData {
 
 	templateName := viper.GetString("template")
 	if templateName == "" {
-		templateName = "jcore3"
+		templateName = DefaultTemplate
 	}
 
 	xdebugPort := viper.GetInt("xdebugPort")

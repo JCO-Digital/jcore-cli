@@ -215,6 +215,11 @@ func LoadConfigForProject(projectRoot string) {
 		if localConfig, err := config.GetConfigPath(config.ScopeLocal, projectRoot); err == nil {
 			mergeTOMLWithBranchOverlay(localConfig, branch, "Loaded local config from "+localConfig)
 		}
+
+		// Inside a project, `template` is that project's own template, not
+		// the global scaffolding default (which would otherwise leak in
+		// whenever the project's files don't name one).
+		viper.Set("template", project.ProjectTemplate(projectRoot))
 	}
 }
 
