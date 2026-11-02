@@ -1,5 +1,21 @@
 # Changelog
 
+### v4.7.0-beta.1 (2026-11-02)
+
+#### Features
+
+- compose: add a mounts setting for extra bind mounts (0ed8152)
+- compose: generate the project compose file instead of scaffolding it (aa632bd)
+
+#### Bug Fixes
+
+- config: let template and the knockd settings be set per project (9e3fbe2)
+- config: allow pluginLocal at project scope (b5af026)
+
+#### Refactor
+
+- pull: install local plugins from the CLI instead of a project script (d588c0a)
+
 ## v4.6.0 (2026-10-30)
 
 #### Features

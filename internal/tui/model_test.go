@@ -438,8 +438,8 @@ remoteDomain = 'stagingtest.jcore.fi'
 // TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings reproduces the
 // case of running `jcore config edit` with no projectRoot: project-eligible
 // settings like remoteDomain don't make sense to edit into the global
-// config, so only ScopeClassGlobalOnly settings (e.g. logLevel, template)
-// should appear - and a category with none of those (e.g. "Domains") should
+// config, so only global-only (e.g. logLevel) and global-default (e.g.
+// template, knockdPorts) settings should appear - and a category with none of those (e.g. "Domains") should
 // be dropped entirely rather than shown as an empty header.
 func TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings(t *testing.T) {
 	items := buildItems("", "")
@@ -450,7 +450,7 @@ func TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings(t *testing.T) {
 		switch v := it.(type) {
 		case settingItem:
 			seenKeys[v.def.Key] = true
-			if v.def.ScopeClass != config.ScopeClassGlobalOnly {
+			if v.def.ScopeClass == config.ScopeClassProjectEligible {
 				t.Errorf("buildItems(\"\", \"\") included project-eligible setting %q", v.def.Key)
 			}
 		case headerItem:
@@ -465,10 +465,10 @@ func TestBuildItems_OutsideProjectOnlyShowsGlobalOnlySettings(t *testing.T) {
 		t.Error("expected project-eligible setting remoteDomain to be absent")
 	}
 	if !seenKeys["knockdPorts"] {
-		t.Error("expected global-only setting knockdPorts to be present outside a project")
+		t.Error("expected global-default setting knockdPorts to be present outside a project")
 	}
 	if !seenKeys["knockdTimeout"] {
-		t.Error("expected global-only setting knockdTimeout to be present outside a project")
+		t.Error("expected global-default setting knockdTimeout to be present outside a project")
 	}
 	if seenKeys["remoteHost"] {
 		t.Error("expected project-eligible setting remoteHost to be absent")
