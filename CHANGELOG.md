@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.7.1-beta.2 (2026-11-02)
+
+#### Features
+
+- skills: add skills-sync command (81c8ca0)
+
 ### v4.7.1-beta.1 (2026-11-02)
 
 #### Bug Fixes
