@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.7.0-beta.2 (2026-11-02)
+
+#### Bug Fixes
+
+- update: use the project's own template, detecting legacy jcore2/jcore1 (fc10237)
+
 ### v4.7.0-beta.1 (2026-11-02)
 
 #### Features
