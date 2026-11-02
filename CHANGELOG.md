@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.6.1 (2026-11-02)
+
+#### Bug Fixes
+
+- update: use the project's own template, detecting legacy jcore2/jcore1 (badaa72)
+
 ## v4.6.0 (2026-10-30)
 
 #### Features
