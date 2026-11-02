@@ -491,6 +491,30 @@ workflow) and jcore refuses to run any command other than `config`/
 remote` (or `local`, or via `config edit`), or pass the global
 `--letmebreakthings` flag to proceed anyway.
 
+## `skills-sync`
+
+Pulls the shared J&Co agent skills from
+[JCO-Digital/jcore-skills](https://github.com/JCO-Digital/jcore-skills) and
+installs them into Claude Code. It works from any directory and doesn't need
+a project.
+
+- Clones the repo (shallow) into a checkout that jcore manages at
+  `$XDG_DATA_HOME/jcore/jcore-skills` (default
+  `~/.local/share/jcore/jcore-skills`). Later runs fetch the remote's default
+  branch and hard-reset onto it, so any edits made in that checkout are lost.
+  Do your skill work in your own clone of the repo.
+- Symlinks every top-level directory that has a `SKILL.md` into Claude
+  Code's global skills directory (`~/.claude/skills`, or
+  `$CLAUDE_CONFIG_DIR/skills` if that's set). Symlinks that already point at
+  the checkout are left as they are. Symlinks into the checkout for skills
+  that were removed upstream get deleted.
+- If a skill's name is already taken by a symlink that points somewhere else
+  (for example your own development clone), that symlink is left alone.
+  `--force`/`-f` replaces it. A real file or directory with that name is
+  never touched, even with `--force`.
+- `--repo <url>` pulls from a different git URL, such as a fork or an SSH
+  remote.
+
 ## `checksum`
 
 Manages file checksums to track changes in core files.
