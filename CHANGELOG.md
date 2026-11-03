@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.7.1-beta.3 (2026-11-03)
+
+#### Bug Fixes
+
+- pull: disable GTID info in remote mysqldump (23a7b95)
+
 ### v4.7.1-beta.2 (2026-11-02)
 
 #### Features
