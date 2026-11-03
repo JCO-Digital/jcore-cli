@@ -235,9 +235,16 @@ func FetchRemoteDatabase(remoteHost, remotePath string, excludeArg string, destP
 		"--skip-plugins",
 		"--skip-themes",
 		fmt.Sprintf("--path=%s", remotePath),
+		`"$@"`,
 		"-",
 	)
-	remoteCmd := strings.Join(remoteCmdParts, " ")
+	// MySQL's mysqldump (8.0.32+) runs FLUSH TABLES WITH READ LOCK under
+	// --single-transaction when the server has gtid_mode=ON, which needs the
+	// RELOAD privilege that managed DB users (e.g. Cloud SQL) lack. GTID
+	// info is useless for a dev copy, so turn it off - but only when the
+	// remote mysqldump knows the flag, since MariaDB's rejects it.
+	remoteCmd := "if mysqldump --help 2>/dev/null | grep -q -- --set-gtid-purged; then set -- --set-gtid-purged=OFF; else set --; fi; " +
+		strings.Join(remoteCmdParts, " ")
 
 	sshArgs := []string{
 		"-T",
