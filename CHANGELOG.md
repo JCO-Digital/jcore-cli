@@ -1,22 +1,22 @@
 # Changelog
 
-### v4.7.1-beta.3 (2026-11-03)
-
-#### Bug Fixes
-
-- pull: disable GTID info in remote mysqldump (23a7b95)
-
-### v4.7.1-beta.2 (2026-11-02)
+### v4.7.1-beta.4 (2026-11-04)
 
 #### Features
 
 - skills: add skills-sync command (81c8ca0)
 
-### v4.7.1-beta.1 (2026-11-02)
+#### Bug Fixes
+
+- pull: search-replace every prefixed table on multisites (54bd411)
+- pull: disable GTID info in remote mysqldump (23a7b95)
+- update: use the project's own template, detecting legacy jcore2/jcore1 (fc10237)
+
+### v4.7.1 (2026-11-04)
 
 #### Bug Fixes
 
-- update: use the project's own template, detecting legacy jcore2/jcore1 (fc10237)
+- pull: search-replace every prefixed table on multisites (42e0098)
 
 ## v4.7.0 (2026-11-02)
 
