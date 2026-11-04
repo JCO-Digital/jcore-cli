@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.7.1 (2026-11-04)
+
+#### Bug Fixes
+
+- pull: search-replace every prefixed table on multisites (42e0098)
+
 ## v4.7.0 (2026-11-02)
 
 #### Features
