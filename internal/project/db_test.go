@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -241,5 +242,18 @@ func TestProgressWriterUnknownTotal(t *testing.T) {
 	}
 	if !bytes.Contains(out.Bytes(), []byte("2.0 KB")) || bytes.Contains(out.Bytes(), []byte("%")) {
 		t.Errorf("unexpected progress line for unknown total: %q", out.String())
+	}
+}
+
+func TestSearchReplaceArgs(t *testing.T) {
+	got := searchReplaceArgs("//example.com", "//example.localhost")
+	want := []string{
+		"wp", "search-replace", "--network", "--all-tables-with-prefix",
+		"--path=/var/www/html", "--skip-plugins", "--skip-themes",
+		"//example.com", "//example.localhost",
+		"--recurse-objects", "--report-changed-only", "--skip-columns=guid",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("searchReplaceArgs:\n got  %v\n want %v", got, want)
 	}
 }

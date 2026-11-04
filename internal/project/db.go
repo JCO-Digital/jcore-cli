@@ -35,12 +35,13 @@ func ImportDatabaseLegacy(projectDir string) error {
 }
 
 // ImportDatabaseNative orchestrates the host-driven database migration:
-// 1. Decompresses update.sql.gz if present.
-// 2. If update.sql is absent, knocks (if configured) and fetches via host SSH.
-// 3. Updates table prefix in wp-config.php.
-// 4. Pipes the SQL dump directly into the MariaDB container.
-// 5. Rotates update.sql to db.sql.
-// 6. Runs wp search-replace in the wordpress container with --skip-plugins --skip-themes.
+//  1. Decompresses update.sql.gz if present.
+//  2. If update.sql is absent, knocks (if configured) and fetches via host SSH.
+//  3. Updates table prefix in wp-config.php.
+//  4. Pipes the SQL dump directly into the MariaDB container.
+//  5. Rotates update.sql to db.sql.
+//  6. Runs wp search-replace in the wordpress container over every table with
+//     the WordPress prefix (see searchReplaceArgs).
 func ImportDatabaseNative(projectDir string) error {
 	// Execute custom before-script inside container if present
 	if err := RunCustomScript(projectDir, "db-before"); err != nil {
@@ -481,16 +482,34 @@ func ApplyDomainReplacements(projectDir string) error {
 				continue
 			}
 			fmt.Printf("Replacing %s with %s...\n", from, to)
-			err := docker.ComposeExecFiltered(projectDir, "wordpress", []string{
-				"wp", "search-replace", "--network", "--path=/var/www/html", "--skip-plugins", "--skip-themes",
-				from, to, "--recurse-objects", "--report-changed-only", "--skip-columns=guid",
-			})
+			err := docker.ComposeExecFiltered(projectDir, "wordpress", searchReplaceArgs(from, to))
 			if err != nil {
 				logging.Warn("Search-replace warning for %s -> %s: %v", from, to, err)
 			}
 		}
 	}
 	return nil
+}
+
+// searchReplaceArgs builds the wp-cli search-replace command for one replace
+// rule.
+//
+// --all-tables-with-prefix makes wp-cli pick tables with
+// SHOW TABLES LIKE '<prefix>%', which covers every site of a multisite and
+// prefixed plugin tables. Don't rely on --network alone: it lists each site's
+// tables through the blogs table for the network WordPress resolved at boot.
+// Right after an import the site and blogs tables still hold the remote
+// domain while DOMAIN_CURRENT_SITE is the local one, so that lookup finds no
+// sites and only the global tables (users, usermeta, sitemeta, blogs, site)
+// get replaced. Every rule that runs before the network domain is rewritten
+// then misses the sites' own tables. The legacy importdb script passed the
+// same flag.
+func searchReplaceArgs(from, to string) []string {
+	return []string{
+		"wp", "search-replace", "--network", "--all-tables-with-prefix",
+		"--path=/var/www/html", "--skip-plugins", "--skip-themes",
+		from, to, "--recurse-objects", "--report-changed-only", "--skip-columns=guid",
+	}
 }
 
 // getDBCredentials resolves the database credentials from viper or .env.
