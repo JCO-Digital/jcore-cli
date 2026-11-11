@@ -356,8 +356,12 @@ Built for scripts as much as for typing:
     shows them. This only affects the command run, not the site.
   - A terminal is allocated only when stdin, stdout and stderr all are
     one; otherwise stdout and stderr stay separate streams.
-  - jcore exits with the command's exit code.`,
-	Args: cobra.MinimumNArgs(1),
+  - jcore exits with the command's exit code.
+
+With shell completions installed, jcore run wp <Tab> completes through
+wp-cli in the wordpress container (same suggestions as inside jcore shell).`,
+	Args:              cobra.MinimumNArgs(1),
+	ValidArgsFunction: completeRunArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, err := project.FindProjectRoot()
 		if err != nil || projectDir == "" {
@@ -452,6 +456,11 @@ Optionally pass a container name to attach to a single container's logs.`,
 var shellCmd = &cobra.Command{
 	Use:   "shell",
 	Short: "Open a shell in the wordpress container",
+	Long: `Opens a bash shell inside the project's wordpress container.
+
+The shell loads the container user's normal bashrc and registers wp-cli
+tab completion, so typing wp <Tab> completes commands, plugins and themes
+against the site running in the container.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		projectDir, err := project.FindProjectRoot()
 		if err != nil || projectDir == "" {
@@ -459,7 +468,13 @@ var shellCmd = &cobra.Command{
 			return
 		}
 
-		_ = docker.ComposeExec(projectDir, "wordpress", []string{"/bin/bash"})
+		rcfile, err := project.WriteShellRC(projectDir)
+		if err != nil {
+			logging.Warn("Could not write the shell rcfile that enables wp-cli completions: %v", err)
+			_ = docker.ComposeExec(projectDir, "wordpress", []string{"/bin/bash"})
+			return
+		}
+		_ = docker.ComposeExec(projectDir, "wordpress", []string{"/bin/bash", "--rcfile", rcfile})
 	},
 }
 
