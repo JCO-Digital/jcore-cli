@@ -1,5 +1,11 @@
 # Changelog
 
+## v4.9.0 (2026-11-11)
+
+#### Features
+
+- run: complete wp-cli commands in jcore run and shell (02642fc)
+
 ## v4.8.0 (2026-11-04)
 
 #### Features
