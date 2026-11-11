@@ -284,6 +284,26 @@ func ComposeExecCapturedTimeout(projectDir string, service string, cmdParts []st
 	return string(out), err
 }
 
+// ComposeExecStdoutTimeout runs a non-interactive command with opts.Env,
+// returns only its stdout, and kills it if timeout elapses. Stderr is
+// discarded so callers that parse stdout as data (e.g. tab completion)
+// aren't polluted by PHP/Xdebug chatter. TTY is always off.
+func ComposeExecStdoutTimeout(projectDir, service string, opts ExecOptions, cmdParts []string, timeout time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	opts.TTY = false
+	cmd := exec.CommandContext(ctx, "docker", composeExecArgs(service, opts, cmdParts)...)
+	cmd.Dir = projectDir
+	cmd.Stderr = io.Discard
+
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return string(out), ctx.Err()
+	}
+	return string(out), err
+}
+
 // ComposeExecWithStdin runs a command in a service container with a custom stdin
 func ComposeExecWithStdin(projectDir string, service string, cmdParts []string, stdin io.Reader) error {
 	args := []string{"compose", "exec", "-T", service} // Use -T to disable pseudo-tty when piping

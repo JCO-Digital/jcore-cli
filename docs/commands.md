@@ -181,7 +181,12 @@ Attaches to the logs of the running containers.
 
 Opens a bash shell inside the `wordpress` container.
 
-- Runs `docker compose exec wordpress /bin/bash`.
+- Writes `.jcore/shell.rc` (rewritten when its contents change) and starts
+  bash with `--rcfile` pointing at it inside the container. That rcfile
+  sources the container user's normal bashrc and registers wp-cli tab
+  completion, so `wp <Tab>` completes commands, plugins and themes against
+  the running site. If the rcfile can't be written, falls back to plain
+  `/bin/bash`.
 
 ## `ssh [-- command...]`
 
@@ -222,6 +227,11 @@ jcore run wp db export - > dump.sql
   its own error reporting.
 - A terminal is allocated only when stdin, stdout and stderr all are one.
   Otherwise stdout and stderr stay separate, and stdin is passed through.
+- With shell completions installed (`jcore update self` or
+  `make install-completions`), `jcore run wp <Tab>` completes through
+  wp-cli in the `wordpress` container — the same suggestions as inside
+  `jcore shell`. Completion is skipped (soft-fail) when the project or
+  container isn't available.
 - Exits with the command's exit code.
 
 ## `pull [plugins|db|media|themes|all]`
