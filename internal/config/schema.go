@@ -78,6 +78,7 @@ var Settings = []SettingDef{
 	// WordPress
 	{Key: "wpImage", Type: TypeString, Default: "jcodigi/wordpress:latest", Category: "WordPress", Description: "Docker image used for the WordPress container."},
 	{Key: "wpVersion", Type: TypeString, Default: "latest", Category: "WordPress", Description: "WordPress version to install."},
+	{Key: "phpVersion", Type: TypeString, Category: "WordPress", Description: "PHP version composer.json targets (config.platform.php). A minor like \"8.4\" tracks its latest patch release on `jcore update project`; a full version like \"8.4.12\" pins it. Defaults to the minor already in composer.json, then the template's."},
 	{Key: "wpDebug", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG."},
 	{Key: "wpDebugLog", Type: TypeBool, Default: false, Category: "WordPress", Description: "Enable WP_DEBUG_LOG."},
 	{Key: "wpDebugDisplay", Type: TypeBool, Default: true, Category: "WordPress", Description: "Enable WP_DEBUG_DISPLAY."},

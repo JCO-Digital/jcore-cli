@@ -26,6 +26,11 @@ type TemplateData struct {
 	XdebugMode   string
 	XdebugPort   int
 	YdinVersion  string
+	// PHPVersion is the full PHP version for composer.json's
+	// config.platform.php. It needs the project directory (see
+	// ResolvePHPVersion), so CurrentTemplateData leaves it empty and the
+	// project scaffold/update code fills it in.
+	PHPVersion string
 }
 
 // CurrentTemplateData builds TemplateData from the currently loaded configuration.
