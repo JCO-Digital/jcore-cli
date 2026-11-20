@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -14,6 +15,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// phpMinorValue matches a PHP minor version given to `jcore config set php`,
+// bare ("8.4") or as an image tag ("php8.4"), capturing the minor.
+var phpMinorValue = regexp.MustCompile(`^(?:php)?(\d+\.\d+)$`)
 
 // configCmd represents the config command
 var configCmd = &cobra.Command{
@@ -197,6 +202,12 @@ var setCmd = &cobra.Command{
 		case "php":
 			_ = store.Set("wpImage", fmt.Sprintf("jcodigi/wordpress:%s", value))
 			fmt.Printf("Set PHP version (wpImage) to: %s in %s\n", value, store.Path())
+			// Keep composer's platform PHP on the same minor as the
+			// container; `jcore update project` resolves the patch.
+			if m := phpMinorValue.FindStringSubmatch(value); m != nil {
+				_ = store.Set("phpVersion", m[1])
+				fmt.Printf("Set phpVersion to: %s in %s (run `jcore update project` to apply it to composer.json)\n", m[1], store.Path())
+			}
 		default:
 			if err := store.Set(key, value); err != nil {
 				fmt.Printf("Error: %v\n", err)

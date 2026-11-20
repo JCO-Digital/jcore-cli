@@ -2,6 +2,7 @@
 branch = "irishcoffee"
 branches = ["gintonic", "hurricane", "irishcoffee"]
 ydinVersions = { gintonic = "^3", hurricane = "^4", irishcoffee = "^5" }
+php = "8.4"
 themeUrl = "https://github.com/JCO-Digital/jcore-ilme/archive/refs/heads/{{branch}}.zip"
 lohko = true
 plugins = [
@@ -13,6 +14,7 @@ plugins = [
 branch = "grasshopper"
 branches = ["elduelo", "fluffycritter", "grasshopper"]
 themeUrl = "https://files.jco.fi/jcore2-child-{{branch}}.zip"
+php = "8.2"
 child = true
 
 [[jcore2.submodules]]

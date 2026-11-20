@@ -46,6 +46,7 @@ JCore CLI uses TOML files for configuration. Settings are merged from several lo
 | `wpDebugLog`       | boolean | `false`                                   | Enable `WP_DEBUG_LOG` in WordPress.                                                                   |
 | `wpImage`          | string  | `"jcodigi/wordpress:latest"`              | Docker image to use for WordPress.                                                                    |
 | `wpVersion`        | string  | `"latest"`                                | WordPress version to install.                                                                         |
+| `phpVersion`       | string  | (from `composer.json`, else the template) | PHP version `composer.json` targets (`config.platform.php`). `"8.4"` tracks the latest patch on `jcore update project`; `"8.4.12"` pins it. `jcore config set php` sets it too.|
 | `xdebugPort`       | number  | `9003`                                    | Port Xdebug connects back to the IDE on. Give projects you debug at the same time different ports.     |
 
 ### Xdebug with several projects

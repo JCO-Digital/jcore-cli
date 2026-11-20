@@ -25,6 +25,7 @@ func ScaffoldProject(targetDir string, template string) error {
 	}
 
 	data := CurrentTemplateData()
+	data.PHPVersion = ResolvePHPVersion(targetDir, template)
 	checksums := make(map[string]string)
 
 	// 1. Scaffold Base Assets
@@ -108,6 +109,7 @@ func RenderThemeFiles(projectDir string) error {
 		return fmt.Errorf("failed to load checksums: %w", err)
 	}
 	data := CurrentTemplateData()
+	data.PHPVersion = ResolvePHPVersion(projectDir, viper.GetString("template"))
 
 	render := func(srcFS fs.FS, srcRoot string) error {
 		return fs.WalkDir(srcFS, srcRoot, func(path string, d fs.DirEntry, err error) error {
@@ -185,6 +187,7 @@ func UpdateProject(projectDir string, only []string, force []string) error {
 	fmt.Printf("Updating project using template: %s\n", template)
 
 	data := CurrentTemplateData()
+	data.PHPVersion = ResolvePHPVersion(projectDir, template)
 
 	// 1. Update Base Assets
 	err = updateFromFS(container.BaseAssets, "base", projectDir, checksums, only, force, data)
@@ -199,6 +202,19 @@ func UpdateProject(projectDir string, only []string, force []string) error {
 		// Template might not exist in embedded assets, just warn if it's not "jcore3"
 		if template != DefaultTemplate {
 			fmt.Printf("Warning: Template assets for '%s' not found or failed to update.\n", template)
+		}
+	}
+
+	// 3. Keep composer.json's PHP platform version current even when the
+	// file is locally modified (it nearly always is, so the checksum rules
+	// above would skip it): roave/security-advisories refuses installs on
+	// a vulnerable PHP version.
+	if len(only) == 0 || slices.Contains(only, "composer.json") {
+		changed, err := SyncComposerPlatformPHP(projectDir, data.PHPVersion, checksums)
+		if err != nil {
+			fmt.Printf("Warning: failed to update the PHP version in composer.json: %v\n", err)
+		} else if changed {
+			fmt.Printf("  [  OK  ] Set composer.json platform PHP to %s (run `composer update --lock` to refresh composer.lock)\n", data.PHPVersion)
 		}
 	}
 

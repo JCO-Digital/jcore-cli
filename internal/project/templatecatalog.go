@@ -18,6 +18,9 @@ type TemplateCatalogEntry struct {
 	Lohko        bool              `toml:"lohko"`
 	Plugins      []string          `toml:"plugins"`
 	YdinVersions map[string]string `toml:"ydinVersions"`
+	// PHP is the PHP minor version (e.g. "8.4") new projects target in
+	// composer.json; the patch release is resolved at render time.
+	PHP string `toml:"php"`
 }
 
 // YdinVersion returns the ydin constraint configured for branch, falling back
