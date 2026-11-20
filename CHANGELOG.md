@@ -1,5 +1,11 @@
 # Changelog
 
+### v4.10.0-beta.1 (2026-11-20)
+
+#### Features
+
+- templates: track a full PHP patch version in composer.json (9b86703)
+
 ## v4.9.0 (2026-11-11)
 
 #### Features
@@ -831,4 +837,3 @@
 - Parser (d4492df)
 - Commands and flags (babe8b6)
 - Initial commit (6bf6aa5)
-
