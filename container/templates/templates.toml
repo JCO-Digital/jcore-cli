@@ -36,5 +36,5 @@ child = true
 
 [[jcore1.submodules]]
 path = "wp-content/themes/jcore"
-repo = "git@bitbucket.org:jcodigital/jcore.git"
+repo = "git@github.com:JCO-Digital/jcore1.git"
 useBranch = true
