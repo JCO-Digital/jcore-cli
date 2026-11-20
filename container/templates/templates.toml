@@ -11,15 +11,18 @@ plugins = [
 ]
 
 [jcore2]
-branch = "grasshopper"
-branches = ["elduelo", "fluffycritter", "grasshopper"]
+# New projects use the Timber 2 parent theme branches. Existing projects keep
+# whatever branch they track (the bare "grasshopper" etc. are Timber 1); the
+# composer template's timber/timber constraint follows the project's branch.
+branch = "timber2/grasshopper"
+branches = ["timber2/elduelo", "timber2/fluffycritter", "timber2/grasshopper"]
 themeUrl = "https://files.jco.fi/jcore2-child-{{branch}}.zip"
 php = "8.2"
 child = true
 
 [[jcore2.submodules]]
 path = "wp-content/themes/jcore2"
-repo = "git@bitbucket.org:jcodigital/jcore2.git"
+repo = "git@github.com:JCO-Digital/jcore2.git"
 useBranch = true
 
 [blank]

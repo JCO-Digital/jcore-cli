@@ -126,6 +126,15 @@ project name, template, and (if the template offers more than one) branch.`,
 		cmdGit.Dir = targetDir
 		_ = cmdGit.Run()
 
+		// Add the template's submodules (the jcore2 parent theme), on the
+		// selected branch where they track it.
+		if len(catalogEntry.Submodules) > 0 {
+			fmt.Println("Adding submodules...")
+			if err := project.AddTemplateSubmodules(targetDir, catalogEntry.Submodules, branch); err != nil {
+				fmt.Printf("Warning: failed to add submodules: %v\n", err)
+			}
+		}
+
 		theme := ""
 		notheme, _ := cmd.Flags().GetBool("notheme")
 		if catalogEntry.ThemeURL != "" && !notheme {
