@@ -1,5 +1,12 @@
 # Changelog
 
+### v4.10.0-beta.2 (2026-11-20)
+
+#### Features
+
+- templates: drop default plugins from jcore2 composer, move jcore1 to GitHub (9981348)
+- templates: start new jcore2 projects on the Timber 2 branches (9826877)
+
 ### v4.10.0-beta.1 (2026-11-20)
 
 #### Features
