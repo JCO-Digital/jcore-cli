@@ -31,6 +31,9 @@ type TemplateData struct {
 	// ResolvePHPVersion), so CurrentTemplateData leaves it empty and the
 	// project scaffold/update code fills it in.
 	PHPVersion string
+	// TimberVersion is the timber/timber constraint for the jcore2
+	// template, filled in alongside PHPVersion (see ResolveTimberVersion).
+	TimberVersion string
 }
 
 // CurrentTemplateData builds TemplateData from the currently loaded configuration.

@@ -26,6 +26,7 @@ func ScaffoldProject(targetDir string, template string) error {
 
 	data := CurrentTemplateData()
 	data.PHPVersion = ResolvePHPVersion(targetDir, template)
+	data.TimberVersion = ResolveTimberVersion(targetDir, data.Branch)
 	checksums := make(map[string]string)
 
 	// 1. Scaffold Base Assets
@@ -110,6 +111,7 @@ func RenderThemeFiles(projectDir string) error {
 	}
 	data := CurrentTemplateData()
 	data.PHPVersion = ResolvePHPVersion(projectDir, viper.GetString("template"))
+	data.TimberVersion = ResolveTimberVersion(projectDir, data.Branch)
 
 	render := func(srcFS fs.FS, srcRoot string) error {
 		return fs.WalkDir(srcFS, srcRoot, func(path string, d fs.DirEntry, err error) error {
@@ -188,6 +190,7 @@ func UpdateProject(projectDir string, only []string, force []string) error {
 
 	data := CurrentTemplateData()
 	data.PHPVersion = ResolvePHPVersion(projectDir, template)
+	data.TimberVersion = ResolveTimberVersion(projectDir, data.Branch)
 
 	// 1. Update Base Assets
 	err = updateFromFS(container.BaseAssets, "base", projectDir, checksums, only, force, data)

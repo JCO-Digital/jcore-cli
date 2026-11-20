@@ -10,7 +10,7 @@ import (
 var themeNameRe = regexp.MustCompile(`(?m)^Theme Name:.*$`)
 
 // CreateTheme downloads a child theme archive (substituting "{{branch}}"
-// in themeURLTemplate), extracts it into "wp-content/themes/<slug>" under
+// in themeURLTemplate with ThemeArchiveBranch(branch)), extracts it into "wp-content/themes/<slug>" under
 // projectDir (slug derived from projectName), and rewrites the theme's own
 // style.css "Theme Name:" header to match — mirroring the legacy
 // TypeScript CLI's createTheme(). Returns the theme's slug. The project
@@ -18,7 +18,7 @@ var themeNameRe = regexp.MustCompile(`(?m)^Theme Name:.*$`)
 // RenderThemeFiles.
 func CreateTheme(projectDir, projectName, themeURLTemplate, branch string) (string, error) {
 	slug := Slugify(projectName)
-	url := strings.ReplaceAll(themeURLTemplate, "{{branch}}", branch)
+	url := strings.ReplaceAll(themeURLTemplate, "{{branch}}", ThemeArchiveBranch(branch))
 
 	extractedDir, err := downloadAndExtractZip(url)
 	if err != nil {
